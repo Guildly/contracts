@@ -9,3 +9,7 @@ default_ecosystem: starknet
 #   - name: OpenZeppelin
 #     github: OpenZeppelin/cairo-contracts
 #     version: 0.1.0
+
+# starknet:
+#   import_remapping:
+#     - "@openzeppelin=openzeppelin/0.1.0"
