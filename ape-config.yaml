@@ -1,0 +1,11 @@
+name: game_guilds
+plugins:
+  - name: starknet
+  - name: cairo
+
+default_ecosystem: starknet
+
+# dependencies:
+#   - name: OpenZeppelin
+#     github: OpenZeppelin/cairo-contracts
+#     version: 0.1.0
