@@ -4,7 +4,7 @@
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
-from library import (
+from contracts.library import (
     AccountCallArray,
     Account_execute,
     Account_get_nonce,
@@ -23,7 +23,7 @@ from openzeppelin.introspection.ERC165 import ERC165_supports_interface
 
 from starkware.cairo.common.uint256 import Uint256
 
-from library_ERC721 import (
+from contracts.library_ERC721 import (
     ERC721_name,
     ERC721_symbol,
     ERC721_balanceOf,
