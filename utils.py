@@ -129,6 +129,30 @@ class Signer:
             signature=[sig_r, sig_s]
         )
 
+    async def send_account_transaction(
+        self, account, to, selector_name, calldata, nonce=None, max_fee=0
+    ):
+        return await self.send_account_transactions(
+            account, [(to, selector_name, calldata)], nonce, max_fee
+        )
+
+    async def send_account_transactions(self, account, calls, nonce=None, max_fee=0):
+        if nonce is None:
+            execution_info = await account.get_nonce().call()
+            (nonce,) = execution_info.result
+
+        (call_array, calldata) = from_call_to_call_array(calls)
+
+        message_hash = get_account_transaction_hash(
+            account.contract_address, call_array, calldata, nonce, max_fee
+        )
+        sig_r, sig_s = self.sign(message_hash)
+
+        # print(call_array, calldata, nonce)
+        return await account.__execute__(call_array, calldata, nonce).invoke(
+            signature=[sig_r, sig_s]
+        )
+
 
 def from_call_to_call_array(calls):
     call_array = []
@@ -142,6 +166,7 @@ def from_call_to_call_array(calls):
 
 
 def get_transaction_hash(account, call_array, calldata, nonce, max_fee):
+    print(call_array)
     execute_calldata = [
         len(call_array),
         *[x for t in call_array for x in t],
@@ -149,6 +174,34 @@ def get_transaction_hash(account, call_array, calldata, nonce, max_fee):
         *calldata,
         nonce,
     ]
+    print(f"Normal: {execute_calldata}")
+
+    return calculate_transaction_hash_common(
+        TransactionHashPrefix.INVOKE,
+        TRANSACTION_VERSION,
+        account,
+        get_selector_from_name("__execute__"),
+        execute_calldata,
+        max_fee,
+        StarknetChainId.TESTNET.value,
+        [],
+    )
+
+
+def get_account_transaction_hash(account, call_array, calldata, nonce, max_fee):
+    # print(call_array)
+    print(calldata[0])
+    print(calldata[1:])
+    execute_calldata = [
+        len(call_array),
+        *[x for t in call_array for x in t],
+        len(calldata),
+        *[x for t in calldata[0] for x in t],
+        *calldata[1],
+        calldata[2],
+        nonce,
+    ]
+    print(f"Account: {execute_calldata}")
 
     return calculate_transaction_hash_common(
         TransactionHashPrefix.INVOKE,
