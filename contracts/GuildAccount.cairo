@@ -93,6 +93,21 @@ end
 # Guards
 #
 
+func require_master{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
+    alloc_locals
+    let (caller) = get_caller_address()
+    let (master) = _guild_master.read()
+
+    with_attr error_message("Caller is not guild master"):
+        assert caller = master
+    end
+    return ()
+end
+
 func require_owner_or_member{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -147,6 +162,7 @@ func initialize_owners{
         owners_len: felt,
         owners: felt*
     ):
+    require_master()
 
     _initialize_owners(
         owners_index=0,
@@ -501,7 +517,7 @@ func execute_transaction{
     return (response_len=response.retdata_size, response=response.retdata)
 end
 
-
+@external
 func set_permissions{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
@@ -512,6 +528,8 @@ func set_permissions{
         function_selectors_len: felt,
         function_selectors: felt*
     ):
+    require_master()
+
     _set_allowed_contracts(
         contracts_index=0, 
         contracts_len=contracts_len, 

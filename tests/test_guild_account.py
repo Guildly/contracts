@@ -48,6 +48,7 @@ async def contract_factory():
     guild_account = await starknet.deploy(
         source=GUILD_ACCOUNT,
         constructor_calldata=[
+            account1.contract_address,
             guild_certificate.contract_address,
         ],
     )
@@ -123,52 +124,51 @@ async def test_guild_account(contract_factory):
     execution_info = await game_contract.get_value().call()
     assert execution_info.result == (1,)
 
+@pytest.mark.asyncio
+async def test_permissions(contract_factory):
+    """Tests the set permissions and checking"""
+    (account1, account2, guild_account, test_nft, game_contract) = contract_factory
 
-# @pytest.mark.asyncio
-# async def test_game_function(contract_factory):
-#     """Test using a game contract function with member."""
-#     (guild_account, account, test_nft, game_contract) = contract_factory
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_account.contract_address,
+        selector_name="set_permissions",
+        calldata=[
+            1,
+            game_contract.contract_address,
+            1,
+            get_selector_from_name("set_value_with_nft")
+            ]
+    )
 
-#     await signer2.send_transaction(
-#         account=account,
-#         to=test_nft.contract_address,
-#         selector_name="transferFrom",
-#         calldata=[
-#             account.contract_address,
-#             guild_account.contract_address,
-#             *to_uint(1),
-#         ],
-#     )
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_account.contract_address,
+        selector_name="execute_transaction",
+        calldata=[
+            game_contract.contract_address,
+            get_selector_from_name("set_value_with_nft"),
+            3,
+            *[2, *to_uint(1)],
+        ],
+    )
 
-#     await signer1.send_transaction(
-#         account=guild_account,
-#         to=game_contract.contract_address,
-#         selector_name="set_value_with_nft",
-#         calldata=[1, *to_uint(1)],
-#     )
+    execution_info = await game_contract.get_value().call()
+    assert execution_info.result == (2,)
 
-#     execution_info = await game_contract.get_value().call()
-#     assert execution_info.result == (1,)
+@pytest.mark.asyncio
+async def test_non_permissioned(contract_factory):
+    """Test calling function that has not been permissioned."""
+    (account1, account2, guild_account, test_nft, game_contract) = contract_factory
 
-
-# @pytest.mark.asyncio
-# async def test_add_guild_member(contract_factory):
-#     """Test add guild member."""
-#     (guild_account, account, test_nft, game_contract) = contract_factory
-
-#     await signer1.send_transaction(
-#         account=account,
-#         to=guild_account.contract_address,
-#         selector_name="add_guild_member",
-#         calldata=[account2.contract_address],
-#     )
-
-
-# @pytest.mark.asyncio
-# async def test_set_permissioned_calls(contract_factory):
-#     """Tests setting an allowed call for the guild to check."""
-#     (guild_account, account, test_nft, game_contract) = contract_factory
-
-#     await signer2.send_transaction(
-#         account=guild_account,
-#     )
+    with pytest.raises(StarkException):
+        await signer1.send_transaction(
+            account=account1,
+            to=guild_account.contract_address,
+            selector_name="execute_transaction",
+            calldata=[
+                game_contract.contract_address,
+                get_selector_from_name("set_value_with_nft"),
+                0
+            ],
+    )
