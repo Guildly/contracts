@@ -105,50 +105,39 @@ async def test_signer_nft_transfer(contract_factory):
     #     to=token_gated_account.contract_address,
     #     selector_name="test_function",
     #     calldata=[],
-    # )
+    #
 
-    execution_info = await signer2.send_transaction(
+
+@pytest.mark.asyncio
+async def test_account_nft_transfer(contract_factory):
+    """Test account with NFT"""
+    (token_gated_account, target, account, owner_contract) = contract_factory
+
+    await signer2.send_transaction(
         account=token_gated_account,
         to=token_gated_account.contract_address,
-        selector_name="test_function",
-        calldata=[],
+        selector_name="transferFrom",
+        calldata=[signer2.public_key, account.contract_address, 0, 0],
     )
-    print(execution_info.result.response)
-    print(token_gated_account.contract_address)
-    print(account.contract_address)
-    assert 1 == 2
 
+    callarray, calldata = from_call_to_call_array(
+        [(target.contract_address, "set_value", [4])]
+    )
 
-# @pytest.mark.asyncio
-# async def test_account_nft_transfer(contract_factory):
-#     """Test account with NFT"""
-#     (token_gated_account, target, account, owner_contract) = contract_factory
+    callarray = [(target.contract_address, get_selector_from_name("set_value"), 0, 1)]
+    calldata = [4]
 
-#     await signer2.send_transaction(
-#         account=token_gated_account,
-#         to=token_gated_account.contract_address,
-#         selector_name="transferFrom",
-#         calldata=[signer2.public_key, account.contract_address, 0, 0],
-#     )
+    execution_info = await token_gated_account.get_nonce().call()
+    (nonce,) = execution_info.result
 
-#     callarray, calldata = from_call_to_call_array(
-#         [(target.contract_address, "set_value", [4])]
-#     )
+    print(callarray, calldata, nonce)
 
-#     # callarray = [(target.contract_address, get_selector_from_name("set_value"), 0, 1)]
-#     # calldata = [4]
-
-#     execution_info = await token_gated_account.get_nonce().call()
-#     (nonce,) = execution_info.result
-
-#     print(callarray, calldata, nonce)
-
-#     await signer3.send_account_transaction(
-#         account=account,
-#         to=token_gated_account.contract_address,
-#         selector_name="__execute__",
-#         calldata=[callarray, calldata, nonce],
-#     )
+    await signer3.send_account_transaction(
+        account=account,
+        to=token_gated_account.contract_address,
+        selector_name="__execute__",
+        calldata=[callarray, calldata, nonce],
+    )
 
 
 # execution_info = await signer3.send_transaction(
@@ -161,24 +150,24 @@ async def test_signer_nft_transfer(contract_factory):
 # assert 1 == 2
 
 
-@pytest.mark.asyncio
-async def test_contract_nft_transfer(contract_factory):
-    """Test contract with NFT"""
-    (token_gated_account, target, account, owner_contract) = contract_factory
+# @pytest.mark.asyncio
+# async def test_contract_nft_transfer(contract_factory):
+#     """Test contract with NFT"""
+#     (token_gated_account, target, account, owner_contract) = contract_factory
 
-    await signer2.send_transaction(
-        account=token_gated_account,
-        to=token_gated_account.contract_address,
-        selector_name="transferFrom",
-        calldata=[signer2.public_key, owner_contract.contract_address, 0, 0],
-    )
+#     await signer2.send_transaction(
+#         account=token_gated_account,
+#         to=token_gated_account.contract_address,
+#         selector_name="transferFrom",
+#         calldata=[signer2.public_key, owner_contract.contract_address, 0, 0],
+#     )
 
-    await signer3.send_transaction(
-        account=account,
-        to=owner_contract.contract_address,
-        selector_name="set_dummy_value",
-        calldata=[token_gated_account.contract_address, target.contract_address, 4],
-    )
+#     await signer3.send_transaction(
+#         account=account,
+#         to=owner_contract.contract_address,
+#         selector_name="set_dummy_value",
+#         calldata=[token_gated_account.contract_address, target.contract_address, 4],
+#     )
 
-    execution_info = await target.get_value().call()
-    assert execution_info.result == (4,)
+#     execution_info = await target.get_value().call()
+#     assert execution_info.result == (4,)

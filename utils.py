@@ -166,7 +166,6 @@ def from_call_to_call_array(calls):
 
 
 def get_transaction_hash(account, call_array, calldata, nonce, max_fee):
-    print(call_array)
     execute_calldata = [
         len(call_array),
         *[x for t in call_array for x in t],
@@ -174,7 +173,6 @@ def get_transaction_hash(account, call_array, calldata, nonce, max_fee):
         *calldata,
         nonce,
     ]
-    print(f"Normal: {execute_calldata}")
 
     return calculate_transaction_hash_common(
         TransactionHashPrefix.INVOKE,

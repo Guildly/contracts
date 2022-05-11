@@ -1,6 +1,7 @@
 """GuildAccount.cairo test file."""
 import asyncio
 from copyreg import constructor
+from importlib.abc import ExecutionLoader
 import os
 from secrets import token_bytes
 from unittest.mock import call
@@ -15,6 +16,7 @@ signer1 = Signer(123456789987654321)
 signer2 = Signer(987654321123456789)
 signer3 = Signer(567899876512344321)
 
+GUILD_CERTIFICATE = os.path.join("contracts", "GuildCertificate.cairo")
 GUILD_ACCOUNT = os.path.join("contracts", "GuildAccount.cairo")
 GAME_CONTRACT = os.path.join("contracts", "game_contract.cairo")
 TEST_NFT = os.path.join("contracts", "TestNFT.cairo")
@@ -35,14 +37,38 @@ async def contract_factory():
     account2 = await starknet.deploy(
         "openzeppelin/account/Account.cairo", constructor_calldata=[signer2.public_key]
     )
-    guild_account = await starknet.deploy(
-        source=GUILD_ACCOUNT,
+    guild_certificate = await starknet.deploy(
+        source=GUILD_CERTIFICATE,
         constructor_calldata=[
             str_to_felt("Token Gated Account"),
             str_to_felt("TGA"),
-            [account1.contract_address, account2.contract_address],
+            account1.contract_address,
         ],
     )
+    guild_account = await starknet.deploy(
+        source=GUILD_ACCOUNT,
+        constructor_calldata=[
+            guild_certificate.contract_address,
+        ],
+    )
+    # Transfer ownership
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_certificate.contract_address,
+        selector_name="transfer_ownership",
+        calldata=[guild_account.contract_address],
+    )
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_account.contract_address,
+        selector_name="initialize_owners",
+        calldata=[
+            2,
+            account1.contract_address,
+            account2.contract_address,
+        ],
+    )
+
     test_nft = await starknet.deploy(
         source=TEST_NFT,
         constructor_calldata=[
@@ -71,27 +97,31 @@ async def test_guild_account(contract_factory):
     """Test guild account."""
     (account1, account2, guild_account, test_nft, game_contract) = contract_factory
 
-    await signer2.send_transaction(
-        account=account,
+    await signer1.send_transaction(
+        account=account1,
         to=test_nft.contract_address,
         selector_name="transferFrom",
         calldata=[
-            account.contract_address,
+            account1.contract_address,
             guild_account.contract_address,
             *to_uint(1),
         ],
     )
 
-    await signer2.send_transaction(
-        account=guild_account,
-        to=test_nft.contract_address,
-        selector_name="transferFrom",
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_account.contract_address,
+        selector_name="execute_transaction",
         calldata=[
-            guild_account.contract_address,
-            account.contract_address,
-            *to_uint(1),
+            game_contract.contract_address,
+            get_selector_from_name("set_value_with_nft"),
+            3,
+            *[1, *to_uint(1)],
         ],
     )
+
+    execution_info = await game_contract.get_value().call()
+    assert execution_info.result == (1,)
 
 
 # @pytest.mark.asyncio

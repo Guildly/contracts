@@ -54,12 +54,3 @@ func set_value_with_nft{
     value.write(val)
     return()
 end
-
-@external
-func revert_function{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }():
-    return ()
-end
