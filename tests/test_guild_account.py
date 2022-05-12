@@ -18,7 +18,7 @@ signer3 = Signer(567899876512344321)
 
 GUILD_CERTIFICATE = os.path.join("contracts", "GuildCertificate.cairo")
 GUILD_ACCOUNT = os.path.join("contracts", "GuildAccount.cairo")
-GAME_CONTRACT = os.path.join("contracts", "game_contract.cairo")
+GAME_CONTRACT = os.path.join("contracts", "GameContract.cairo")
 TEST_NFT = os.path.join("contracts", "TestNFT.cairo")
 
 

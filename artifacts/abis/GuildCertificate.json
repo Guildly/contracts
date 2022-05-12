@@ -452,5 +452,29 @@
         "name": "change_token_data",
         "outputs": [],
         "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "certificate_id",
+                "type": "Uint256"
+            },
+            {
+                "name": "token",
+                "type": "felt"
+            },
+            {
+                "name": "token_id",
+                "type": "Uint256"
+            }
+        ],
+        "name": "check_token_data",
+        "outputs": [
+            {
+                "name": "bool",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
     }
 ]
