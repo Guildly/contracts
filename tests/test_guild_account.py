@@ -170,7 +170,7 @@ async def test_non_permissioned(contract_factory):
             selector_name="execute_transaction",
             calldata=[
                 game_contract.contract_address,
-                get_selector_from_name("set_value_with_nft"),
+                get_selector_from_name("get_value"),
                 0,
             ],
         )
