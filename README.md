@@ -10,6 +10,10 @@ This project provides the following:
 
   - Account that has multiple owners based on NFT gated access.
 
+## Architecture
+
+<img src="./Guild_Architecture_V0.1.0.png" alt="guild-architecture">
+
 ## Setup
 
 ```
