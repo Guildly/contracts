@@ -133,14 +133,16 @@ async def test_permissions(contract_factory):
     await signer1.send_transaction(
         account=account1,
         to=guild_account.contract_address,
-        selector_name="set_permissions",
+        selector_name="set_permission",
         calldata=[
-            1,
             game_contract.contract_address,
             1,
             get_selector_from_name("set_value_with_nft"),
         ],
     )
+
+    execution_info = await guild_account.get_allowed_contracts().call()
+    assert execution_info.result == ([game_contract.contract_address],)
 
     await signer1.send_transaction(
         account=account1,

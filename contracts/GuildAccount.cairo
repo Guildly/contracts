@@ -2,8 +2,8 @@
 
 %lang starknet
 
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
-
 
 from starkware.starknet.common.syscalls import (
     call_contract, 
@@ -75,11 +75,11 @@ func _allowed_contracts(index: felt) -> (res: felt):
 end
 
 @storage_var
-func _allowed_functions_len() -> (res: felt):
+func _allowed_functions_len(contract: felt) -> (res: felt):
 end
 
 @storage_var
-func _allowed_functions(index: felt) -> (res: felt):
+func _allowed_functions(contract: felt, index: felt) -> (res: felt):
 end
 
 @storage_var
@@ -239,6 +239,61 @@ func supportsInterface{
     return (success)
 end
 
+@view
+func get_nonce{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: felt):
+    let (res) = _current_nonce.read()
+    return (res=res)
+end
+
+@view
+func get_allowed_contracts{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (
+        allowed_contracts_len: felt,
+        allowed_contracts: felt*
+    ):
+    alloc_locals
+    let (allowed_contracts_len) = _allowed_contracts_len.read()
+    let (allowed_contracts) = alloc()
+
+    _get_allowed_contracts(
+        allowed_contracts_index=0,
+        allowed_contracts_len=allowed_contracts_len,
+        allowed_contracts=allowed_contracts
+    )
+    return (allowed_contracts_len, allowed_contracts)
+end
+
+func _get_allowed_contracts{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        allowed_contracts_index: felt,
+        allowed_contracts_len: felt,
+        allowed_contracts: felt*
+    ):
+    if allowed_contracts_index == allowed_contracts_len:
+        return ()
+    end
+
+    let (allowed_contract) = _allowed_contracts.read(allowed_contracts_index)
+    assert allowed_contracts[allowed_contracts_index] =  allowed_contract
+
+    _get_allowed_contracts(
+        allowed_contracts_index=allowed_contracts_index + 1,
+        allowed_contracts_len=allowed_contracts_len,
+        allowed_contracts=allowed_contracts
+    )
+    return ()
+end
+
 #
 # Storage helpers
 #
@@ -257,7 +312,8 @@ func _set_allowed_contracts{
     end
 
      # Write the current iteration to storage
-    _allowed_contracts.write(index=contracts_index, value=contracts[contracts_index])
+    _allowed_contracts.write(contracts_index, contracts[contracts_index])
+
     # Recursively write the rest
     _set_allowed_contracts(contracts_index=contracts_index + 1, contracts_len=contracts_len, contracts=contracts)
     return ()
@@ -270,19 +326,21 @@ func _set_allowed_functions{
     }(
         function_selectors_index: felt,
         function_selectors_len: felt,
-        function_selectors: felt*
+        function_selectors: felt*,
+        contract: felt
     ):
     if function_selectors_index == function_selectors_len:
         return ()
     end
 
      # Write the current iteration to storage
-    _allowed_functions.write(index=function_selectors_index, value=[function_selectors])
+    _allowed_functions.write(contract=contract, index=function_selectors_index, value=function_selectors[function_selectors_index])
     # Recursively write the rest
     _set_allowed_functions(
         function_selectors_index=function_selectors_index + 1, 
         function_selectors_len=function_selectors_len, 
-        function_selectors=function_selectors + 1
+        function_selectors=function_selectors,
+        contract=contract
     )
     return ()
 end
@@ -291,16 +349,6 @@ end
 #
 # Externals
 #
-
-@view
-func get_nonce{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (res: felt):
-    let (res) = _current_nonce.read()
-    return (res=res)
-end
 
 @external
 func add_guild_members{
@@ -477,27 +525,27 @@ func execute_transaction{
 end
 
 @external
-func set_permissions{
+func set_permission{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        contracts_len: felt, 
-        contracts: felt*,
+        contract: felt,
         function_selectors_len: felt,
         function_selectors: felt*
     ):
     require_master()
 
-    _set_allowed_contracts(
-        contracts_index=0, 
-        contracts_len=contracts_len, 
-        contracts=contracts
-    )
+    let (allowed_contracts_index) = _allowed_contracts_len.read()
+    _allowed_contracts.write(allowed_contracts_index, contract)
+    _allowed_contracts_len.write(allowed_contracts_index + 1)
+
+    _allowed_functions_len.write(contract, function_selectors_len)
     _set_allowed_functions(
         function_selectors_index=0, 
         function_selectors_len=function_selectors_len, 
-        function_selectors=function_selectors
+        function_selectors=function_selectors,
+        contract=contract
     )
     return ()
 end
@@ -514,8 +562,8 @@ func check_permitted_call{
     let (allowed_contracts_len) = _allowed_contracts_len.read()
     _check_permitted_to(index=0, allowed_contracts_len=allowed_contracts_len, to=to)
 
-    let (allowed_functions_len) = _allowed_functions_len.read()
-    _check_permitted_selector(index=0, allowed_functions_len=allowed_functions_len, selector=function_selector)
+    let (allowed_functions_len) = _allowed_functions_len.read(to)
+    _check_permitted_selector(index=0, allowed_functions_len=allowed_functions_len, selector=function_selector, contract=to)
     
     return ()
 end
@@ -554,13 +602,14 @@ func _check_permitted_selector{
     }(
         index: felt,
         allowed_functions_len: felt,
-        selector: felt
+        selector: felt,
+        contract: felt
     ):
     if index == allowed_functions_len:
         return ()
     end
     
-    let (allowed_function) = _allowed_functions.read(index)
+    let (allowed_function) = _allowed_functions.read(contract, index)
     with_attr error_mesage("Function is not permitted"):
         assert allowed_function = selector
     end
@@ -568,7 +617,8 @@ func _check_permitted_selector{
     _check_permitted_selector(
         index=index + 1,
         allowed_functions_len=allowed_functions_len,
-        selector=selector
+        selector=selector,
+        contract=contract
     )
     return ()
 end
