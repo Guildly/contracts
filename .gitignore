@@ -18,6 +18,9 @@ __pycache__
 #Ape
 .build
 
+#Pytest
+pytest.ini
+
 # Unused folders + files
 test_account_abstraction.py.txt
 contracts/account_abstraction
