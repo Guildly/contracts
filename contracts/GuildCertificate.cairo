@@ -7,7 +7,8 @@ from starkware.starknet.common.syscalls import call_contract, get_caller_address
 from starkware.cairo.common.uint256 import (
     Uint256,
     uint256_add,
-    uint256_sub
+    uint256_sub,
+    uint256_lt
 )
 
 from contracts.utils.constants import FALSE, TRUE
@@ -44,11 +45,11 @@ from openzeppelin.access.ownable import (
 # Structs
 #
 
-struct CertificateData:
-    member owner: felt
-    member share: Uint256
-    member fund: felt
-end
+# struct CertificateTokenData:
+#     member token: felt
+#     member token_id: felt
+#     member amount: felt
+# end
 
 #
 # Storage variables
@@ -67,23 +68,15 @@ func _role(certificate_id: Uint256) -> (res: felt):
 end
 
 # @storage_var
-# func _certificate_data(token_id : Uint256) -> (res: CertificateData):
+# func _certificate_tokens_data_len(certificate_id: Uint256) -> (res: felt):
+# end
+
+# @storage_var
+# func _certificate_tokens_data(certificate_id: Uint256, index: felt) -> (res: CertificateTokenData):
 # end
 
 @storage_var
-func _account_nft_tokens_len(token_id: felt) -> (res: felt):
-end
-
-@storage_var
-func _account_nft_tokens(token_id: Uint256, index: felt) -> (res: felt):
-end
-
-@storage_var
-func _account_nft_token_ids_len(token_id: felt, token: felt) -> (res: felt):
-end
-
-@storage_var
-func _account_nft_token_ids(token_id: felt, token: felt, index: felt) -> (res: felt):
+func _certificate_token_amount(certificate_id: Uint256, token: felt, token_id: Uint256) -> (res: Uint256):
 end
 
 #
@@ -315,6 +308,19 @@ func mint{
 end
 
 @external
+func update_role{
+        pedersen_ptr: HashBuiltin*, 
+        syscall_ptr: felt*, 
+        range_check_ptr
+    }(certificate_id: Uint256, role: felt):
+    Ownable_only_owner()
+
+    _role.write(certificate_id, role)
+    return()
+end
+
+
+@external
 func burn{
         pedersen_ptr: HashBuiltin*, 
         syscall_ptr: felt*, 
@@ -331,24 +337,52 @@ func add_token_data{
         syscall_ptr: felt*, 
         range_check_ptr
     }(
-        certificate_id: felt,
+        certificate_id: Uint256,
         token: felt,
-        token_id: felt,
-        amount: felt
+        token_id: Uint256,
+        amount: Uint256
     ):
+    Ownable_only_owner()
+
+    _certificate_token_amount.write(certificate_id, token, token_id, amount)
+
     return ()
 end
 
 @external
-func remove_token_data{
+func change_token_data{
         pedersen_ptr: HashBuiltin*, 
         syscall_ptr: felt*, 
         range_check_ptr
     }(
-        certificate_id: felt,
+        certificate_id: Uint256,
         token: felt,
-        token_id: felt,
-        amount: felt
+        token_id: Uint256,
+        new_amount: Uint256
     ):
+    Ownable_only_owner()
+
+    _certificate_token_amount.write(certificate_id, token, token_id, new_amount)
+
     return ()
 end
+
+@external
+func check_token_data{        
+        pedersen_ptr: HashBuiltin*, 
+        syscall_ptr: felt*, 
+        range_check_ptr
+    }(
+        certificate_id: Uint256,
+        token: felt,
+        token_id: Uint256
+    ) -> (
+        bool: felt
+    ):
+    alloc_locals
+    Ownable_only_owner()
+    let (amount) = _certificate_token_amount.read(certificate_id, token, token_id)
+    let (check_amount) = uint256_lt(Uint256(0,0),amount)
+    return(check_amount)
+end
+

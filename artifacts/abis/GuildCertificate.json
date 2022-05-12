@@ -384,6 +384,21 @@
     {
         "inputs": [
             {
+                "name": "certificate_id",
+                "type": "Uint256"
+            },
+            {
+                "name": "role",
+                "type": "felt"
+            }
+        ],
+        "name": "update_role",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "name": "tokenId",
                 "type": "Uint256"
             }
@@ -396,7 +411,7 @@
         "inputs": [
             {
                 "name": "certificate_id",
-                "type": "felt"
+                "type": "Uint256"
             },
             {
                 "name": "token",
@@ -404,11 +419,11 @@
             },
             {
                 "name": "token_id",
-                "type": "felt"
+                "type": "Uint256"
             },
             {
                 "name": "amount",
-                "type": "felt"
+                "type": "Uint256"
             }
         ],
         "name": "add_token_data",
@@ -419,7 +434,7 @@
         "inputs": [
             {
                 "name": "certificate_id",
-                "type": "felt"
+                "type": "Uint256"
             },
             {
                 "name": "token",
@@ -427,14 +442,14 @@
             },
             {
                 "name": "token_id",
-                "type": "felt"
+                "type": "Uint256"
             },
             {
-                "name": "amount",
-                "type": "felt"
+                "name": "new_amount",
+                "type": "Uint256"
             }
         ],
-        "name": "remove_token_data",
+        "name": "change_token_data",
         "outputs": [],
         "type": "function"
     }

@@ -14,6 +14,7 @@ from starkware.starknet.common.syscalls import (
 from contracts.utils.constants import FALSE, TRUE
 
 from openzeppelin.introspection.ERC165 import ERC165_supports_interface 
+from openzeppelin.token.erc721.interfaces.IERC721 import IERC721
 from contracts.interfaces.IGuildCertificate import IGuildCertificate
 
 from contracts.lib.role import Role
@@ -108,6 +109,31 @@ func require_master{
     return ()
 end
 
+func require_owner{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
+    alloc_locals
+    let (caller_address) = get_caller_address()
+    let (contract_address) = get_contract_address()
+    let (guild_certificate) = _guild_certificate.read()
+
+    let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
+        contract_address=guild_certificate,
+        owner=caller_address,
+        guild=contract_address
+    )
+
+    let (_role) = IGuildCertificate.get_role(contract_address=guild_certificate, certificate_id=certificate_id)
+
+    with_attr error_message("Caller is not owner"):
+        assert _role = Role.OWNER
+    end
+    return ()
+end
+
+
 func require_owner_or_member{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -118,7 +144,6 @@ func require_owner_or_member{
     let (contract_address) = get_contract_address()
     let (guild_certificate) = _guild_certificate.read()
 
-    tempvar syscall_ptr: felt* = syscall_ptr
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
         contract_address=guild_certificate,
         owner=caller_address,
@@ -214,76 +239,6 @@ func supportsInterface{
     return (success)
 end
 
-@view
-func name{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (name: felt):
-    let (name) = ERC721_name()
-    return (name)
-end
-
-@view
-func symbol{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (symbol: felt):
-    let (symbol) = ERC721_symbol()
-    return (symbol)
-end
-
-@view
-func balanceOf{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(owner: felt) -> (balance: Uint256):
-    let (balance: Uint256) = ERC721_balanceOf(owner)
-    return (balance)
-end
-
-@view
-func ownerOf{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(tokenId: Uint256) -> (owner: felt):
-    let (owner: felt) = ERC721_ownerOf(tokenId)
-    return (owner)
-end
-
-@view
-func getApproved{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(tokenId: Uint256) -> (approved: felt):
-    let (approved: felt) = ERC721_getApproved(tokenId)
-    return (approved)
-end
-
-@view
-func isApprovedForAll{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(owner: felt, operator: felt) -> (isApproved: felt):
-    let (isApproved: felt) = ERC721_isApprovedForAll(owner, operator)
-    return (isApproved)
-end
-
-@view
-func tokenURI{
-        syscall_ptr: felt*, 
-        pedersen_ptr: HashBuiltin*, 
-        range_check_ptr
-    }(tokenId: Uint256) -> (tokenURI: felt):
-    let (tokenURI: felt) = ERC721_tokenURI(tokenId)
-    return (tokenURI)
-end
-
 #
 # Storage helpers
 #
@@ -337,67 +292,6 @@ end
 # Externals
 #
 
-@external
-func approve{
-        pedersen_ptr: HashBuiltin*, 
-        syscall_ptr: felt*, 
-        range_check_ptr
-    }(to: felt, tokenId: Uint256):
-    ERC721_approve(to, tokenId)
-    return ()
-end
-
-@external
-func setApprovalForAll{
-        syscall_ptr: felt*, 
-        pedersen_ptr: HashBuiltin*, 
-        range_check_ptr
-    }(operator: felt, approved: felt):
-    ERC721_setApprovalForAll(operator, approved)
-    return ()
-end
-
-@external
-func transferFrom{
-        pedersen_ptr: HashBuiltin*, 
-        syscall_ptr: felt*, 
-        range_check_ptr
-    }(
-        from_: felt, 
-        to: felt, 
-        tokenId: Uint256
-    ):
-    ERC721_transferFrom(from_, to, tokenId)
-    return ()
-end
-
-@external
-func safeTransferFrom{
-        pedersen_ptr: HashBuiltin*, 
-        syscall_ptr: felt*, 
-        range_check_ptr
-    }(
-        from_: felt, 
-        to: felt, 
-        tokenId: Uint256,
-        data_len: felt, 
-        data: felt*
-    ):
-    ERC721_safeTransferFrom(from_, to, tokenId, data_len, data)
-    return ()
-end
-
-@external
-func setTokenURI{
-        pedersen_ptr: HashBuiltin*, 
-        syscall_ptr: felt*, 
-        range_check_ptr
-    }(tokenId: Uint256, tokenURI: felt):
-    #Ownable_only_owner()
-    ERC721_setTokenURI(tokenId, tokenURI)
-    return ()
-end
-
 @view
 func get_nonce{
         syscall_ptr : felt*, 
@@ -443,43 +337,108 @@ func _add_guild_members{
     return ()
 end
 
-# @external
-# func deposit_ERC721{
-#         syscall_ptr : felt*, 
-#         pedersen_ptr : HashBuiltin*,
-#         range_check_ptr
-#     }(
-#         token: felt,
-#         token_id: felt
-#     ):
-#     let (caller_address) = get_caller_address()
-#     let (contract_address) = get_contract_address()
+@external
+func deposit_ERC721{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        token: felt,
+        token_id: Uint256
+    ):
+    require_owner()
+    let (guild_certificate) = _guild_certificate.read()
 
-#     let (balance) = balanceOf(caller_address)
+    let amount: Uint256 = Uint256(1,0)
 
-#     let (check_balance) = uint256_lt(0,balance)
+    let (caller_address) = get_caller_address()
+    let (contract_address) = get_contract_address()
 
-#     if check_balance == TRUE:
-#         let (account_nft_id) = _account_nft_id(caller_address)
-#         let (account_nft_data) = _account_nft_data.read(account_nft_id)
-#         let data = AccountNFTData(
-#             tokens_len=tokens_len,
-#             tokens=tokens,
-#             token_ids_len=token_ids_len.
-#             token_ids=token_ids
-#         )
-#     else:
-#         let (account_nft_len) = _account_nft_data_len.read()
-#         let (account_nft_id) = account_nft_len + 1
-#         _account_nft_data_len.write(account_nft_id)
+    let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
+        contract_address=guild_certificate,
+        owner=caller_address,
+        guild=contract_address
+    )
 
+    let (check_exists) = IGuildCertificate.check_token_data(
+        contract_address=guild_certificate,
+        certificate_id=certificate_id,
+        token=token,
+        token_id=token_id
+    )
 
-#     IERC721.transferFrom(
-#         contract_address=token, 
-#         from_=caller_address,
-#         to=contract_address,
-#         tokenId=token_id
-#     )
+    with_attr error_message("Caller certificate already holds tokens"):
+        assert check_exists = FALSE
+    end
+
+    # Does the transfer (Also checks they have the token)
+    IERC721.transferFrom(
+        contract_address=token, 
+        from_=caller_address,
+        to=contract_address,
+        tokenId=token_id
+    )
+
+    IGuildCertificate.add_token_data(
+        contract_address=guild_certificate,
+        certificate_id=certificate_id,
+        token=token,
+        token_id=token_id,
+        amount=amount
+    )
+    return ()
+end
+
+@external
+func withdraw_ERC721{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        token: felt,
+        token_id: Uint256
+    ):
+    require_owner()
+    let (guild_certificate) = _guild_certificate.read()
+
+    let new_amount: Uint256 = Uint256(0,0)
+
+    let (caller_address) = get_caller_address()
+    let (contract_address) = get_contract_address()
+
+    let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
+        contract_address=guild_certificate,
+        owner=caller_address,
+        guild=contract_address
+    )
+
+    let (check_exists) = IGuildCertificate.check_token_data(
+        contract_address=guild_certificate,
+        certificate_id=certificate_id,
+        token=token,
+        token_id=token_id
+    )
+
+    with_attr error_message("Caller certificate doesn't hold tokens"):
+        assert check_exists = TRUE
+    end
+
+    IERC721.transferFrom(
+        contract_address=token, 
+        from_=contract_address,
+        to=caller_address,
+        tokenId=token_id
+    )
+
+    IGuildCertificate.change_token_data(
+        contract_address=guild_certificate,
+        certificate_id=certificate_id,
+        token=token,
+        token_id=token_id,
+        new_amount=new_amount
+    )
+    return ()
+end
 
 @external
 func execute_transaction{

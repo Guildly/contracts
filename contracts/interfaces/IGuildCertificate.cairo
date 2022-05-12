@@ -39,15 +39,28 @@ namespace IGuildCertificate:
         ):
     end
 
-    func increase_shares(
+    func add_token_data(
+            certificate_id: Uint256,
+            token: felt,
             token_id: Uint256,
             amount: Uint256
         ):
     end
 
-    func decrease_shares(
+    func change_token_data(
+            certificate_id: Uint256,
+            token: felt,
             token_id: Uint256,
-            amount: Uint256
+            new_amount: Uint256
+        ):
+    end
+
+    func check_token_data(
+            certificate_id: Uint256,
+            token: felt,
+            token_id: Uint256
+        ) -> (
+            bool: felt
         ):
     end
 end
