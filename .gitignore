@@ -1,0 +1,27 @@
+node_modules
+.env
+
+#Nile files
+goerli.deployments.txt
+accounts.json
+node.json
+artifacts/
+artifacts
+./artifacts
+
+#Python artifacts
+__pycache__
+.pytest_cache
+.venv
+.python-version
+
+#Ape
+.build
+
+# Unused folders + files
+test_account_abstraction.py.txt
+contracts/account_abstraction
+old_integration_tests
+
+# New tests
+tests/test_shared_wallet_new.py
