@@ -1,0 +1,11 @@
+:root {
+  --font-family: 'Poppins';
+
+  --button-select-color: rgba(196, 196, 196, 0.25);
+
+  --button-hover-color: rgba(196, 196, 196, 0.75);
+
+  --border-color: #000000;
+  --color-primary: #0c0cd9;
+  --color-secondary: #be3333;
+}
