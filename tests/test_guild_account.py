@@ -10,7 +10,12 @@ import pytest
 from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starkware_utils.error_handling import StarkException
-from utils import str_to_felt, to_uint, Signer, from_call_to_call_array
+from utils import (
+    str_to_felt,
+    to_uint,
+    Signer,
+    from_call_to_call_array
+)
 
 signer1 = Signer(123456789987654321)
 signer2 = Signer(987654321123456789)
