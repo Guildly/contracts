@@ -1,0 +1,65 @@
+import Header from '../components/header';
+import styles from '../styles/Manage.module.css'
+import { useState, useRef } from "react";
+import ShortTextInput from "../components/input";
+import Spinner from "../components/spinner";
+import Link from 'next/link'
+import { useStarknet } from '@starknet-react/core'
+import { useGuildsContract } from '../hooks/guilds';
+
+export default function Manage() {
+
+    const guild = "0x0544ca787ac6f35fe1196badf06c4b247ea04ad3da10035d021ef05af86708c0"
+
+    const { account } = useStarknet();
+    const { contract: guildContract } = useGuildsContract(guild)
+    // const { data } = useGuildsManaged(account);
+
+    return(
+        <div className="background">
+            <Header highlighted={"manage"} />
+            <div className={styles.box}>
+                <div className={styles.header}>
+                    <h1 className={styles.title}>Guilds Your Managing</h1>
+                </div>
+                <div className={styles.manage_options}>
+                    <table>
+                        <thead>
+                            <tr className={styles.table_header}>
+                                <th className={styles.table_first_item}>Guild</th>
+                                <th>Members</th>
+                                <th>Proposals</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {/* {data? data.map((guild) => 
+                                <GuildBox key={guild} guild={guild} />) 
+                            : undefined} */}
+                            <tr className={styles.table_body}>
+                                <td>Titans Of The Dark Circle</td>
+                                <td>47 <Link href="/members/0">(See List)</Link></td>
+                                <td>2</td>
+                                <td className={styles.table_last_item}><button>See More</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    {/* <p className={styles.option_title}>
+                        Guild
+                    </p>
+                    <p className={styles.option_title}>
+                        Governance
+                    </p>
+                    <p className={styles.option_title}>
+                        Permissions
+                    </p> */}
+            </div>
+            </div>
+            <div className={styles.box}>
+                <div className={styles.header}>
+                    <h1 className={styles.title}>Governace</h1>
+                </div>
+            </div>
+        </div>
+    )
+}

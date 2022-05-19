@@ -1,0 +1,51 @@
+* {
+  margin    : 0;
+  padding   : 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin                 : 0;
+  -webkit-font-smoothing : antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.background {
+  background:
+    radial-gradient(at top 35% left 45%,
+      #0d1a286c,
+      transparent 35%),
+    radial-gradient(at bottom center,
+      #0d1d2852,
+      transparent 35%),
+    radial-gradient(circle at top -5% left 35%,
+      #0d1d288a,
+      transparent 25%),
+    radial-gradient(circle at top 15% left 20%,
+      #0d1e288a,
+      transparent 25%),
+    radial-gradient(at top 65% left 5%,
+      rgba(71, 131, 187, 0.623),
+      transparent 50%),
+    radial-gradient(at top 10% left 80%,
+      #0d1d288a,
+      transparent 60%),
+    radial-gradient(at top 80% left 75%,
+      #0d19288a,
+      transparent 40%),
+    radial-gradient(circle at top 75% left 75%,
+      #0d1a288a,
+      transparent 25%),
+    radial-gradient(at top 30% left 75%,
+      rgba(69, 141, 207, 0.623),
+      transparent 70%);
+  background-size      : cover;
+  background-color     : #0D1128;
+  background-repeat    : no-repeat;
+  background-attachment: fixed;
+  min-height           : 100vh;
+  display              : flex;
+  flex-direction       : column;
+  align-items          : center;
+  justify-content      : center;
+}

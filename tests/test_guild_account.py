@@ -45,14 +45,15 @@ async def contract_factory():
     guild_certificate = await starknet.deploy(
         source=GUILD_CERTIFICATE,
         constructor_calldata=[
-            str_to_felt("Token Gated Account"),
-            str_to_felt("TGA"),
+            str_to_felt("Guild certificate"),
+            str_to_felt("GC"),
             account1.contract_address,
         ],
     )
     guild_account = await starknet.deploy(
         source=GUILD_ACCOUNT,
         constructor_calldata=[
+            str_to_felt("Test Guild"),
             account1.contract_address,
             guild_certificate.contract_address,
         ],
@@ -64,15 +65,33 @@ async def contract_factory():
         selector_name="transfer_ownership",
         calldata=[guild_account.contract_address],
     )
+
     await signer1.send_transaction(
         account=account1,
         to=guild_account.contract_address,
-        selector_name="initialize_owners",
+        selector_name="whitelist_members",
         calldata=[
             2,
             account1.contract_address,
             account2.contract_address,
+            2,
+            3,
+            3
         ],
+    )
+
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_account.contract_address,
+        selector_name="join",
+        calldata=[],
+    )
+
+    await signer2.send_transaction(
+        account=account2,
+        to=guild_account.contract_address,
+        selector_name="join",
+        calldata=[],
     )
 
     test_nft = await starknet.deploy(

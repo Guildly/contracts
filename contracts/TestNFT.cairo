@@ -4,7 +4,7 @@
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
-from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.uint256 import Uint256, uint256_add
 
 from openzeppelin.token.erc721.library import (
     ERC721_name,
@@ -32,6 +32,10 @@ from openzeppelin.access.ownable import (
     Ownable_initializer,
     Ownable_only_owner
 )
+
+@storage_var
+func _token_id_count() -> (res : Uint256):
+end
 
 #
 # Constructor
@@ -136,6 +140,16 @@ func tokenURI{
     return (tokenURI)
 end
 
+@view
+func token_id_count{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*, 
+        range_check_ptr
+    }() -> (res: Uint256):
+    let (token_id_count) = _token_id_count.read()
+    return (token_id_count)
+end
+
 
 #
 # Externals
@@ -210,6 +224,9 @@ func mint{
     }(to: felt, tokenId: Uint256):
     Ownable_only_owner()
     ERC721_mint(to, tokenId)
+    let (token_id_count) = _token_id_count.read()
+    let (new_token_id, _) = uint256_add(token_id_count,Uint256(1,0))
+    _token_id_count.write(new_token_id)
     return ()
 end
 

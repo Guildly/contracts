@@ -1,0 +1,102 @@
+.title {
+    color      : white;
+    font-family: Verdana, sans-serif;
+    font-size  : 38px;
+    font-weight: bold;
+    margin     : 70px 0px 0px;
+}
+
+.subtitle {
+    margin     : 16px;
+    color      : white;
+    font-family: Verdana, sans-serif;
+    font-size  : 28px;
+    font-weight: bold;
+}
+
+.subtitlebis {
+    margin     : 14px;
+    color      : white;
+    font-family: Verdana, sans-serif;
+    font-size  : 22px;
+    font-weight: bold;
+}
+
+.descline{
+    margin     : 16px;
+    color      : white;
+    font-family: Verdana, sans-serif;
+    font-size  : 16px;
+}
+
+
+.main {
+    height     : 100%;
+    display    : flex;
+    align-items: center;
+}
+
+.big_card {
+    background-image: url('/illustrations/armyLeft.png');
+    background-size : cover;
+    border-radius   : 20px;
+    width           : min(45vw, 500px);
+    height          : min(60vh, 800px);
+    margin          : 5vh;
+    border          : 6px solid rgb(252, 193, 105);
+}
+
+.card {
+    background-color: #202123b7;
+    background-size : cover;
+    border-radius   : 20px;
+    width           : min(40vw, 400px);
+    height          : min(27.5vh, 400px);
+    margin          : 5vh 0px;
+    padding: 4px;
+}
+
+.box {
+    background     : #191b1fbb;
+    backdrop-filter: blur(10px);
+    border-radius  : 20px 10px 10px 20px;
+    padding        : 36px;
+    margin         : 30px 36px 16px;
+    width          : min(75%, 1000px);
+}
+
+.table_header {
+    display    : flex;
+    gap        : 50px;
+    color      : white;
+    font-family: Verdana, sans-serif;
+    font-size  : 20px;
+    font-weight: bold;
+    margin     : 10px;
+}
+
+.table_body {
+    display    : flex;
+    gap        : 70px;
+    color      : white;
+    font-family: Verdana, sans-serif;
+    font-size  : 20px;
+    font-weight: normal;
+    margin     : 8px;
+}
+
+.table_first_header_item {
+    padding: 0px 160px 0px 0px;
+}
+
+.table_first_body_item {
+    padding: 0px 40px 0px 0px;
+}
+
+.button_add {
+    width: 30px;
+    background-color: green;
+}
+/* .table_last_item {
+    margin: 0px 50px;
+} */

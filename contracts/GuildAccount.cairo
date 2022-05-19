@@ -4,6 +4,7 @@
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
+from starkware.cairo.common.math import assert_le, assert_lt
 
 from starkware.starknet.common.syscalls import (
     call_contract, 
@@ -63,7 +64,15 @@ from openzeppelin.token.erc721.library import (
 #
 
 @storage_var
+func _name() -> (res: felt):
+end
+
+@storage_var
 func _guild_master() -> (res: felt):
+end
+
+@storage_var
+func _whitelisted_role(account: felt) -> (res: felt):
 end
 
 @storage_var
@@ -168,62 +177,17 @@ func constructor{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
+        name: felt,
         master: felt,
         guild_certificate: felt
     ):
+    _name.write(name)
     _guild_master.write(master)
     _guild_certificate.write(guild_certificate)
 
     # Account_initializer(public_key)
     return()
 end
-
-@external
-func initialize_owners{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        owners_len: felt,
-        owners: felt*
-    ):
-    require_master()
-
-    _initialize_owners(
-        owners_index=0,
-        owners_len=owners_len,
-        owners=owners
-    )
-    return ()
-end
-
-
-func _initialize_owners{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        owners_index: felt,
-        owners_len: felt,
-        owners: felt*
-    ):
-    if owners_index == owners_len:
-        return ()
-    end
-
-    let (guild_certificate) = _guild_certificate.read()
-    let (contract_address) = get_contract_address()
-    IGuildCertificate.mint(
-        contract_address=guild_certificate, 
-        to=owners[owners_index], 
-        guild=contract_address,
-        role=Role.OWNER
-    )
-
-    _initialize_owners(owners_index=owners_index + 1, owners_len=owners_len, owners=owners)
-    return ()
-end
-
 
 #
 # Getters
@@ -298,6 +262,30 @@ end
 # Storage helpers
 #
 
+func _whitelist_members{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        members_index: felt,
+        members_len: felt,
+        members: felt*,
+        roles: felt*  
+    ):
+    if members_index == members_len:
+        return ()
+    end
+    _whitelisted_role.write(members[members_index], roles[members_index])
+
+    _whitelist_members(
+        members_index=members_index + 1, 
+        members_len=members_len, 
+        members=members,
+        roles=roles
+    )
+    return ()
+end
+
 func _set_allowed_contracts{
         syscall_ptr: felt*, 
         pedersen_ptr: HashBuiltin*, 
@@ -351,37 +339,46 @@ end
 #
 
 @external
-func add_guild_members{
+func whitelist_members{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
         members_len: felt,
-        members: felt*
+        members: felt*,
+        roles_len: felt,
+        roles: felt*
     ):
-    _add_guild_members(members_index=0, members_len=members_len, members=members)
+    require_master()
+    
+    _whitelist_members(
+        members_index=0, 
+        members_len=members_len, 
+        members=members,
+        roles=roles
+    )
     return ()
 end
 
-func _add_guild_members{
+@external
+func join{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(
-        members_index: felt,
-        members_len: felt,
-        members: felt*    
-    ):
+    }():
     let (guild_certificate) = _guild_certificate.read()
     let (contract_address) = get_contract_address()
+    let (caller_address) = get_caller_address()
+    let (whitelisted_role) = _whitelisted_role.read(caller_address)
+    with_attr error_mesage("Caller is not whitelisted"):
+       assert_lt(0, whitelisted_role)
+    end
     IGuildCertificate.mint(
         contract_address=guild_certificate,
-        to=members[members_index], 
+        to=caller_address, 
         guild=contract_address,
-        role=Role.MEMBER
+        role=whitelisted_role
     )
-
-    _add_guild_members(members_index=members_index + 1, members_len=members_len, members=members)
     return ()
 end
 

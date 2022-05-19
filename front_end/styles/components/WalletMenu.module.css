@@ -1,0 +1,90 @@
+.menu {
+    position       : absolute;
+    align-self     : center;
+    left           : 50%;
+    top            : 50%;
+    transform      : translate(-50%, -50%);
+    background     : rgba(38, 41, 44, 0.5);
+    backdrop-filter: blur(10px);
+    border-radius  : 20px;
+    z-index        : 1;
+    padding        : 25px;
+    width          : 100%;
+    max-width      : 450px;
+    display        : flex;
+    flex-direction : column;
+}
+
+.menu_close {
+    position        : absolute;
+    top             : 15px;
+    right           : 15px;
+    width           : 30px;
+    stroke          : white;
+    cursor          : pointer;
+    transition      : 0.3s;
+    background-color: transparent;
+    border          : none;
+}
+
+.menu_close:hover {
+    stroke: rgb(124, 124, 124);
+}
+
+.menu_title {
+    color      : white;
+    font-family: Verdana, sans-serif;
+    font-size  : 21px;
+    font-weight: bold;
+    margin     : 4px;
+}
+
+.menu_text {
+    color      : #F3F2ED;
+    font-family: Verdana, sans-serif;
+    font-size  : 14px;
+    margin     : 14px 5px 18px;
+}
+
+.button {
+    text-decoration : none;
+    color           : white;
+    background-color: #293b55;
+    display         : flex;
+    align-items     : center;
+    border-radius   : 15px;
+    height          : 40px;
+    margin-left     : 7.5px;
+}
+
+.button_text {
+    font-family: Verdana, sans-serif;
+    font-size  : 15px;
+    margin-left: 18px;
+}
+
+.button_icon {
+    width      : 24px;
+    margin-left: 12px;
+}
+
+@media (max-width: 820px) {
+    .menu {
+        width: 95%;
+    }
+
+    .menu_title {
+        font-size: 19px;
+        margin   : -7px -2px 2px;
+    }
+
+    .menu_text {
+        font-size: 13.5px;
+        margin   : 12px 4px 18px;
+    }
+
+    .button_text {
+        font-size  : 15px;
+        margin-left: 12px;
+    }
+}

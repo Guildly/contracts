@@ -26,6 +26,8 @@ pytest.ini
 test_account_abstraction.py.txt
 contracts/account_abstraction
 old_integration_tests
+scripts/pinata.py
+old_front_end
 
 # New tests
 tests/test_shared_wallet_new.py
