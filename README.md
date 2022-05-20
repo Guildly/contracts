@@ -1,7 +1,7 @@
 # Game Guilds
 An implementation for having guilds for on-chain games on Starknet.
 
-_Disclaimer: This code is not intended for production use and has not been audited or tested thoroughly. This is just an initial experiment_
+_Disclaimer: This code is not intended for production use and has not been audited or tested thoroughly_
 
 ## Description
 The purpose of this project is to create a multi owner guild where players can share the game assets between eachother. The guild is token gated, a certificate is minted to identify roles, tokens you own etc.
@@ -18,6 +18,12 @@ This project provides the following:
 ## Architecture
 
 <img src="./Guild_Architecture_V0.1.0.png" alt="guild-architecture">
+
+## Testing
+
+- Starknet client in pytest used for unit tests(tests)
+- Nile scripts used for testnet deployment (nile)
+- Ape used for integration testing (ape - pending library updates)
 
 ## Setup
 
