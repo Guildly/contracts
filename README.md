@@ -15,10 +15,6 @@ This project provides the following:
   - Owners can withdraw the tokens they have deposited.
   - Members can only make transactions from the guild that are permitted.
 
-## Architecture
-
-<img src="./Guild_Architecture_V0.1.0.png" alt="guild-architecture">
-
 ## Testing
 
 - Starknet client in pytest used for unit tests(tests)
