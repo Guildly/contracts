@@ -177,6 +177,8 @@ async def test_permissions(contract_factory):
     execution_info = await guild_account.get_allowed_contracts().call()
     assert execution_info.result == ([game_contract.contract_address, test_nft.contract_address],)
 
+
+
     await signer1.send_transaction(
         account=account1,
         to=guild_account.contract_address,
@@ -210,17 +212,17 @@ async def test_non_permissioned(contract_factory):
             ],
         )
 
-    # with pytest.raises(StarkException):
-    #     await signer1.send_transaction(
-    #         account=account1,
-    #         to=guild_account.contract_address,
-    #         selector_name="execute_transaction",
-    #         calldata=[
-    #             game_contract.contract_address,
-    #             get_selector_from_name("get_value"),
-    #             0,
-    #         ],
-    #     )
+    with pytest.raises(StarkException):
+        await signer1.send_transaction(
+            account=account1,
+            to=guild_account.contract_address,
+            selector_name="execute_transaction",
+            calldata=[
+                game_contract.contract_address,
+                get_selector_from_name("get_value"),
+                0,
+            ],
+        )
 
 
 @pytest.mark.asyncio
@@ -238,8 +240,22 @@ async def test_deposit_and_withdraw(contract_factory):
     await signer1.send_transaction(
         account=account1,
         to=test_nft.contract_address,
+        selector_name="mint",
+        calldata=[account1.contract_address, *to_uint(3)],
+    )
+
+    await signer1.send_transaction(
+        account=account1,
+        to=test_nft.contract_address,
         selector_name="approve",
         calldata=[guild_account.contract_address, *to_uint(2)],
+    )
+
+    await signer1.send_transaction(
+        account=account1,
+        to=test_nft.contract_address,
+        selector_name="approve",
+        calldata=[guild_account.contract_address, *to_uint(3)],
     )
 
     await signer1.send_transaction(
@@ -252,8 +268,22 @@ async def test_deposit_and_withdraw(contract_factory):
     await signer1.send_transaction(
         account=account1,
         to=guild_account.contract_address,
+        selector_name="deposit_ERC721",
+        calldata=[test_nft.contract_address, *to_uint(3)],
+    )
+
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_account.contract_address,
         selector_name="withdraw_ERC721",
         calldata=[test_nft.contract_address, *to_uint(2)],
+    )
+
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_account.contract_address,
+        selector_name="withdraw_ERC721",
+        calldata=[test_nft.contract_address, *to_uint(3)],
     )
 
 
@@ -269,3 +299,12 @@ async def test_withdraw_non_held(contract_factory):
             selector_name="withdraw_ERC721",
             calldata=[test_nft.contract_address, *to_uint(1)],
         )
+
+@pytest.mark.asyncio
+async def test_get_permissions(contract_factory):
+    """Test getting the stored permissions list"""
+    (account1, account2, guild_account, test_nft, game_contract) = contract_factory
+
+    execution_info = await guild_account.get_permissions().call()
+    print(execution_info.result)
+    assert 1==2

@@ -7,6 +7,8 @@ export type Guild = {
     address: string
     name: string
     image: string | StaticImageData
+    members: number
+    games: Array<String>
     slug: string
 }
 
@@ -19,13 +21,17 @@ export const Main = () => {
             address: testGuild1Address,
             name: "Titans Of The Dark Circle",
             image: warrior1,
-            slug: "test-guild-1",
+            members: 47,
+            games: ["Age Of Eykar"],
+            slug: "titans-of-the-dark-circle",
         },
         {
             address: testGuild1Address,
             name: "Warriors Of The Mystic Mountain",
             image: warrior2,
-            slug: "test-guild-2"
+            members: 20,
+            games: ["Age Of Eykar"],
+            slug: "warriors-of-the-mystic-mountain"
         }
     ]
 

@@ -58,6 +58,27 @@ from openzeppelin.token.erc721.library import (
 #     member token_ids: felt*
 # end
 
+struct Call:
+    member to: felt
+    member selector: felt
+    member calldata_len: felt
+    member calldata: felt*
+end
+
+# Tmp struct introduced whuke we wait for Cairo
+# to support passing '[Call]' to __execute__
+struct CallArray:
+    member to: felt
+    member selector: felt
+    member data_offset: felt
+    member data_len: felt
+end
+
+struct Permission:
+    member to: felt
+    member selector: felt
+end
+
 
 #
 # Storage variables
@@ -213,32 +234,39 @@ func get_nonce{
     return (res=res)
 end
 
-# @view
-# func get_permissions{
-#         syscall_ptr : felt*,
-#         pedersen_ptr : HashBuiltin*,
-#         range_check_ptr
-#     }() -> (
-#         permissions_len: felt,
-#         permissions: felt*
-#     ):
-#     alloc_locals
-#     let (allowed_contracts_len) = _allowed_contracts_len.read()
-#     let (allowed_contracts) = alloc()
+@view
+func get_permissions{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (
+        permissions_len: felt,
+        permissions: Permission*
+    ):
+    alloc_locals
+    let (allowed_contracts_len) = _allowed_contracts_len.read()
+    let (allowed_contracts) = alloc()
 
-#     _get_allowed_contracts(
-#         allowed_contracts_index=0,
-#         allowed_contracts_len=allowed_contracts_len,
-#         allowed_contracts=allowed_contracts
-#     )
+    _get_allowed_contracts(
+        allowed_contracts_index=0,
+        allowed_contracts_len=allowed_contracts_len,
+        allowed_contracts=allowed_contracts
+    )
 
-#     get_allowed_selectors(
-#         allowed_contracts_index=0,
-#         allowed_contracts_len=allowed_contracts_len,
-#         allowed_contracts=allowed_contracts
-#     )
-#     return ()
-# end
+    let (permissions: Permission*) = alloc()
+
+    let (permissions_len) = get_allowed_selectors(
+        allowed_contracts_index=0,
+        allowed_contracts_len=allowed_contracts_len,
+        allowed_contracts=allowed_contracts,
+        permissions=permissions,
+        offset=0
+    )
+    return (
+        permissions_len=permissions_len,
+        permissions=permissions
+    )
+end
 
 @view
 func get_allowed_contracts{
@@ -292,13 +320,14 @@ func get_allowed_selectors{
     }(
         allowed_contracts_index: felt,
         allowed_contracts_len: felt,
-        allowed_contracts: felt*
-    ):
+        allowed_contracts: felt*,
+        permissions: Permission*,
+        offset: felt
+    ) -> (permissions_len: felt):
     alloc_locals
     if allowed_contracts_index == allowed_contracts_len:
-        return ()
+        return (permissions_len=offset)
     end
-    let (allowed_selectors) = alloc()
 
     let (allowed_selectors_len) = _allowed_selectors_len.read(
         allowed_contracts[allowed_contracts_index]
@@ -307,10 +336,19 @@ func get_allowed_selectors{
     _get_allowed_selectors(
         allowed_selectors_index=0,
         allowed_selectors_len=allowed_selectors_len,
-        allowed_selectors=allowed_selectors,
-        contract=allowed_contracts[allowed_contracts_index]
+        permissions=permissions,
+        contract=allowed_contracts[allowed_contracts_index],
+        offset=offset
     )
-    return ()
+
+    get_allowed_selectors(
+        allowed_contracts_index=allowed_contracts_index + 1,
+        allowed_contracts_len=allowed_contracts_len,
+        allowed_contracts=allowed_contracts,
+        permissions=permissions,
+        offset=offset + allowed_selectors_len
+    )
+    return (permissions_len=offset)
 end
 
 func _get_allowed_selectors{
@@ -320,25 +358,35 @@ func _get_allowed_selectors{
     }(
         allowed_selectors_index: felt,
         allowed_selectors_len: felt,
-        allowed_selectors: felt*,
-        contract: felt
+        permissions: Permission*,
+        contract: felt,
+        offset: felt
     ):
+    alloc_locals
     if allowed_selectors_index == allowed_selectors_len:
         return ()
     end
+
+    let (allowed_selectors) = alloc()
 
     let (allowed_selector) = _allowed_selectors.read(
         contract,
         allowed_selectors_index
     )
+
+    let permission = Permission(
+        contract,
+        allowed_selector
+    )
     
-    assert allowed_selectors[allowed_selectors_index] = allowed_selector
+    assert permissions[offset] = permission
 
     _get_allowed_selectors(
         allowed_selectors_index=allowed_selectors_index + 1,
         allowed_selectors_len=allowed_selectors_len,
-        allowed_selectors=allowed_selectors,
-        contract=contract
+        permissions=permissions,
+        contract=contract,
+        offset=offset
     )
 
     return ()
@@ -771,4 +819,21 @@ func array_sum{
 
     let (sum_of_rest) = array_sum(arr_len=arr_len - 1, arr=arr + 1)
     return (sum=[arr] + sum_of_rest)
+end
+
+# Added for future intrgration with plugins
+@external
+func delegate_validate{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+    }(
+        plugin_data_len: felt,
+        plugin_data: felt*,
+        call_array_len: felt,
+        call_array: CallArray*,
+        calldata_len: felt,
+        calldata: felt
+    ):
+    return ()
 end

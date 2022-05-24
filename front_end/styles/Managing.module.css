@@ -23,25 +23,30 @@
     font-weight: bold;
 }
 
-.button {
-    color           : #a9d1ff;
-    background-color: #202123b7;
-    border          : 2px solid #4595d6;
-    margin          : -9px -16px auto auto;
-    cursor          : pointer;
+.member_row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.button_normal {
+.button {
+    display         : block;
     color           : #a9d1ff;
     background-color: #202123b7;
     border          : 2px solid #4595d6;
     margin          : 8px auto 4px auto;
     cursor          : pointer;
+    width           : 250px;
+    height          : 50px;
 }
 
-.icon {
-    width  : 15px;
-    display: flex;
+.add_member_icon{
+    display: block;
+    margin : 0px auto 0px auto;
+    color           : #a9d1ff;
+    background-color: #202123b7;
+    width: 50px;
+    height: 50px
 }
 
 .table_header {

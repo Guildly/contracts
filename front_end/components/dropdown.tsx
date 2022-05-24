@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styles from '../styles/components/Dropdown.module.css'
 
+interface DropdownProps {
+    value: number;
+    options: String[];
+    onChange: (event: number) => void;
+}
 
-
-export default function Dropdown(onChange) {
-    const [isSelected, setIsSelected] = useState()
+export default function Dropdown({ value, options, onChange }: DropdownProps) {
+    const [isSelected, setIsSelected] = useState(false)
 
     const handleDropdown = () => {
         if (isSelected) {
@@ -39,6 +43,8 @@ export default function Dropdown(onChange) {
         setIsSelected(false)
     }
 
+    const displayRole = options[value - 1]
+
     return(
         <div 
             className={styles.group}
@@ -48,7 +54,7 @@ export default function Dropdown(onChange) {
                 onClick={handleDropdown}
                 className={styles.button_normal}
             >
-                <p>Choose role</p>
+                <p>{displayRole}</p>
             </button>
             {isSelected ? (
                 <div className={styles.dropdown}>

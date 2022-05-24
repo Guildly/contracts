@@ -5,9 +5,11 @@ import ShortTextInput from "../components/input";
 import Spinner from "../components/spinner";
 import Link from 'next/link'
 import { useStarknet } from '@starknet-react/core'
+import { Main } from '../features/Main'
 
-export default function Manage() {
+export default function Explore() {
 
+    const { supportedGuilds } = Main()
     const { account } = useStarknet();
     // const { data } = useGuildsManaged(account);
     const [searchTerm, setSearchTerm] = useState()
@@ -29,27 +31,27 @@ export default function Manage() {
                     <ShortTextInput content={searchTerm} setContent={setSearchTerm} label="Search" icon={searchIcon}/>
                 </div>
                 <div>
-                    <table>
+                    <table className={styles.table}>
                         <thead>
-                            <tr className={styles.table_header}>
-                                <th className={styles.table_first_item}>Guild</th>
+                            <tr>
+                                <th>Guild</th>
+                                <th>Games</th>
                                 <th>Members</th>
-                                <th>Proposals</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody>
-                            {/* {data? data.map((guild) => 
-                                <GuildBox key={guild} guild={guild} />) 
-                            : undefined} */}
-                            <tr className={styles.table_body}>
-                                <td>Titans Of The Dark Circle</td>
-                                <td>47 <Link href="/members/0">(See List)</Link></td>
-                                <td>2</td>
-                                <td className={styles.table_last_item}>
+                            {supportedGuilds? supportedGuilds.map((guild, index) => 
+                            <tr key={index}>
+                                <td>{guild.name}</td>
+                                <td>{guild.games}</td>
+                                <td>{guild.members.toString()} <Link href={"/members/"+guild.slug}>(List)</Link></td>
+                                <td>
                                     <button className={styles.button_normal}>See More</button>
                                 </td>
                             </tr>
+                            ) 
+                            : undefined}
                         </tbody>
                     </table>
                 </div>

@@ -26,10 +26,10 @@ export default function Manage() {
                     <h1 className={styles.title}>Guilds Your Managing</h1>
                 </div>
                 <div className={styles.manage_options}>
-                    <table>
+                    <table className={styles.table}>
                         <thead>
-                            <tr className={styles.table_header}>
-                                <th className={styles.table_first_item}>Guild</th>
+                            <tr>
+                                <th>Guild</th>
                                 <th>Members</th>
                                 <th>Proposals</th>
                                 <th></th>
@@ -38,13 +38,12 @@ export default function Manage() {
                         <tbody>
                             {supportedGuilds? supportedGuilds.map((guild, index) => 
                                 <tr 
-                                    className={styles.table_body} 
                                     key={index}
                                 >
                                     <td>{guild.name}</td>
                                     <td>47 <Link href="/members/0">(See List)</Link></td>
                                     <td>2</td>
-                                    <td className={styles.table_last_item}>
+                                    <td>
                                         <Link href={"/managing/"+guild.slug}>
                                             <div className={styles.button_normal}>
                                                 <p>See More</p>
