@@ -7,6 +7,7 @@ import { useStarknetCall } from '@starknet-react/core';
 import GuildBox from '../components/guildbox';
 import Header from '../components/header';
 import Link from 'next/link';
+import { Main } from '../features/Main';
 
 export default function Account() {
 
@@ -14,7 +15,7 @@ export default function Account() {
   const name = useDisplayName(account);
   const { contract } = useShareCertificate();
   // const { data } = useStarknetCall({ contract: contract, method: 'get_user_guilds', args: [account] });
-  const data = [0, 1];
+  const { supportedGuilds } = Main()
 
   return (
     <div className="background">
@@ -50,7 +51,10 @@ export default function Account() {
 
       <div className={styles.guilds}>
         {/* {data ? data.guilds.map((guild) => <GuildBox key={guild} guild={guild} />) : undefined} */}
-        {data ? data.map((guild) => <GuildBox key={guild} guild={guild} />) : undefined}
+        {supportedGuilds ? supportedGuilds.map((guild, index) => 
+          <GuildBox guild={guild} key={index} />) 
+          : undefined
+        }
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 import styles from '../styles/components/TextInput.module.css'
 
-function ShortTextInput({ content, setContent }) {
+function ShortTextInput({ content, setContent, label, icon }) {
+
     return (
         <div className={styles.group}>
             <input className={styles.input} type="text" required value={content} onChange={event => {
@@ -9,7 +10,15 @@ function ShortTextInput({ content, setContent }) {
             }} />
             <span className={styles.highlight}></span>
             <span className={styles.bar}></span>
-            <label className={styles.label}>How would you call it? </label>
+            {label || icon? 
+                <label className={styles.label}>
+                    <div className={styles.icon}>  
+                        {icon}
+                    </div>
+                    {label} 
+                </label>
+                : null
+            }
         </div>
     );
 }

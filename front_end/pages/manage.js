@@ -6,13 +6,16 @@ import Spinner from "../components/spinner";
 import Link from 'next/link'
 import { useStarknet } from '@starknet-react/core'
 import { useGuildsContract } from '../hooks/guilds';
+import { Main } from '../features/Main';
 
 export default function Manage() {
 
-    const guild = "0x0544ca787ac6f35fe1196badf06c4b247ea04ad3da10035d021ef05af86708c0"
+    const { supportedGuilds } = Main()
+
+    // const guild = "0x0544ca787ac6f35fe1196badf06c4b247ea04ad3da10035d021ef05af86708c0"
 
     const { account } = useStarknet();
-    const { contract: guildContract } = useGuildsContract(guild)
+    // const { contract: guildContract } = useGuildsContract(guild)
     // const { data } = useGuildsManaged(account);
 
     return(
@@ -33,15 +36,24 @@ export default function Manage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {/* {data? data.map((guild) => 
-                                <GuildBox key={guild} guild={guild} />) 
-                            : undefined} */}
-                            <tr className={styles.table_body}>
-                                <td>Titans Of The Dark Circle</td>
-                                <td>47 <Link href="/members/0">(See List)</Link></td>
-                                <td>2</td>
-                                <td className={styles.table_last_item}><button>See More</button></td>
-                            </tr>
+                            {supportedGuilds? supportedGuilds.map((guild, index) => 
+                                <tr 
+                                    className={styles.table_body} 
+                                    key={index}
+                                >
+                                    <td>{guild.name}</td>
+                                    <td>47 <Link href="/members/0">(See List)</Link></td>
+                                    <td>2</td>
+                                    <td className={styles.table_last_item}>
+                                        <Link href={"/managing/"+guild.slug}>
+                                            <div className={styles.button_normal}>
+                                                <p>See More</p>
+                                            </div>
+                                        </Link>
+                                    </td>
+                                </tr>
+                                ) 
+                                : undefined}
                         </tbody>
                     </table>
                     {/* <p className={styles.option_title}>

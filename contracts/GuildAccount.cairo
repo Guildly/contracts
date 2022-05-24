@@ -84,11 +84,11 @@ func _allowed_contracts(index: felt) -> (res: felt):
 end
 
 @storage_var
-func _allowed_functions_len(contract: felt) -> (res: felt):
+func _allowed_selectors_len(contract: felt) -> (res: felt):
 end
 
 @storage_var
-func _allowed_functions(contract: felt, index: felt) -> (res: felt):
+func _allowed_selectors(contract: felt, index: felt) -> (res: felt):
 end
 
 @storage_var
@@ -213,6 +213,33 @@ func get_nonce{
     return (res=res)
 end
 
+# @view
+# func get_permissions{
+#         syscall_ptr : felt*,
+#         pedersen_ptr : HashBuiltin*,
+#         range_check_ptr
+#     }() -> (
+#         permissions_len: felt,
+#         permissions: felt*
+#     ):
+#     alloc_locals
+#     let (allowed_contracts_len) = _allowed_contracts_len.read()
+#     let (allowed_contracts) = alloc()
+
+#     _get_allowed_contracts(
+#         allowed_contracts_index=0,
+#         allowed_contracts_len=allowed_contracts_len,
+#         allowed_contracts=allowed_contracts
+#     )
+
+#     get_allowed_selectors(
+#         allowed_contracts_index=0,
+#         allowed_contracts_len=allowed_contracts_len,
+#         allowed_contracts=allowed_contracts
+#     )
+#     return ()
+# end
+
 @view
 func get_allowed_contracts{
         syscall_ptr : felt*, 
@@ -257,6 +284,66 @@ func _get_allowed_contracts{
     )
     return ()
 end
+
+func get_allowed_selectors{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        allowed_contracts_index: felt,
+        allowed_contracts_len: felt,
+        allowed_contracts: felt*
+    ):
+    alloc_locals
+    if allowed_contracts_index == allowed_contracts_len:
+        return ()
+    end
+    let (allowed_selectors) = alloc()
+
+    let (allowed_selectors_len) = _allowed_selectors_len.read(
+        allowed_contracts[allowed_contracts_index]
+    )
+
+    _get_allowed_selectors(
+        allowed_selectors_index=0,
+        allowed_selectors_len=allowed_selectors_len,
+        allowed_selectors=allowed_selectors,
+        contract=allowed_contracts[allowed_contracts_index]
+    )
+    return ()
+end
+
+func _get_allowed_selectors{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        allowed_selectors_index: felt,
+        allowed_selectors_len: felt,
+        allowed_selectors: felt*,
+        contract: felt
+    ):
+    if allowed_selectors_index == allowed_selectors_len:
+        return ()
+    end
+
+    let (allowed_selector) = _allowed_selectors.read(
+        contract,
+        allowed_selectors_index
+    )
+    
+    assert allowed_selectors[allowed_selectors_index] = allowed_selector
+
+    _get_allowed_selectors(
+        allowed_selectors_index=allowed_selectors_index + 1,
+        allowed_selectors_len=allowed_selectors_len,
+        allowed_selectors=allowed_selectors,
+        contract=contract
+    )
+
+    return ()
+end
+
 
 #
 # Storage helpers
@@ -321,8 +408,12 @@ func _set_allowed_functions{
         return ()
     end
 
-     # Write the current iteration to storage
-    _allowed_functions.write(contract=contract, index=function_selectors_index, value=function_selectors[function_selectors_index])
+    # Write the current iteration to storage
+    _allowed_selectors.write(
+        contract=contract, 
+        index=function_selectors_index, 
+        value=function_selectors[function_selectors_index]
+    )
     # Recursively write the rest
     _set_allowed_functions(
         function_selectors_index=function_selectors_index + 1, 
@@ -537,7 +628,7 @@ func set_permission{
     _allowed_contracts.write(allowed_contracts_index, contract)
     _allowed_contracts_len.write(allowed_contracts_index + 1)
 
-    _allowed_functions_len.write(contract, function_selectors_len)
+    _allowed_selectors_len.write(contract, function_selectors_len)
     _set_allowed_functions(
         function_selectors_index=0, 
         function_selectors_len=function_selectors_len, 
@@ -547,21 +638,46 @@ func set_permission{
     return ()
 end
 
-
 func check_permitted_call{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr, 
     }(        
         to: felt,
-        function_selector: felt
+        selector: felt
     ):
+    alloc_locals
     let (allowed_contracts_len) = _allowed_contracts_len.read()
-    _check_permitted_to(index=0, allowed_contracts_len=allowed_contracts_len, to=to)
-
-    let (allowed_functions_len) = _allowed_functions_len.read(to)
-    _check_permitted_selector(index=0, allowed_functions_len=allowed_functions_len, selector=function_selector, contract=to)
-    
+    let (check_contracts) = alloc()
+    _check_permitted_to(
+        allowed_contracts_index=0, 
+        allowed_contracts_len=allowed_contracts_len, 
+        to=to,
+        check_list=check_contracts
+    )
+    let (check_contracts_product) = array_product(
+        arr_len=allowed_contracts_len,
+        arr=check_contracts
+    )
+    with_attr error_mesage("Contract is not permitted"):
+        assert check_contracts_product = 0
+    end
+    let (allowed_selectors_len) = _allowed_selectors_len.read(to)
+    let (check_selectors) = alloc()
+    _check_permitted_selector(
+        allowed_selectors_index=0, 
+        allowed_selectors_len=allowed_selectors_len, 
+        selector=selector,
+        contract=to,
+        check_list=check_selectors
+    )
+    let (check_selectors_product) = array_product(
+        arr_len=allowed_selectors_len,
+        arr=check_selectors
+    )
+    with_attr error_mesage("Function is not permitted"):
+        assert check_selectors_product = 0
+    end   
     return ()
 end
 
@@ -570,24 +686,23 @@ func _check_permitted_to{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr, 
     }(
-        index: felt,
+        allowed_contracts_index: felt,
         allowed_contracts_len: felt,
-        to: felt
+        to: felt,
+        check_list: felt*
     ):
-    if index == allowed_contracts_len:
+    if allowed_contracts_index == allowed_contracts_len:
         return ()
     end
     
-    let (allowed_contract) = _allowed_contracts.read(index)
-
-    with_attr error_message("Contract is not permitted"):
-        assert allowed_contract = to
-    end
+    let (allowed_contract) = _allowed_contracts.read(allowed_contracts_index)
+    assert check_list[allowed_contracts_index] = allowed_contract - to
 
     _check_permitted_to(
-        index=index + 1,
+        allowed_contracts_index=allowed_contracts_index + 1,
         allowed_contracts_len=allowed_contracts_len,
-        to=to
+        to=to,
+        check_list=check_list
     )
     return ()
 end
@@ -597,25 +712,63 @@ func _check_permitted_selector{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr, 
     }(
-        index: felt,
-        allowed_functions_len: felt,
+        allowed_selectors_index: felt,
+        allowed_selectors_len: felt,
         selector: felt,
-        contract: felt
+        contract: felt,
+        check_list: felt*
     ):
-    if index == allowed_functions_len:
+    if allowed_selectors_index == allowed_selectors_len:
         return ()
     end
     
-    let (allowed_function) = _allowed_functions.read(contract, index)
-    with_attr error_mesage("Function is not permitted"):
-        assert allowed_function = selector
-    end
+    let (allowed_selector) = _allowed_selectors.read(
+        contract, 
+        allowed_selectors_index
+    )
+    let check_selector = allowed_selector - selector
+    assert check_list[allowed_selectors_index] = check_selector
 
     _check_permitted_selector(
-        index=index + 1,
-        allowed_functions_len=allowed_functions_len,
+        allowed_selectors_index=allowed_selectors_index + 1,
+        allowed_selectors_len=allowed_selectors_len,
         selector=selector,
-        contract=contract
+        contract=contract,
+        check_list=check_list
     )
     return ()
+end
+
+@view
+func array_product{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr, 
+    }(
+        arr_len: felt,
+        arr: felt*
+    ) -> (product: felt):
+    if arr_len == 0:
+        return (product=1)
+    end
+
+    let (product_of_rest) = array_product(arr_len=arr_len - 1, arr=arr + 1)
+    return (product=[arr] * product_of_rest)
+end
+
+@view
+func array_sum{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr, 
+    }(
+        arr_len: felt,
+        arr: felt*
+    ) -> (sum: felt):
+    if arr_len == 0:
+        return (sum=0)
+    end
+
+    let (sum_of_rest) = array_sum(arr_len=arr_len - 1, arr=arr + 1)
+    return (sum=[arr] + sum_of_rest)
 end

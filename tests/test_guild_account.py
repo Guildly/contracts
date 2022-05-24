@@ -165,8 +165,19 @@ async def test_permissions(contract_factory):
         ],
     )
 
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_account.contract_address,
+        selector_name="set_permission",
+        calldata=[
+            test_nft.contract_address,
+            1,
+            get_selector_from_name("symbol"),
+        ],
+    )
+
     execution_info = await guild_account.get_allowed_contracts().call()
-    assert execution_info.result == ([game_contract.contract_address],)
+    assert execution_info.result == ([game_contract.contract_address, test_nft.contract_address],)
 
     await signer1.send_transaction(
         account=account1,
@@ -195,11 +206,23 @@ async def test_non_permissioned(contract_factory):
             to=guild_account.contract_address,
             selector_name="execute_transaction",
             calldata=[
-                game_contract.contract_address,
-                get_selector_from_name("get_value"),
+                test_nft.contract_address,
+                get_selector_from_name("name"),
                 0,
             ],
         )
+
+    # with pytest.raises(StarkException):
+    #     await signer1.send_transaction(
+    #         account=account1,
+    #         to=guild_account.contract_address,
+    #         selector_name="execute_transaction",
+    #         calldata=[
+    #             game_contract.contract_address,
+    #             get_selector_from_name("get_value"),
+    #             0,
+    #         ],
+    #     )
 
 
 @pytest.mark.asyncio

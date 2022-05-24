@@ -22,7 +22,7 @@ export default function Create() {
         {
           mint === 0 ?
             <><h1 className={styles.title}>Create a Guild</h1>
-              <ShortTextInput content={name} setContent={setName} />
+              <ShortTextInput content={name} setContent={setName} label="How would you call it?"/>
               <div className={styles.box_footer}>
                 {name ? <button onClick={() => {
                   // (async () => {
