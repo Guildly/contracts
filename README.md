@@ -17,11 +17,7 @@ This project provides the following:
 
 ## Testing
 
-<<<<<<< HEAD
 - Starknet client in pytest used for unit tests (tests)
-=======
-- Starknet client in pytest used for unit tests(tests)
->>>>>>> 8baf405da090f9ece294e27ec8557063a70104a0
 - Nile scripts used for testnet deployment (nile)
 - Ape used for integration testing (ape - pending library updates)
 
