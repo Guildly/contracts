@@ -133,20 +133,18 @@ async def test_guild_account(contract_factory):
         ],
     )
 
-    await signer1.send_transaction(
-        account=account1,
-        to=guild_account.contract_address,
-        selector_name="execute_transaction",
-        calldata=[
-            game_contract.contract_address,
-            get_selector_from_name("set_value_with_nft"),
-            3,
-            *[1, *to_uint(1)],
-        ],
-    )
-
-    execution_info = await game_contract.get_value().call()
-    assert execution_info.result == (1,)
+    with pytest.raises(StarkException):
+        await signer1.send_transaction(
+            account=account1,
+            to=guild_account.contract_address,
+            selector_name="execute_transaction",
+            calldata=[
+                game_contract.contract_address,
+                get_selector_from_name("set_value_with_nft"),
+                3,
+                *[1, *to_uint(1)],
+            ],
+        )
 
 
 @pytest.mark.asyncio
