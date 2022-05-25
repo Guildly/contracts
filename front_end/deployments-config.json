@@ -1,7 +1,8 @@
 {
     "networks": {
         "goerli": {
-            "test_guild_1": "0x0544ca787ac6f35fe1196badf06c4b247ea04ad3da10035d021ef05af86708c0"
+            "test_guild_1": "0x0544ca787ac6f35fe1196badf06c4b247ea04ad3da10035d021ef05af86708c0",
+            "test_nft": "0"
         }
     }
 }

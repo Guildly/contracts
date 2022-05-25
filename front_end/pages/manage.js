@@ -21,54 +21,56 @@ export default function Manage() {
     return(
         <div className="background">
             <Header highlighted={"manage"} />
-            <div className={styles.box}>
-                <div className={styles.header}>
-                    <h1 className={styles.title}>Guilds Your Managing</h1>
-                </div>
-                <div className={styles.manage_options}>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th>Guild</th>
-                                <th>Members</th>
-                                <th>Proposals</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {supportedGuilds? supportedGuilds.map((guild, index) => 
-                                <tr 
-                                    key={index}
-                                >
-                                    <td>{guild.name}</td>
-                                    <td>47 <Link href="/members/0">(See List)</Link></td>
-                                    <td>2</td>
-                                    <td>
-                                        <Link href={"/managing/"+guild.slug}>
-                                            <div className={styles.button_normal}>
-                                                <p>See More</p>
-                                            </div>
-                                        </Link>
-                                    </td>
+            <div className="content">
+                <div className={styles.box}>
+                    <div className={styles.header}>
+                        <h1 className={styles.title}>Guilds Your Managing</h1>
+                    </div>
+                    <div className={styles.manage_options}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th>Guild</th>
+                                    <th>Members</th>
+                                    <th>Join Requests</th>
+                                    <th></th>
                                 </tr>
-                                ) 
-                                : undefined}
-                        </tbody>
-                    </table>
-                    {/* <p className={styles.option_title}>
-                        Guild
-                    </p>
-                    <p className={styles.option_title}>
-                        Governance
-                    </p>
-                    <p className={styles.option_title}>
-                        Permissions
-                    </p> */}
-            </div>
-            </div>
-            <div className={styles.box}>
-                <div className={styles.header}>
-                    <h1 className={styles.title}>Governace</h1>
+                            </thead>
+                            <tbody>
+                                {supportedGuilds? supportedGuilds.map((guild, index) => 
+                                    <tr 
+                                        key={index}
+                                    >
+                                        <td>{guild.name}</td>
+                                        <td>47 <Link href="/members/0">(See List)</Link></td>
+                                        <td>2</td>
+                                        <td>
+                                            <Link href={"/managing/"+guild.slug}>
+                                                <div className={styles.button_normal}>
+                                                    <p>See More</p>
+                                                </div>
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                    ) 
+                                    : undefined}
+                            </tbody>
+                        </table>
+                        {/* <p className={styles.option_title}>
+                            Guild
+                        </p>
+                        <p className={styles.option_title}>
+                            Governance
+                        </p>
+                        <p className={styles.option_title}>
+                            Permissions
+                        </p> */}
+                    </div>
+                </div>
+                <div className={styles.box}>
+                    <div className={styles.header}>
+                        <h1 className={styles.title}>Governace</h1>
+                    </div>
                 </div>
             </div>
         </div>

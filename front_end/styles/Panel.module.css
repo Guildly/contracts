@@ -65,37 +65,26 @@
     width          : min(75%, 1000px);
 }
 
-.table_header {
-    display    : flex;
-    gap        : 50px;
-    color      : white;
+.table th, .table td{
+    color: white;
     font-family: Verdana, sans-serif;
-    font-size  : 20px;
+    font-size: 20px;
+    padding: 8px;
+}
+
+.table th {
     font-weight: bold;
-    margin     : 10px;
 }
 
-.table_body {
-    display    : flex;
-    gap        : 70px;
-    color      : white;
-    font-family: Verdana, sans-serif;
-    font-size  : 20px;
+.table td {
     font-weight: normal;
-    margin     : 8px;
-}
-
-.table_first_header_item {
-    padding: 0px 160px 0px 0px;
-}
-
-.table_first_body_item {
-    padding: 0px 40px 0px 0px;
 }
 
 .button_add {
-    width: 30px;
-    background-color: green;
+    color           : #a9d1ff;
+    background-color: #202123b7;
+    cursor          : pointer;
+    width           : 30px;
 }
 /* .table_last_item {
     margin: 0px 50px;

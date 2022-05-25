@@ -25,35 +25,41 @@ export default function Explore() {
     return(
         <div className="background">
             <Header highlighted={"explore"} />
-            <div className={styles.box}>
-                <div className={styles.header}>
-                    <h1 className={styles.title}>Explore</h1>
-                    <ShortTextInput content={searchTerm} setContent={setSearchTerm} label="Search" icon={searchIcon}/>
-                </div>
-                <div>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th>Guild</th>
-                                <th>Games</th>
-                                <th>Members</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {supportedGuilds? supportedGuilds.map((guild, index) => 
-                            <tr key={index}>
-                                <td>{guild.name}</td>
-                                <td>{guild.games}</td>
-                                <td>{guild.members.toString()} <Link href={"/members/"+guild.slug}>(List)</Link></td>
-                                <td>
-                                    <button className={styles.button_normal}>See More</button>
-                                </td>
-                            </tr>
-                            ) 
-                            : undefined}
-                        </tbody>
-                    </table>
+            <div className="content">
+                <div className={styles.box}>
+                    <div className={styles.header}>
+                        <h1 className={styles.title}>Explore</h1>
+                        <ShortTextInput content={searchTerm} setContent={setSearchTerm} label="Search" icon={searchIcon}/>
+                    </div>
+                    <div>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th>Guild</th>
+                                    <th>Games</th>
+                                    <th>Members</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {supportedGuilds? supportedGuilds.map((guild, index) => 
+                                <tr key={index}>
+                                    <td>{guild.name}</td>
+                                    <td>{guild.games}</td>
+                                    <td>{guild.members.toString()} <Link href={"/members/"+guild.slug}>(List)</Link></td>
+                                    <td>
+                                        <Link href={"/profile/"+guild.slug}>
+                                            <button className={styles.button_normal}>
+                                                See More
+                                            </button>
+                                        </Link>
+                                    </td>
+                                </tr>
+                                ) 
+                                : undefined}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
