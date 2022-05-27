@@ -80,6 +80,20 @@
     font-weight: normal;
 }
 
+.button {
+    display         : flex;
+    justify-content: center;
+    align-items: center;
+    color           : #a9d1ff;
+    background-color: #202123b7;
+    border          : 2px solid #4595d6;
+    border-radius: 10px;
+    margin          : 8px auto 4px auto;
+    cursor          : pointer;
+    width           : 80px;
+    height          : 40px;
+}
+
 .button_add {
     color           : #a9d1ff;
     background-color: #202123b7;
@@ -89,3 +103,15 @@
 /* .table_last_item {
     margin: 0px 50px;
 } */
+
+.game_row {
+    display: flex;
+    gap: 10px;
+}
+
+.play_button_text {
+    margin     : 16px;
+    font-family: Verdana, sans-serif;
+    font-size  : 16px;
+    font-weight: bold;
+}

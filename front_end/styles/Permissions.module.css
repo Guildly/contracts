@@ -12,26 +12,10 @@
     font-family: Verdana, sans-serif;
     font-size  : 38px;
     font-weight: bold;
-    padding    : 10px 10px 10px 5px;
+    margin     : 4px;
 }
 
-.subtitle {
-    margin     : 16px;
-    color      : white;
-    font-family: Verdana, sans-serif;
-    font-size  : 28px;
-    font-weight: bold;
-}
-
-.text {
-    margin     : 16px;
-    color      : white;
-    font-family: Verdana, sans-serif;
-    font-size  : 16px;
-    font-weight: normal;
-}
-
-.member_row {
+.permission_row {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -48,7 +32,7 @@
     height          : 50px;
 }
 
-.add_member_button{
+.add_permission_button{
     display         : block;
     margin          : 0px auto 0px auto;
     color           : #a9d1ff;
@@ -56,31 +40,4 @@
     cursor          : pointer;
     width           : 50px;
     height          : 50px
-}
-
-.proposal {
-    display: flex;
-    flex-direction: row;
-    gap: 10px;
-    align-items: center;
-    justify-content: center;
-}
-
-.icon {
-    width: 30px;
-}
-
-.table th, .table td{
-    color: white;
-    font-family: Verdana, sans-serif;
-    font-size: 20px;
-    padding: 8px;
-}
-
-.table th {
-    font-weight: bold;
-}
-
-.table td {
-    font-weight: normal;
 }

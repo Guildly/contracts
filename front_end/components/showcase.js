@@ -7,7 +7,7 @@ export default function Showcase() {
                 <div>
                     <h1>What are Guilds?</h1>
                     <p>
-                        Aut perferendis ea et dolores vero id. Cumque in doloribus laboriosam aut itaque. Quos ut natus at. Et placeat non neque vel sunt quas illum voluptas. Nostrum aut aut a.
+                        Guilds are shared accounts between players. The account has multiple members with a permission system allowing controlled token usage.
                     </p>
                 </div>
                 <img className={styles.mask1} src="/illustrations/warrior1.webp" alt="A warrior" />
@@ -16,7 +16,7 @@ export default function Showcase() {
             <div className={[styles.card, styles.rev_card, styles.right].join(" ")}>
                 <div>
                     <h1>Who is it for?</h1>
-                    <p>Vitae atque hic eos voluptas in eaque. Sapiente dolorem quasi asperiores. Aliquam eveniet quidem at commodi aut.</p>
+                    <p>The guild is for anyone to create and use for any game. Mechanisms within it allow token owners to benefit from sharing, and members usage of tokens they don't hold.</p>
                 </div>
                 <img className={styles.mask2} src="/illustrations/warrior1.webp" alt="A warrior" />
             </div>
@@ -25,7 +25,8 @@ export default function Showcase() {
                 <div>
                     <h1>Developer?</h1>
                     <p>
-                        Odio repudiandae sed occaecati aliquam corporis reiciendis. Reprehenderit explicabo voluptates est. Officiis est labore et aut illo facere.</p>
+                        See our standard contracts and interfaces to allow your game to be compatible with guilds.
+                    </p>
                 </div>
                 <img className={styles.mask3} src="/illustrations/warrior1.webp" alt="A warrior" />
             </div>

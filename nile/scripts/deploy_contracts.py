@@ -78,94 +78,96 @@ def sign_transaction(sender, calls, nonce, max_fee=0):
         return (call_array, calldata, sig_r, sig_s)
 
 def run(nre):
-    # guild_certificate_address, guild_certificate_abi = nre.deploy(
-    #     "GuildCertificate", 
-    #     arguments=[
-    #         str(str_to_felt("Test Certificate")),
-    #         str(str_to_felt("TC")),
-    #         "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3"
-    #     ],
-    #     alias="guild_certificate")
-    # print(guild_certificate_abi, guild_certificate_address)
-    # guild_address, guild_abi = nre.deploy(
-    #     "GuildAccount", 
-    #     arguments=[
-    #         str(str_to_felt("Test Guild")),
-    #         "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
-    #         guild_certificate_address
-    #     ],
-    #     alias="guild")
-    # print(guild_abi, guild_address)
-    test_nft_address, test_nft_abi = nre.deploy(
-        "TestNFT", 
+    guild_certificate_address, guild_certificate_abi = nre.deploy(
+        "GuildCertificate", 
         arguments=[
-            str(str_to_felt("Test NFT")),
-            str(str_to_felt("TNFT")),
-            "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
+            str(str_to_felt("Test Certificate")),
+            str(str_to_felt("TC")),
+            "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3"
         ],
-        alias="test_nft_2")
-    print(test_nft_abi, test_nft_address)
+        # alias="guild_certificate"
+    )
+    print(guild_certificate_abi, guild_certificate_address)
+    guild_address, guild_abi = nre.deploy(
+        "GuildAccount", 
+        arguments=[
+            str(str_to_felt("Test Guild")),
+            "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
+            guild_certificate_address
+        ],
+        # alias="guild"
+    )
+    print(guild_abi, guild_address)
+    # test_nft_address, test_nft_abi = nre.deploy(
+    #     "TestNFT", 
+    #     arguments=[
+    #         str(str_to_felt("Test NFT")),
+    #         str(str_to_felt("TNFT")),
+    #         "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
+    #     ],
+    #     alias="test_nft_2")
+    # print(test_nft_abi, test_nft_address)
 
     # guild_certificate_address = "0x03840a86c21d02cb182ee63fe34097a3934f958ee948a36a4d8d06fd8f08337a"
     # guild_address = "0x0544ca787ac6f35fe1196badf06c4b247ea04ad3da10035d021ef05af86708c0"
     # test_nft = "0x05215426511f653271f75fb1995157b8b4703691a62bd648044125cd9bb02284"
 
-    # command = [
-    #     "starknet",
-    #     "call",
-    #     "--address",
-    #     "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
-    #     "--abi",
-    #     "/Users/supsam/Documents/cairo/game_guilds/artifacts/abis/Account.json",
-    #     "--function",
-    #     "get_nonce",
-    # ]
+    command = [
+        "starknet",
+        "call",
+        "--address",
+        "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
+        "--abi",
+        "/Users/supsam/Documents/cairo/game_guilds/artifacts/abis/Account.json",
+        "--function",
+        "get_nonce",
+    ]
 
-    # # command.append("--feeder_gateway_url=http://127.0.0.1:5000/")
-    # command.append("--network=alpha-goerli")
+    # command.append("--feeder_gateway_url=http://127.0.0.1:5000/")
+    command.append("--network=alpha-goerli")
 
 
-    # nonce = int(subprocess.check_output(command).strip().decode("utf-8"))
+    nonce = int(subprocess.check_output(command).strip().decode("utf-8"))
     
-    # print("nonce:",nonce)
+    print("nonce:",nonce)
 
-    # (call_array, calldata, sig_r, sig_s) = sign_transaction(
-    #         sender="0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3", 
-    #         calls=[[guild_certificate_address, "transfer_ownership", [int(guild_address, 0)]]], nonce=nonce
-    #     )
+    (call_array, calldata, sig_r, sig_s) = sign_transaction(
+            sender="0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3", 
+            calls=[[guild_certificate_address, "transfer_ownership", [int(guild_address, 0)]]], nonce=nonce
+        )
 
-    # params = []
-    # params.append(str(len(call_array)))
-    # params.extend([str(elem) for sublist in call_array for elem in sublist])
-    # params.append(str(len(calldata)))
-    # params.extend([str(param) for param in calldata])
-    # params.append(str(nonce))
+    params = []
+    params.append(str(len(call_array)))
+    params.extend([str(elem) for sublist in call_array for elem in sublist])
+    params.append(str(len(calldata)))
+    params.extend([str(param) for param in calldata])
+    params.append(str(nonce))
 
-    # print(params)
+    print(params)
 
 
-    # command = [
-    #     "starknet",
-    #     "invoke",
-    #     "--address",
-    #     "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
-    #     "--abi",
-    #     "/Users/supsam/Documents/cairo/game_guilds/artifacts/abis/Account.json",
-    #     "--function",
-    #     "__execute__",
-    # ]
+    command = [
+        "starknet",
+        "invoke",
+        "--address",
+        "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
+        "--abi",
+        "/Users/supsam/Documents/cairo/game_guilds/artifacts/abis/Account.json",
+        "--function",
+        "__execute__",
+    ]
 
-    # # command.append("--gateway_url=http://127.0.0.1:5000/")
-    # command.append("--network=alpha-goerli")
+    # command.append("--gateway_url=http://127.0.0.1:5000/")
+    command.append("--network=alpha-goerli")
 
-    # command.append("--inputs")
-    # command.extend(params)
+    command.append("--inputs")
+    command.extend(params)
 
-    # command.append("--signature")
-    # command.extend([str(sig_r), str(sig_s)])
+    command.append("--signature")
+    command.extend([str(sig_r), str(sig_s)])
 
-    # val= subprocess.check_output(command).strip().decode("utf-8")
+    val= subprocess.check_output(command).strip().decode("utf-8")
     
-    # print(val)    
+    print(val)    
 
 

@@ -93,6 +93,10 @@ func _guild_master() -> (res: felt):
 end
 
 @storage_var
+func _is_permissions_initialized() -> (res: felt):
+end
+
+@storage_var
 func _whitelisted_role(account: felt) -> (res: felt):
 end
 
@@ -163,6 +167,30 @@ func require_owner{
     return ()
 end
 
+func require_admin{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
+    alloc_locals
+    let (caller_address) = get_caller_address()
+    let (contract_address) = get_contract_address()
+    let (guild_certificate) = _guild_certificate.read()
+
+    let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
+        contract_address=guild_certificate,
+        owner=caller_address,
+        guild=contract_address
+    )
+
+    let (_role) = IGuildCertificate.get_role(contract_address=guild_certificate, certificate_id=certificate_id)
+
+    with_attr error_message("Caller is not owner"):
+        assert _role = Role.ADMIN
+    end
+    return ()
+end
+
 
 func require_owner_or_member{
         syscall_ptr : felt*,
@@ -225,6 +253,16 @@ func supportsInterface{
 end
 
 @view
+func is_permissions_initialized{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: felt):
+    let (initialized) = _is_permissions_initialized.read()
+    return (res=initialized)
+end
+
+@view
 func get_nonce{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
@@ -233,6 +271,20 @@ func get_nonce{
     let (res) = _current_nonce.read()
     return (res=res)
 end
+
+@view
+func get_whitelisted_role{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: felt):
+    let (caller_address) = get_caller_address()
+
+    let (role) = _whitelisted_role.read(caller_address)
+
+    return (res=role)
+end
+
 
 @view
 func get_permissions{
@@ -522,6 +574,85 @@ func join{
 end
 
 @external
+func remove_members{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        members_len: felt,
+        members: felt*
+    ):
+    require_admin()
+
+    _remove_members(
+        members_index=0,
+        members_len=members_len,
+        members=members
+    )
+    return ()
+end
+
+func _remove_members{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        members_index: felt,
+        members_len: felt,
+        members: felt*
+    ):
+    if members_index == members_len:
+        return ()
+    end
+    let (caller_address) = get_caller_address()
+    let (contract_address) = get_contract_address()
+    let (guild_certificate) = _guild_certificate.read()
+
+    let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
+        contract_address=guild_certificate,
+        owner=caller_address,
+        guild=contract_address
+    )
+
+    IGuildCertificate.burn(
+        contract_address=guild_certificate,
+        certificate_id=certificate_id
+    )
+
+    _remove_members(
+        members_index=members_index + 1,
+        members_len=members_len,
+        members=members
+    )
+    return ()
+end
+
+@external
+func update_role{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(new_role: felt):
+    let (caller_address) = get_caller_address()
+    let (contract_address) = get_contract_address()
+    let (guild_certificate) = _guild_certificate.read()
+
+    let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
+        contract_address=guild_certificate,
+        owner=caller_address,
+        guild=contract_address
+    )
+
+    IGuildCertificate.update_role(
+        contract_address=guild_certificate,
+        certificate_id=certificate_id,
+        role=new_role
+    )
+
+    return ()
+end
+
+@external
 func deposit_ERC721{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
@@ -661,6 +792,33 @@ func execute_transaction{
 end
 
 @external
+func initialize_permissions{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        contract: felt,
+        function_selectors_len: felt,
+        function_selectors: felt*
+    ):
+    require_master()
+
+    let (check_initialized) = _is_permissions_initialized.read()
+
+    with_attr error_message("Guild: Permissions already initialized"):
+        assert check_initialized = FALSE
+    end
+
+    set_permission(
+        contract=contract,
+        function_selectors_len=function_selectors_len,
+        function_selectors=function_selectors
+    )
+    return ()
+end
+
+
+
 func set_permission{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,

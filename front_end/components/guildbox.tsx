@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import styles from '../styles/components/GuildBox.module.css'
-import { useGuildsContract, useShareCertificate } from '../hooks/guilds';
+import { useGuildsContract, useGuildCertificate } from '../hooks/guilds';
 import { useStarknet, useStarknetCall } from '@starknet-react/core';
 import { feltToString } from "../utils/felt";
 import { uint256 } from "starknet"
@@ -16,7 +16,7 @@ export default function GuildBox({ guild }: GuildBoxProps) {
 
     const { account } = useStarknet();
     const { contract: guildContract } = useGuildsContract(guild);
-    const { contract: certificateContract } = useShareCertificate();
+    const { contract: guildCertificateContract } = useGuildCertificate();
 
 
     const guildContractAddress = guild.address;
@@ -24,15 +24,15 @@ export default function GuildBox({ guild }: GuildBoxProps) {
     const { data: nameData } = useStarknetCall({ contract: guildContract, method: 'name', args: [] });
     const { data: extensionsData } = useStarknetCall({ contract: guildContract, method: 'get_extensions_number', args: [] });
 
-    const { data: titleData } = useStarknetCall({ contract: certificateContract, method: 'get_value', args: [account, guildContractAddress, 0] });
-    const { data: certificate_id } = useStarknetCall({ contract: certificateContract, method: 'get_certificate_id', args: [account, guildContract ? guildContract.address : 0] });
-    const { data: tokenData } = useStarknetCall({ contract: certificateContract, method: 'get_shares', args: [certificate_id ? certificate_id.token_id : 0] });
+    const { data: titleData } = useStarknetCall({ contract: guildCertificateContract, method: 'get_value', args: [account, guildContractAddress, 0] });
+    const { data: certificate_id } = useStarknetCall({ contract: guildCertificateContract, method: 'get_certificate_id', args: [account, guildContract ? guildContract.address : 0] });
+    const { data: tokenData } = useStarknetCall({ contract: guildCertificateContract, method: 'get_shares', args: [certificate_id ? certificate_id.token_id : 0] });
     const members = 47;
 
     return (
         <Link href={"/panel/" + guild.slug}>
             <div className={styles.box}>
-                <Image className={styles.img} src={guild.image} alt="A warrior" />
+                <img className={styles.img} src={guild.image} alt="A warrior" />
                 <div className={styles.content}>
                     <h1 className={styles.name}>{guild.name}</h1>
                     <div className={styles.description}>

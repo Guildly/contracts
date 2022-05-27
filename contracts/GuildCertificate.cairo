@@ -325,9 +325,9 @@ func burn{
         pedersen_ptr: HashBuiltin*, 
         syscall_ptr: felt*, 
         range_check_ptr
-    }(tokenId: Uint256):
-    ERC721_only_token_owner(tokenId)
-    ERC721_burn(tokenId)
+    }(certificate_id: Uint256):
+    ERC721_only_token_owner(certificate_id)
+    ERC721_burn(certificate_id)
     return ()
 end
 

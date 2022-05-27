@@ -12,7 +12,7 @@
     font-family: Verdana, sans-serif;
     font-size  : 38px;
     font-weight: bold;
-    padding    : 10px 10px 10px 5px;
+    margin     : 4px;
 }
 
 .subtitle {
@@ -23,29 +23,22 @@
     font-weight: bold;
 }
 
-.header {
-    display: flex;
+.action {
+    margin: 16px;
+}
+
+.description {
+    color: white;
+    font-family: Verdana, sans-serif;
+    font-size: 16px;
 }
 
 .button {
     color           : #a9d1ff;
     background-color: #202123b7;
     border          : 2px solid #4595d6;
-    margin          : -9px -16px auto auto;
-    cursor          : pointer;
-}
-
-.button_normal {
-    color           : #a9d1ff;
-    background-color: #202123b7;
-    border          : 2px solid #4595d6;
     margin          : 8px auto 4px auto;
     cursor          : pointer;
-}
-
-.button_icon {
-    height: 24px;
-    margin: 4px 5px;
 }
 
 .button_text {
@@ -54,23 +47,4 @@
     margin-right   : 7px;
     text-decoration: none;
     color          : inherit;
-}
-
-.table th, .table td{
-    color: white;
-    font-family: Verdana, sans-serif;
-    font-size: 20px;
-    padding: 8px;
-}
-
-.table th {
-    font-weight: bold;
-}
-
-.table td {
-    font-weight: normal;
-}
-
-.spinner_bottom {
-    margin-left: 450px;
 }

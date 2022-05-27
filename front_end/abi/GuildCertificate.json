@@ -17,33 +17,6 @@
         "type": "struct"
     },
     {
-        "members": [
-            {
-                "name": "token_id",
-                "offset": 0,
-                "type": "Uint256"
-            },
-            {
-                "name": "share",
-                "offset": 2,
-                "type": "Uint256"
-            },
-            {
-                "name": "owner",
-                "offset": 4,
-                "type": "felt"
-            },
-            {
-                "name": "guild",
-                "offset": 5,
-                "type": "felt"
-            }
-        ],
-        "name": "CertificateData",
-        "size": 6,
-        "type": "struct"
-    },
-    {
         "data": [
             {
                 "name": "from_",
@@ -99,27 +72,6 @@
         "keys": [],
         "name": "ApprovalForAll",
         "type": "event"
-    },
-    {
-        "inputs": [
-            {
-                "name": "user",
-                "type": "felt"
-            }
-        ],
-        "name": "get_user_guilds",
-        "outputs": [
-            {
-                "name": "guilds_len",
-                "type": "felt"
-            },
-            {
-                "name": "guilds",
-                "type": "felt*"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
     },
     {
         "inputs": [
@@ -265,7 +217,7 @@
         "name": "get_certificate_id",
         "outputs": [
             {
-                "name": "token_id",
+                "name": "certificate_id",
                 "type": "Uint256"
             }
         ],
@@ -275,74 +227,15 @@
     {
         "inputs": [
             {
-                "name": "token_id",
+                "name": "certificate_id",
                 "type": "Uint256"
             }
         ],
-        "name": "get_certificate_data",
+        "name": "get_role",
         "outputs": [
             {
-                "name": "certificate_data",
-                "type": "CertificateData"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "name": "owner",
+                "name": "role",
                 "type": "felt"
-            },
-            {
-                "name": "guild",
-                "type": "felt"
-            },
-            {
-                "name": "field",
-                "type": "felt"
-            }
-        ],
-        "name": "get_value",
-        "outputs": [
-            {
-                "name": "value",
-                "type": "felt"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "name": "token_id",
-                "type": "Uint256"
-            }
-        ],
-        "name": "get_shares",
-        "outputs": [
-            {
-                "name": "share",
-                "type": "Uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "name": "guild",
-                "type": "felt"
-            }
-        ],
-        "name": "get_total_shares",
-        "outputs": [
-            {
-                "name": "total_shares",
-                "type": "Uint256"
             }
         ],
         "stateMutability": "view",
@@ -472,32 +365,16 @@
     {
         "inputs": [
             {
+                "name": "to",
+                "type": "felt"
+            },
+            {
                 "name": "guild",
                 "type": "felt"
             },
             {
-                "name": "owner",
+                "name": "role",
                 "type": "felt"
-            },
-            {
-                "name": "share",
-                "type": "Uint256"
-            },
-            {
-                "name": "field_len",
-                "type": "felt"
-            },
-            {
-                "name": "field",
-                "type": "felt*"
-            },
-            {
-                "name": "values_len",
-                "type": "felt"
-            },
-            {
-                "name": "values",
-                "type": "felt*"
             }
         ],
         "name": "mint",
@@ -507,11 +384,22 @@
     {
         "inputs": [
             {
-                "name": "owner",
-                "type": "felt"
+                "name": "certificate_id",
+                "type": "Uint256"
             },
             {
-                "name": "token_id",
+                "name": "role",
+                "type": "felt"
+            }
+        ],
+        "name": "update_role",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "tokenId",
                 "type": "Uint256"
             }
         ],
@@ -522,39 +410,71 @@
     {
         "inputs": [
             {
-                "name": "owner",
+                "name": "certificate_id",
+                "type": "Uint256"
+            },
+            {
+                "name": "token",
                 "type": "felt"
+            },
+            {
+                "name": "token_id",
+                "type": "Uint256"
             },
             {
                 "name": "amount",
                 "type": "Uint256"
-            },
-            {
-                "name": "guild",
-                "type": "felt"
             }
         ],
-        "name": "increase_shares",
+        "name": "add_token_data",
         "outputs": [],
         "type": "function"
     },
     {
         "inputs": [
             {
-                "name": "owner",
+                "name": "certificate_id",
+                "type": "Uint256"
+            },
+            {
+                "name": "token",
                 "type": "felt"
             },
             {
-                "name": "guild",
-                "type": "felt"
+                "name": "token_id",
+                "type": "Uint256"
             },
             {
-                "name": "amount",
+                "name": "new_amount",
                 "type": "Uint256"
             }
         ],
-        "name": "decrease_shares",
+        "name": "change_token_data",
         "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "certificate_id",
+                "type": "Uint256"
+            },
+            {
+                "name": "token",
+                "type": "felt"
+            },
+            {
+                "name": "token_id",
+                "type": "Uint256"
+            }
+        ],
+        "name": "check_token_data",
+        "outputs": [
+            {
+                "name": "bool",
+                "type": "felt"
+            }
+        ],
         "type": "function"
     }
 ]

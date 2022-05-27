@@ -44,3 +44,11 @@
 .table_first_item {
     padding: 0px 55px 0px 0px;
 }
+
+.button {
+    color           : #a9d1ff;
+    background-color: #202123b7;
+    border          : 2px solid #4595d6;
+    margin          : 8px auto 4px auto;
+    cursor          : pointer;
+}

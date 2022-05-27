@@ -43,7 +43,7 @@ export default function Dropdown({ value, options, onChange }: DropdownProps) {
         setIsSelected(false)
     }
 
-    const displayRole = options[value - 1]
+    const displayRole = options[value]
 
     return(
         <div 
@@ -60,19 +60,19 @@ export default function Dropdown({ value, options, onChange }: DropdownProps) {
                 <div className={styles.dropdown}>
                     <button
                         className={styles.button}
-                        onClick={() => onOptionClicked(1)}
+                        onClick={() => onOptionClicked(0)}
                         key={1}>
                         <p>Member</p>
                     </button>
                     <button
                         className={styles.button}
-                        onClick={() => onOptionClicked(2)}
+                        onClick={() => onOptionClicked(1)}
                         key={2}>
                         <p>Admin</p>
                     </button>
                     <button
                         className={styles.button}
-                        onClick={() => onOptionClicked(3)}
+                        onClick={() => onOptionClicked(2)}
                         key={3}>
                         <p>Owner</p>
                     </button>

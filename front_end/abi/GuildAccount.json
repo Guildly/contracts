@@ -17,6 +17,50 @@
         "type": "struct"
     },
     {
+        "members": [
+            {
+                "name": "to",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "selector",
+                "offset": 1,
+                "type": "felt"
+            }
+        ],
+        "name": "Permission",
+        "size": 2,
+        "type": "struct"
+    },
+    {
+        "members": [
+            {
+                "name": "to",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "selector",
+                "offset": 1,
+                "type": "felt"
+            },
+            {
+                "name": "data_offset",
+                "offset": 2,
+                "type": "felt"
+            },
+            {
+                "name": "data_len",
+                "offset": 3,
+                "type": "felt"
+            }
+        ],
+        "name": "CallArray",
+        "size": 4,
+        "type": "struct"
+    },
+    {
         "data": [
             {
                 "name": "from_",
@@ -95,21 +139,6 @@
     {
         "inputs": [
             {
-                "name": "owners_len",
-                "type": "felt"
-            },
-            {
-                "name": "owners",
-                "type": "felt*"
-            }
-        ],
-        "name": "initialize_owners",
-        "outputs": [],
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
                 "name": "interfaceId",
                 "type": "felt"
             }
@@ -126,11 +155,39 @@
     },
     {
         "inputs": [],
+        "name": "is_permissions_initialized",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "get_nonce",
         "outputs": [
             {
                 "name": "res",
                 "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_permissions",
+        "outputs": [
+            {
+                "name": "permissions_len",
+                "type": "felt"
+            },
+            {
+                "name": "permissions",
+                "type": "Permission*"
             }
         ],
         "stateMutability": "view",
@@ -161,9 +218,23 @@
             {
                 "name": "members",
                 "type": "felt*"
+            },
+            {
+                "name": "roles_len",
+                "type": "felt"
+            },
+            {
+                "name": "roles",
+                "type": "felt*"
             }
         ],
-        "name": "add_guild_members",
+        "name": "whitelist_members",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "join",
         "outputs": [],
         "type": "function"
     },
@@ -244,7 +315,80 @@
                 "type": "felt*"
             }
         ],
-        "name": "set_permission",
+        "name": "initialize_permissions",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "arr_len",
+                "type": "felt"
+            },
+            {
+                "name": "arr",
+                "type": "felt*"
+            }
+        ],
+        "name": "array_product",
+        "outputs": [
+            {
+                "name": "product",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "arr_len",
+                "type": "felt"
+            },
+            {
+                "name": "arr",
+                "type": "felt*"
+            }
+        ],
+        "name": "array_sum",
+        "outputs": [
+            {
+                "name": "sum",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "plugin_data_len",
+                "type": "felt"
+            },
+            {
+                "name": "plugin_data",
+                "type": "felt*"
+            },
+            {
+                "name": "call_array_len",
+                "type": "felt"
+            },
+            {
+                "name": "call_array",
+                "type": "CallArray*"
+            },
+            {
+                "name": "calldata_len",
+                "type": "felt"
+            },
+            {
+                "name": "calldata",
+                "type": "felt"
+            }
+        ],
+        "name": "delegate_validate",
         "outputs": [],
         "type": "function"
     }

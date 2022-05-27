@@ -13,23 +13,31 @@ import { useTestNFTContract } from '../hooks/testNFT';
 import { toBN } from 'starknet/dist/utils/number'
 
 
-export default function Manage() {
+export default function TestToken() {
 
     const { account } = useStarknet();
     const [ minted, setMinted ] = useState(false)
     const { contract: testNFTContract } = useTestNFTContract();
     const { data: tokenIdCountResult } = useStarknetCall({contract: testNFTContract, method: 'token_id_count', args: []});
-    const { data, loading, invoke } = useStarknetInvoke({ contract: testNFTContract, method: 'mint' });
+    const { 
+        data: tokenMintData, 
+        loading: tokenMintLoading, 
+        invoke: tokenMintInvoke 
+    } = useStarknetInvoke(
+        { 
+            contract: testNFTContract, 
+            method: 'mint' 
+        });
     const { transactions } = useStarknetTransactionManager()
 
     useEffect(() => {
         for (const transaction of transactions)
-          if (transaction.transactionHash === data) {
+          if (transaction.transactionHash === tokenMintData) {
             if (transaction.status === 'ACCEPTED_ON_L2'
               || transaction.status === 'ACCEPTED_ON_L1')
               setMinted(true);
           }
-      }, [data])
+      }, [tokenMintData])
 
     const tokenIdValue = useMemo(() => {
         if (tokenIdCountResult && tokenIdCountResult.length > 0) {
@@ -42,10 +50,6 @@ export default function Manage() {
           return parsedValue
         }
     }, [tokenIdCountResult])
-        
-    if (!account) {
-        return null
-    }
 
     return(
         <div className="background">
@@ -56,12 +60,15 @@ export default function Manage() {
                         <h1 className={styles.title}>Mint Test Token</h1>
                     </div>
                     {
-                        !data && !loading ?
+                        !tokenMintData && !tokenMintLoading ?
                         <div 
                             onClick={() => 
-                                invoke({
+                                tokenMintInvoke({
                                     args: [account, tokenIdValue],
-                                    metadata: { method: 'mint', message: 'mint a token' }
+                                    metadata: { 
+                                        method: 'mint', 
+                                        message: 'mint a token' 
+                                    }
                                 })
                             }
                             className={styles.button_normal}
@@ -73,7 +80,7 @@ export default function Manage() {
                     }
 
                     {
-                        loading || (!minted && data) ?
+                        tokenMintLoading || (!minted && tokenMintData) ?
                         <Spinner color={"#a9d1ff"} className={styles.spinner_bottom} />
                         : null
                     }

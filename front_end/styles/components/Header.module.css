@@ -122,12 +122,19 @@
 }
 
 .network_button {
+    display: flex;
     width: 100%;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
 }
 
 .network_button_text {
     font-family   : Verdana, sans-serif;
     letter-spacing: 0.05em;
     font-size     : 16px;
-    padding: 20px 20px 20px 20px;
+}
+
+.network_button_icon {
+    width  : 25px;
 }

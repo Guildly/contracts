@@ -10,6 +10,7 @@ import styles from '../../styles/Panel.module.css'
 import Header from '../../components/header';
 import { toBN } from 'starknet/dist/utils/number';
 import { Main } from '../../features/Main';
+import Link from 'next/link';
 
 export const getGuild = (pid) => {
   const { supportedGuilds } = Main()
@@ -74,7 +75,14 @@ export default function Panel() {
           <div className={styles.right}>
             <div className={styles.card}>
               <h2 className={styles.subtitlebis}>Games</h2>
-              <p className={styles.descline}>Age Of Eykar</p>
+              <div className={styles.game_row}>
+                <p className={styles.descline}>Age Of Eykar</p>
+                <Link href="/test-game">
+                    <div className={styles.button}>
+                      <p className={styles.play_button_text}>Play</p>
+                    </div>
+                </Link>
+              </div>
               <p className={styles.descline}>Battle In Redacted</p>
             </div>
             <div className={styles.card}>

@@ -1,8 +1,6 @@
 import pytest
 from ape import accounts, project
-from utils import str_to_felt, Signer
-
-signer = Signer(123456789987654321)
+from utils import str_to_felt
 
 @pytest.fixture(scope="session")
 def account():

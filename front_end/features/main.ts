@@ -1,12 +1,10 @@
-import warrior1 from '../public/illustrations/warrior1.webp'
-import warrior2 from '../public/illustrations/warrior2.webp'
 import deploymentsConfig from '../deployments-config.json'
 import { StaticImageData } from 'next/image'
 
 export type Guild = {
     address: string
     name: string
-    image: string | StaticImageData
+    image: string
     members: number
     games: Array<String>
     slug: string
@@ -20,7 +18,7 @@ export const Main = () => {
         {
             address: testGuild1Address,
             name: "Titans Of The Dark Circle",
-            image: warrior1,
+            image: '/illustrations/warrior2.webp',
             members: 47,
             games: ["Age Of Eykar"],
             slug: "titans-of-the-dark-circle",
@@ -28,7 +26,7 @@ export const Main = () => {
         {
             address: testGuild1Address,
             name: "Warriors Of The Mystic Mountain",
-            image: warrior2,
+            image: '/illustrations/warrior1.webp',
             members: 20,
             games: ["Age Of Eykar"],
             slug: "warriors-of-the-mystic-mountain"

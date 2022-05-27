@@ -88,3 +88,12 @@
         margin-left: 12px;
     }
 }
+
+.spinner_bottom {
+    margin-left: 180px;
+}
+
+.box_footer {
+    display      : flex;
+    margin-bottom: -4px;
+}

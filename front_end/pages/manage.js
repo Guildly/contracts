@@ -42,7 +42,11 @@ export default function Manage() {
                                         key={index}
                                     >
                                         <td>{guild.name}</td>
-                                        <td>47 <Link href="/members/0">(See List)</Link></td>
+                                        <td>47 
+                                                <Link href={"/members/"+guild.slug}>
+                                                    <button className={styles.button_normal}>List</button>
+                                                </Link>
+                                        </td>
                                         <td>2</td>
                                         <td>
                                             <Link href={"/managing/"+guild.slug}>
@@ -56,15 +60,6 @@ export default function Manage() {
                                     : undefined}
                             </tbody>
                         </table>
-                        {/* <p className={styles.option_title}>
-                            Guild
-                        </p>
-                        <p className={styles.option_title}>
-                            Governance
-                        </p>
-                        <p className={styles.option_title}>
-                            Permissions
-                        </p> */}
                     </div>
                 </div>
                 <div className={styles.box}>

@@ -94,6 +94,7 @@
     border          : 2px solid #4595d6;
     cursor          : pointer;
     border-radius  : 10px;
+    height: 40px;
     width: 200px;
 }
 

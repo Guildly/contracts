@@ -12,7 +12,7 @@ export default function Explore() {
     const { supportedGuilds } = Main()
     const { account } = useStarknet();
     // const { data } = useGuildsManaged(account);
-    const [searchTerm, setSearchTerm] = useState()
+    const [searchTerm, setSearchTerm] = useState("")
 
     const searchIcon = 
         <>
@@ -21,6 +21,17 @@ export default function Explore() {
                 </path>
             </svg>
         </>
+    
+    const filteredData = supportedGuilds.filter((guild) => {
+        if (searchTerm === '') {
+            return guild
+        }
+        else {
+            if (guild.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+                return guild
+            }
+        }
+    })
 
     return(
         <div className="background">
@@ -42,21 +53,22 @@ export default function Explore() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {supportedGuilds? supportedGuilds.map((guild, index) => 
-                                <tr key={index}>
-                                    <td>{guild.name}</td>
-                                    <td>{guild.games}</td>
-                                    <td>{guild.members.toString()} <Link href={"/members/"+guild.slug}>(List)</Link></td>
-                                    <td>
-                                        <Link href={"/profile/"+guild.slug}>
-                                            <button className={styles.button_normal}>
-                                                See More
-                                            </button>
-                                        </Link>
-                                    </td>
-                                </tr>
-                                ) 
-                                : undefined}
+                                {supportedGuilds? filteredData.map((guild, index) => 
+                                    <tr key={index}>
+                                        <td>{guild.name}</td>
+                                        <td>{guild.games}</td>
+                                        <td>{guild.members.toString()}</td>
+                                        <td>
+                                            <Link href={"/profile/"+guild.slug}>
+                                                <button className={styles.button_normal}>
+                                                    See More
+                                                </button>
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                    ) 
+                                    : undefined
+                                }
                             </tbody>
                         </table>
                     </div>

@@ -34,8 +34,14 @@ namespace IGuildCertificate:
         ):
     end
 
+    func update_role(
+            certificate_id: Uint256,
+            role: felt
+        ):
+    end
+
     func burn(
-            token_id: Uint256
+            certificate_id: Uint256
         ):
     end
 
