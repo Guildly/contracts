@@ -27,46 +27,6 @@ def str_to_felt(text):
     b_text = bytes(text, "ascii")
     return int.from_bytes(b_text, "big")
 
-
-def from_call_to_call_array(calls):
-    """Transform from Call to CallArray."""
-    call_array = []
-    calldata = []
-    for _, call in enumerate(calls):
-        assert len(call) == 3, "Invalid call parameters"
-        entry = (
-            int(call[0], 16),
-            get_selector_from_name(call[1]),
-            len(calldata),
-            len(call[2]),
-        )
-        call_array.append(entry)
-        calldata.extend(call[2])
-    return (call_array, calldata)
-
-
-def get_transaction_hash(account, call_array, calldata, nonce, max_fee):
-    """Calculate the transaction hash."""
-    execute_calldata = [
-        len(call_array),
-        *[x for t in call_array for x in t],
-        len(calldata),
-        *calldata,
-        nonce,
-    ]
-
-    return calculate_transaction_hash_common(
-        TransactionHashPrefix.INVOKE,
-        TRANSACTION_VERSION,
-        account,
-        get_selector_from_name("__execute__"),
-        execute_calldata,
-        max_fee,
-        StarknetChainId.TESTNET.value,
-        [],
-    )
-
-
 def sign_transaction(sender, calls, nonce, max_fee=0):
     """Sign a transaction for an Account."""
     (call_array, calldata) = from_call_to_call_array(calls)
@@ -129,30 +89,6 @@ class Signer:
             signature=[sig_r, sig_s]
         )
 
-    async def send_account_transaction(
-        self, account, to, selector_name, calldata, nonce=None, max_fee=0
-    ):
-        return await self.send_account_transactions(
-            account, [(to, selector_name, calldata)], nonce, max_fee
-        )
-
-    async def send_account_transactions(self, account, calls, nonce=None, max_fee=0):
-        if nonce is None:
-            execution_info = await account.get_nonce().call()
-            (nonce,) = execution_info.result
-
-        (call_array, calldata) = from_call_to_call_array(calls)
-
-        message_hash = get_account_transaction_hash(
-            account.contract_address, call_array, calldata, nonce, max_fee
-        )
-        sig_r, sig_s = self.sign(message_hash)
-
-        # print(call_array, calldata, nonce)
-        return await account.__execute__(call_array, calldata, nonce).invoke(
-            signature=[sig_r, sig_s]
-        )
-
 
 def from_call_to_call_array(calls):
     call_array = []
@@ -173,33 +109,6 @@ def get_transaction_hash(account, call_array, calldata, nonce, max_fee):
         *calldata,
         nonce,
     ]
-
-    return calculate_transaction_hash_common(
-        TransactionHashPrefix.INVOKE,
-        TRANSACTION_VERSION,
-        account,
-        get_selector_from_name("__execute__"),
-        execute_calldata,
-        max_fee,
-        StarknetChainId.TESTNET.value,
-        [],
-    )
-
-
-def get_account_transaction_hash(account, call_array, calldata, nonce, max_fee):
-    # print(call_array)
-    print(calldata[0])
-    print(calldata[1:])
-    execute_calldata = [
-        len(call_array),
-        *[x for t in call_array for x in t],
-        len(calldata),
-        *[x for t in calldata[0] for x in t],
-        *calldata[1],
-        calldata[2],
-        nonce,
-    ]
-    print(f"Account: {execute_calldata}")
 
     return calculate_transaction_hash_common(
         TransactionHashPrefix.INVOKE,

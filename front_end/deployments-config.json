@@ -1,10 +1,10 @@
 {
     "networks": {
         "goerli": {
-            "test_guild_1": "0x068e2b018dda8f2349d5311e4f0b82812db054022148179f1a8511a8ec1ac05a",
-            "test_nft": "0x043cc9735efbb2b54ea79009dca04555f9e4377344bbd75a1c98f00378994037",
-            "test_game_contract": "0",
-            "guild_certificate": "0x001e9ab74b7d9c32cf0035269d064856d974d8821d13872d0c1545e13950601f"
+            "test_guild_1": "0x07d2eaf43752be8a4c33dff3a136998ab2c5014d8579d7ec434c29a0c9413ae8",
+            "test_nft": "0x0348b4bda2ee00f5164139ec560e1e144552956f53496e4bee6520e5c1fcfd7c",
+            "test_game_contract": "0x0207aac8e1081575fc53b7d1769b8bdd3c787f12f6bae95ebae2b2bbe83fdf4a",
+            "guild_certificate": "0x041959d388e02cfe000e7bd07da5964dddf75f178d491078964abd360fe04278"
         }
     }
 }

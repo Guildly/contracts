@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from '../../styles/Profile.module.css';
 import Header from '../../components/header';
 import { useRouter } from 'next/router';
@@ -6,10 +6,11 @@ import { Main } from '../../features/Main';
 import { 
     useStarknet,
     useStarknetCall,
-    useStarknetInvoke
+    useStarknetInvoke,
+    useStarknetTransactionManager 
 } from '@starknet-react/core'
 import { useGuildsContract, useShareCertificate } from '../../hooks/guilds';
-import JoinDialog from '../../components/joinDialog'
+import TransactionDialog from '../../components/transactionDialog'
 
 export const getGuild = (pid) => {
     const { supportedGuilds } = Main()
@@ -44,16 +45,31 @@ export default function Profile() {
 
     const joinButtonDisabled = whitelistedData === 0 ? true : false
 
+    const requestWhitelistDisabled = false;
+
     const [joinDialogToggled, setJoinDialogToggled] = useState(false);
 
     const [mintCertificate, setMintCertificate] = useState(0)
+
+    const { transactions } = useStarknetTransactionManager()
+
+    useEffect(() => {
+        for (const transaction of transactions)
+          if (transaction.transactionHash === joinData) {
+            if (transaction.status === 'ACCEPTED_ON_L2'
+              || transaction.status === 'ACCEPTED_ON_L1')
+              setMintCertificate(true);
+          }
+    }, [joinData, transactions])
 
     return(
         <div className="background">
             <Header />
             <div className="content">
                 {joinDialogToggled ? 
-                <JoinDialog 
+                <TransactionDialog
+                    title={"Joining "+guild.name}
+                    description={"Minting a guild certificate based on your whitelisted role."}
                     close={() => setJoinDialogToggled(false)}
                     loading={joinLoading}
                     value={mintCertificate}
@@ -81,7 +97,10 @@ export default function Profile() {
                             This guild requires you to be whitelisted before joining.
                         </p>
                         <div className={styles.action_buttons}>
-                            <button className={styles.button}>
+                            <button 
+                                className={styles.button}
+                                disabled={requestWhitelistDisabled}
+                            >
                                 <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                 <p className={styles.button_text}>Request Whitelist</p>
                             </button>

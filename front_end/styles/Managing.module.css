@@ -33,6 +33,18 @@
 
 .member_row {
     display: flex;
+}
+
+.member_inputs {
+    width: 60%;
+}
+
+.member_dropdowns {
+    width: 20%;
+}
+
+.button_area {
+    display: flex;
     align-items: center;
     justify-content: center;
 }
@@ -48,14 +60,12 @@
     height          : 50px;
 }
 
-.add_member_button{
+.action_button {
     display         : block;
-    margin          : 0px auto 0px auto;
     color           : #a9d1ff;
-    background-color: #202123b7;
+    background-color: transparent;
+    margin          : 8px auto 4px auto;
     cursor          : pointer;
-    width           : 50px;
-    height          : 50px
 }
 
 .proposal {

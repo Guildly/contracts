@@ -45,6 +45,11 @@ namespace IGuildCertificate:
         ):
     end
 
+    func guild_burn(
+            certificate_id: Uint256
+        ):
+    end
+
     func add_token_data(
             certificate_id: Uint256,
             token: felt,

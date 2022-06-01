@@ -39,6 +39,7 @@
     border          : 2px solid #4595d6;
     margin          : 8px auto 4px auto;
     cursor          : pointer;
+    height: 40px;
 }
 
 .button_text {

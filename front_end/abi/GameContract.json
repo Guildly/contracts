@@ -21,6 +21,10 @@
             {
                 "name": "token",
                 "type": "felt"
+            },
+            {
+                "name": "points_contract",
+                "type": "felt"
             }
         ],
         "name": "constructor",
@@ -28,8 +32,30 @@
         "type": "constructor"
     },
     {
-        "inputs": [],
-        "name": "get_value",
+        "inputs": [
+            {
+                "name": "account",
+                "type": "felt"
+            }
+        ],
+        "name": "get_character_name",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "account",
+                "type": "felt"
+            }
+        ],
+        "name": "get_door",
         "outputs": [
             {
                 "name": "res",
@@ -46,11 +72,45 @@
                 "type": "felt"
             },
             {
+                "name": "account",
+                "type": "felt"
+            }
+        ],
+        "name": "set_character_name",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "account",
+                "type": "felt"
+            },
+            {
                 "name": "token_id",
                 "type": "Uint256"
             }
         ],
-        "name": "set_value_with_nft",
+        "name": "open_door",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "account",
+                "type": "felt"
+            },
+            {
+                "name": "val",
+                "type": "felt"
+            },
+            {
+                "name": "token_id",
+                "type": "Uint256"
+            }
+        ],
+        "name": "get_rewards",
         "outputs": [],
         "type": "function"
     }

@@ -399,11 +399,22 @@
     {
         "inputs": [
             {
-                "name": "tokenId",
+                "name": "certificate_id",
                 "type": "Uint256"
             }
         ],
         "name": "burn",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "certificate_id",
+                "type": "Uint256"
+            }
+        ],
+        "name": "guild_burn",
         "outputs": [],
         "type": "function"
     },

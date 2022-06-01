@@ -1,7 +1,7 @@
 import Header from '../components/header';
 import styles from '../styles/Explore.module.css'
 import { useState, useRef } from "react";
-import ShortTextInput from "../components/input";
+import { ShortTextInput } from "../components/input";
 import Spinner from "../components/spinner";
 import Link from 'next/link'
 import { useStarknet } from '@starknet-react/core'

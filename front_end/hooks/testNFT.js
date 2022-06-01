@@ -5,7 +5,7 @@ import TestNFT from '../abi/TestNFT.json'
 
 export function useTestNFTContract() {
   return useContract({
-    abi: TestNFT.abi,
+    abi: TestNFT,
     address: deploymentsConfig["networks"]["goerli"]["test_nft"],
   })
 }

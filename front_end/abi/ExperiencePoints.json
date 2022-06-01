@@ -27,7 +27,7 @@
                 "type": "felt"
             },
             {
-                "name": "tokenId",
+                "name": "value",
                 "type": "Uint256"
             }
         ],
@@ -42,35 +42,16 @@
                 "type": "felt"
             },
             {
-                "name": "approved",
+                "name": "spender",
                 "type": "felt"
             },
             {
-                "name": "tokenId",
+                "name": "value",
                 "type": "Uint256"
             }
         ],
         "keys": [],
         "name": "Approval",
-        "type": "event"
-    },
-    {
-        "data": [
-            {
-                "name": "owner",
-                "type": "felt"
-            },
-            {
-                "name": "operator",
-                "type": "felt"
-            },
-            {
-                "name": "approved",
-                "type": "felt"
-            }
-        ],
-        "keys": [],
-        "name": "ApprovalForAll",
         "type": "event"
     },
     {
@@ -84,6 +65,18 @@
                 "type": "felt"
             },
             {
+                "name": "decimals",
+                "type": "felt"
+            },
+            {
+                "name": "initial_supply",
+                "type": "Uint256"
+            },
+            {
+                "name": "recipient",
+                "type": "felt"
+            },
+            {
                 "name": "owner",
                 "type": "felt"
             }
@@ -91,23 +84,6 @@
         "name": "constructor",
         "outputs": [],
         "type": "constructor"
-    },
-    {
-        "inputs": [
-            {
-                "name": "interfaceId",
-                "type": "felt"
-            }
-        ],
-        "name": "supportsInterface",
-        "outputs": [
-            {
-                "name": "success",
-                "type": "felt"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
     },
     {
         "inputs": [],
@@ -134,9 +110,33 @@
         "type": "function"
     },
     {
+        "inputs": [],
+        "name": "totalSupply",
+        "outputs": [
+            {
+                "name": "totalSupply",
+                "type": "Uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [
+            {
+                "name": "decimals",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [
             {
-                "name": "owner",
+                "name": "account",
                 "type": "felt"
             }
         ],
@@ -153,81 +153,18 @@
     {
         "inputs": [
             {
-                "name": "tokenId",
-                "type": "Uint256"
-            }
-        ],
-        "name": "ownerOf",
-        "outputs": [
-            {
-                "name": "owner",
-                "type": "felt"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "name": "tokenId",
-                "type": "Uint256"
-            }
-        ],
-        "name": "getApproved",
-        "outputs": [
-            {
-                "name": "approved",
-                "type": "felt"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
                 "name": "owner",
                 "type": "felt"
             },
             {
-                "name": "operator",
+                "name": "spender",
                 "type": "felt"
             }
         ],
-        "name": "isApprovedForAll",
+        "name": "allowance",
         "outputs": [
             {
-                "name": "isApproved",
-                "type": "felt"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "name": "tokenId",
-                "type": "Uint256"
-            }
-        ],
-        "name": "tokenURI",
-        "outputs": [
-            {
-                "name": "tokenURI",
-                "type": "felt"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "token_id_count",
-        "outputs": [
-            {
-                "name": "res",
+                "name": "remaining",
                 "type": "Uint256"
             }
         ],
@@ -237,117 +174,119 @@
     {
         "inputs": [
             {
-                "name": "to",
+                "name": "recipient",
                 "type": "felt"
             },
             {
-                "name": "tokenId",
+                "name": "amount",
                 "type": "Uint256"
             }
         ],
-        "name": "approve",
-        "outputs": [],
-        "type": "function"
-    },
-    {
-        "inputs": [
+        "name": "transfer",
+        "outputs": [
             {
-                "name": "operator",
-                "type": "felt"
-            },
-            {
-                "name": "approved",
+                "name": "success",
                 "type": "felt"
             }
         ],
-        "name": "setApprovalForAll",
-        "outputs": [],
         "type": "function"
     },
     {
         "inputs": [
             {
-                "name": "from_",
+                "name": "sender",
                 "type": "felt"
             },
             {
-                "name": "to",
+                "name": "recipient",
                 "type": "felt"
             },
             {
-                "name": "tokenId",
+                "name": "amount",
                 "type": "Uint256"
             }
         ],
         "name": "transferFrom",
-        "outputs": [],
+        "outputs": [
+            {
+                "name": "success",
+                "type": "felt"
+            }
+        ],
         "type": "function"
     },
     {
         "inputs": [
             {
-                "name": "from_",
+                "name": "spender",
                 "type": "felt"
             },
+            {
+                "name": "amount",
+                "type": "Uint256"
+            }
+        ],
+        "name": "approve",
+        "outputs": [
+            {
+                "name": "success",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "spender",
+                "type": "felt"
+            },
+            {
+                "name": "added_value",
+                "type": "Uint256"
+            }
+        ],
+        "name": "increaseAllowance",
+        "outputs": [
+            {
+                "name": "success",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "spender",
+                "type": "felt"
+            },
+            {
+                "name": "subtracted_value",
+                "type": "Uint256"
+            }
+        ],
+        "name": "decreaseAllowance",
+        "outputs": [
+            {
+                "name": "success",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
             {
                 "name": "to",
                 "type": "felt"
             },
             {
-                "name": "tokenId",
-                "type": "Uint256"
-            },
-            {
-                "name": "data_len",
-                "type": "felt"
-            },
-            {
-                "name": "data",
-                "type": "felt*"
-            }
-        ],
-        "name": "safeTransferFrom",
-        "outputs": [],
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "name": "tokenId",
-                "type": "Uint256"
-            },
-            {
-                "name": "tokenURI",
-                "type": "felt"
-            }
-        ],
-        "name": "setTokenURI",
-        "outputs": [],
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "name": "to",
-                "type": "felt"
-            },
-            {
-                "name": "tokenId",
+                "name": "amount",
                 "type": "Uint256"
             }
         ],
         "name": "mint",
-        "outputs": [],
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "name": "tokenId",
-                "type": "Uint256"
-            }
-        ],
-        "name": "burn",
         "outputs": [],
         "type": "function"
     }

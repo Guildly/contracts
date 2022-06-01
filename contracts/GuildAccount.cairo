@@ -5,11 +5,13 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.math import assert_le, assert_lt
+from starkware.cairo.common.memcpy import memcpy
 
 from starkware.starknet.common.syscalls import (
     call_contract, 
     get_caller_address, 
-    get_contract_address
+    get_contract_address,
+    get_tx_info
 )
 
 from contracts.utils.constants import FALSE, TRUE
@@ -50,14 +52,6 @@ from openzeppelin.token.erc721.library import (
 # Structs
 #
 
-# struct AccountNFTData:
-#     member owner: felt
-#     member tokens_len: felt
-#     member tokens: felt*
-#     member token_ids_len: felt
-#     member token_ids: felt*
-# end
-
 struct Call:
     member to: felt
     member selector: felt
@@ -79,6 +73,19 @@ struct Permission:
     member selector: felt
 end
 
+struct Member:
+    member account: felt
+    member role: felt
+end
+
+#
+# Events
+#
+
+@event
+func transaction_executed(hash: felt, response_len: felt, response: felt*):
+end
+
 
 #
 # Storage variables
@@ -96,24 +103,20 @@ end
 func _is_permissions_initialized() -> (res: felt):
 end
 
+# @storage_var
+# func _whitelisted_members(index: felt) -> (res: Member):
+# end
+
 @storage_var
 func _whitelisted_role(account: felt) -> (res: felt):
 end
 
 @storage_var
-func _allowed_contracts_len() -> (res: felt):
+func _permissions_len() -> (res: felt):
 end
 
 @storage_var
-func _allowed_contracts(index: felt) -> (res: felt):
-end
-
-@storage_var
-func _allowed_selectors_len(contract: felt) -> (res: felt):
-end
-
-@storage_var
-func _allowed_selectors(contract: felt, index: felt) -> (res: felt):
+func _permissions(index: felt) -> (res: Permission):
 end
 
 @storage_var
@@ -277,10 +280,9 @@ func get_whitelisted_role{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }() -> (res: felt):
-    let (caller_address) = get_caller_address()
+    }(account: felt) -> (res: felt):
 
-    let (role) = _whitelisted_role.read(caller_address)
+    let (role) = _whitelisted_role.read(account)
 
     return (res=role)
 end
@@ -296,154 +298,46 @@ func get_permissions{
         permissions: Permission*
     ):
     alloc_locals
-    let (allowed_contracts_len) = _allowed_contracts_len.read()
-    let (allowed_contracts) = alloc()
-
-    _get_allowed_contracts(
-        allowed_contracts_index=0,
-        allowed_contracts_len=allowed_contracts_len,
-        allowed_contracts=allowed_contracts
-    )
-
     let (permissions: Permission*) = alloc()
 
-    let (permissions_len) = get_allowed_selectors(
-        allowed_contracts_index=0,
-        allowed_contracts_len=allowed_contracts_len,
-        allowed_contracts=allowed_contracts,
-        permissions=permissions,
-        offset=0
+    let (permissions_len) = _permissions_len.read()
+
+    _get_permissions(
+        permissions_index=0,
+        permissions_len=permissions_len,
+        permissions=permissions
     )
+
     return (
         permissions_len=permissions_len,
         permissions=permissions
     )
 end
 
-@view
-func get_allowed_contracts{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (
-        allowed_contracts_len: felt,
-        allowed_contracts: felt*
-    ):
-    alloc_locals
-    let (allowed_contracts_len) = _allowed_contracts_len.read()
-    let (allowed_contracts) = alloc()
-
-    _get_allowed_contracts(
-        allowed_contracts_index=0,
-        allowed_contracts_len=allowed_contracts_len,
-        allowed_contracts=allowed_contracts
-    )
-    return (allowed_contracts_len, allowed_contracts)
-end
-
-func _get_allowed_contracts{
-        syscall_ptr : felt*, 
+func _get_permissions{
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        allowed_contracts_index: felt,
-        allowed_contracts_len: felt,
-        allowed_contracts: felt*
+        permissions_index: felt,
+        permissions_len: felt,
+        permissions: Permission*
     ):
-    if allowed_contracts_index == allowed_contracts_len:
+    if permissions_index == permissions_len:
         return ()
     end
 
-    let (allowed_contract) = _allowed_contracts.read(allowed_contracts_index)
-    assert allowed_contracts[allowed_contracts_index] =  allowed_contract
+    let (permission) = _permissions.read(permissions_index)
 
-    _get_allowed_contracts(
-        allowed_contracts_index=allowed_contracts_index + 1,
-        allowed_contracts_len=allowed_contracts_len,
-        allowed_contracts=allowed_contracts
+    assert permissions[permissions_index] = permission
+
+    _get_permissions(
+        permissions_index=permissions_index + 1,
+        permissions_len=permissions_len,
+        permissions=permissions
     )
     return ()
 end
-
-func get_allowed_selectors{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        allowed_contracts_index: felt,
-        allowed_contracts_len: felt,
-        allowed_contracts: felt*,
-        permissions: Permission*,
-        offset: felt
-    ) -> (permissions_len: felt):
-    alloc_locals
-    if allowed_contracts_index == allowed_contracts_len:
-        return (permissions_len=offset)
-    end
-
-    let (allowed_selectors_len) = _allowed_selectors_len.read(
-        allowed_contracts[allowed_contracts_index]
-    )
-
-    _get_allowed_selectors(
-        allowed_selectors_index=0,
-        allowed_selectors_len=allowed_selectors_len,
-        permissions=permissions,
-        contract=allowed_contracts[allowed_contracts_index],
-        offset=offset
-    )
-
-    get_allowed_selectors(
-        allowed_contracts_index=allowed_contracts_index + 1,
-        allowed_contracts_len=allowed_contracts_len,
-        allowed_contracts=allowed_contracts,
-        permissions=permissions,
-        offset=offset + allowed_selectors_len
-    )
-    return (permissions_len=offset)
-end
-
-func _get_allowed_selectors{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        allowed_selectors_index: felt,
-        allowed_selectors_len: felt,
-        permissions: Permission*,
-        contract: felt,
-        offset: felt
-    ):
-    alloc_locals
-    if allowed_selectors_index == allowed_selectors_len:
-        return ()
-    end
-
-    let (allowed_selectors) = alloc()
-
-    let (allowed_selector) = _allowed_selectors.read(
-        contract,
-        allowed_selectors_index
-    )
-
-    let permission = Permission(
-        contract,
-        allowed_selector
-    )
-    
-    assert permissions[offset] = permission
-
-    _get_allowed_selectors(
-        allowed_selectors_index=allowed_selectors_index + 1,
-        allowed_selectors_len=allowed_selectors_len,
-        permissions=permissions,
-        contract=contract,
-        offset=offset
-    )
-
-    return ()
-end
-
 
 #
 # Storage helpers
@@ -456,70 +350,21 @@ func _whitelist_members{
     }(
         members_index: felt,
         members_len: felt,
-        members: felt*,
-        roles: felt*  
+        members: Member*
     ):
     if members_index == members_len:
         return ()
     end
-    _whitelisted_role.write(members[members_index], roles[members_index])
+
+    let account = members[members_index].account
+    let role = members[members_index].role
+
+    _whitelisted_role.write(account, role)
 
     _whitelist_members(
         members_index=members_index + 1, 
         members_len=members_len, 
-        members=members,
-        roles=roles
-    )
-    return ()
-end
-
-func _set_allowed_contracts{
-        syscall_ptr: felt*, 
-        pedersen_ptr: HashBuiltin*, 
-        range_check_ptr
-    }(
-        contracts_index: felt,
-        contracts_len: felt, 
-        contracts: felt*
-    ):
-    if contracts_index == contracts_len:
-        return ()
-    end
-
-     # Write the current iteration to storage
-    _allowed_contracts.write(contracts_index, contracts[contracts_index])
-
-    # Recursively write the rest
-    _set_allowed_contracts(contracts_index=contracts_index + 1, contracts_len=contracts_len, contracts=contracts)
-    return ()
-end
-
-func _set_allowed_functions{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
-    }(
-        function_selectors_index: felt,
-        function_selectors_len: felt,
-        function_selectors: felt*,
-        contract: felt
-    ):
-    if function_selectors_index == function_selectors_len:
-        return ()
-    end
-
-    # Write the current iteration to storage
-    _allowed_selectors.write(
-        contract=contract, 
-        index=function_selectors_index, 
-        value=function_selectors[function_selectors_index]
-    )
-    # Recursively write the rest
-    _set_allowed_functions(
-        function_selectors_index=function_selectors_index + 1, 
-        function_selectors_len=function_selectors_len, 
-        function_selectors=function_selectors,
-        contract=contract
+        members=members
     )
     return ()
 end
@@ -536,17 +381,14 @@ func whitelist_members{
         range_check_ptr
     }(
         members_len: felt,
-        members: felt*,
-        roles_len: felt,
-        roles: felt*
+        members: Member*
     ):
     require_master()
     
     _whitelist_members(
         members_index=0, 
         members_len=members_len, 
-        members=members,
-        roles=roles
+        members=members
     )
     return ()
 end
@@ -570,6 +412,30 @@ func join{
         guild=contract_address,
         role=whitelisted_role
     )
+    return ()
+end
+
+@external
+func leave{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
+    let (guild_certificate) = _guild_certificate.read()
+    let (contract_address) = get_contract_address()
+    let (caller_address) = get_caller_address()
+
+    let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
+        contract_address=guild_certificate,
+        owner=caller_address,
+        guild=contract_address
+    )
+
+    IGuildCertificate.burn(
+        contract_address=guild_certificate,
+        certificate_id=certificate_id
+    )
+
     return ()
 end
 
@@ -614,7 +480,7 @@ func _remove_members{
         guild=contract_address
     )
 
-    IGuildCertificate.burn(
+    IGuildCertificate.guild_burn(
         contract_address=guild_certificate,
         certificate_id=certificate_id
     )
@@ -632,14 +498,13 @@ func update_role{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(new_role: felt):
-    let (caller_address) = get_caller_address()
+    }(address: felt, new_role: felt):
     let (contract_address) = get_contract_address()
     let (guild_certificate) = _guild_certificate.read()
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
         contract_address=guild_certificate,
-        owner=caller_address,
+        owner=address,
         guild=contract_address
     )
 
@@ -756,39 +621,86 @@ func withdraw_ERC721{
 end
 
 @external
-func execute_transaction{
+func execute_transactions{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        to : felt,
-        function_selector : felt,
-        calldata_len : felt,
-        calldata : felt*
+        call_array_len: felt,
+        call_array: CallArray*,
+        calldata_len: felt,
+        calldata: felt*,
+        nonce: felt
     ) -> (
-        response_len: felt,
-        response: felt*
+        retdata_len: felt,
+        retdata: felt*
     ):
     alloc_locals
     require_owner_or_member()
 
-    let (caller) = get_caller_address()
-    
-    # Check the tranasction is permitted
-    check_permitted_call(to, function_selector)
+    let (calls : Call*) = alloc()
 
-    # Update nonce
-    let (nonce) = _current_nonce.read()
-    _current_nonce.write(value=nonce + 1)
-    
-    # Actually execute it
-    let response = call_contract(
-        contract_address=to,
-        function_selector=function_selector,
-        calldata_size=calldata_len,
-        calldata=calldata,
+    from_call_array_to_call(call_array_len, call_array, calldata, calls)
+
+    let calls_len = call_array_len
+
+    let (current_nonce) = _current_nonce.read()
+    assert current_nonce = nonce
+    _current_nonce.write(value=current_nonce + 1)
+
+    let (tx_info) = get_tx_info()
+
+    let (response : felt*) = alloc()
+
+   let (response_len) = execute_list(
+        calls_len,
+        calls,
+        response
     )
-    return (response_len=response.retdata_size, response=response.retdata)
+    # emit event
+    transaction_executed.emit(hash=tx_info.transaction_hash, response_len=response_len, response=response)
+    return (retdata_len=response_len, retdata=response)
+end
+
+func execute_list{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        calls_len: felt,
+        calls: Call*,
+        response: felt*
+    ) -> (
+        response_len: felt
+    ):
+    alloc_locals
+
+    # if no more calls
+    if calls_len == 0:
+        return (0)
+    end
+
+    let this_call: Call = [calls]
+
+    # Check the tranasction is permitted
+    check_permitted_call(
+        this_call.to, 
+        this_call.selector
+    )
+
+    # Actually execute it
+    let res = call_contract(
+        contract_address=this_call.to,
+        function_selector=this_call.selector,
+        calldata_size=this_call.calldata_len,
+        calldata=this_call.calldata,
+    )
+
+    # copy the result in response
+    memcpy(response, res.retdata, res.retdata_size)
+    # do the next calls recursively
+    let (response_len) = execute_list(calls_len - 1, calls + Call.SIZE, response + res.retdata_size)
+    return (response_len + res.retdata_size)
 end
 
 @external
@@ -797,9 +709,8 @@ func initialize_permissions{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        contract: felt,
-        function_selectors_len: felt,
-        function_selectors: felt*
+        permissions_len: felt,
+        permissions: Permission*
     ):
     require_master()
 
@@ -809,37 +720,57 @@ func initialize_permissions{
         assert check_initialized = FALSE
     end
 
-    set_permission(
-        contract=contract,
-        function_selectors_len=function_selectors_len,
-        function_selectors=function_selectors
+    set_permissions(
+        permissions_len=permissions_len,
+        permissions=permissions
     )
+
+    _is_permissions_initialized.write(TRUE)
+
     return ()
 end
 
-
-
-func set_permission{
+@external
+func set_permissions{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        contract: felt,
-        function_selectors_len: felt,
-        function_selectors: felt*
+        permissions_len: felt,
+        permissions: Permission*
     ):
-    require_master()
 
-    let (allowed_contracts_index) = _allowed_contracts_len.read()
-    _allowed_contracts.write(allowed_contracts_index, contract)
-    _allowed_contracts_len.write(allowed_contracts_index + 1)
+    _set_permissions(
+        permissions_index=0,
+        permissions_len=permissions_len,
+        permissions=permissions
+    )
+    return ()
+end
 
-    _allowed_selectors_len.write(contract, function_selectors_len)
-    _set_allowed_functions(
-        function_selectors_index=0, 
-        function_selectors_len=function_selectors_len, 
-        function_selectors=function_selectors,
-        contract=contract
+func _set_permissions{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        permissions_index: felt,
+        permissions_len: felt,
+        permissions: Permission*
+    ):
+    if permissions_index == permissions_len:
+        return ()
+    end
+
+    let (permissions_count) = _permissions_len.read()
+
+    _permissions.write(permissions_index, permissions[permissions_index])
+
+    _permissions_len.write(permissions_count + 1)
+
+    _set_permissions(
+        permissions_index=permissions_index + 1,
+        permissions_len=permissions_len,
+        permissions=permissions
     )
     return ()
 end
@@ -853,94 +784,52 @@ func check_permitted_call{
         selector: felt
     ):
     alloc_locals
-    let (allowed_contracts_len) = _allowed_contracts_len.read()
-    let (check_contracts) = alloc()
-    _check_permitted_to(
-        allowed_contracts_index=0, 
-        allowed_contracts_len=allowed_contracts_len, 
+    let (permissions_len) = _permissions_len.read()
+    let (check_calls) = alloc()
+    _check_permitted_call(
+        permissions_index=0, 
+        permissions_len=permissions_len,
         to=to,
-        check_list=check_contracts
+        selector=selector,
+        check_calls=check_calls
     )
-    let (check_contracts_product) = array_product(
-        arr_len=allowed_contracts_len,
-        arr=check_contracts
+    let (check_calls_product) = array_product(
+        arr_len=permissions_len,
+        arr=check_calls
     )
     with_attr error_mesage("Contract is not permitted"):
-        assert check_contracts_product = 0
+        assert check_calls_product = 0
     end
-    let (allowed_selectors_len) = _allowed_selectors_len.read(to)
-    let (check_selectors) = alloc()
-    _check_permitted_selector(
-        allowed_selectors_index=0, 
-        allowed_selectors_len=allowed_selectors_len, 
-        selector=selector,
-        contract=to,
-        check_list=check_selectors
-    )
-    let (check_selectors_product) = array_product(
-        arr_len=allowed_selectors_len,
-        arr=check_selectors
-    )
-    with_attr error_mesage("Function is not permitted"):
-        assert check_selectors_product = 0
-    end   
     return ()
 end
 
-func _check_permitted_to{
+func _check_permitted_call{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr, 
     }(
-        allowed_contracts_index: felt,
-        allowed_contracts_len: felt,
+        permissions_index: felt,
+        permissions_len: felt,
         to: felt,
-        check_list: felt*
-    ):
-    if allowed_contracts_index == allowed_contracts_len:
-        return ()
-    end
-    
-    let (allowed_contract) = _allowed_contracts.read(allowed_contracts_index)
-    assert check_list[allowed_contracts_index] = allowed_contract - to
-
-    _check_permitted_to(
-        allowed_contracts_index=allowed_contracts_index + 1,
-        allowed_contracts_len=allowed_contracts_len,
-        to=to,
-        check_list=check_list
-    )
-    return ()
-end
-
-func _check_permitted_selector{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr, 
-    }(
-        allowed_selectors_index: felt,
-        allowed_selectors_len: felt,
         selector: felt,
-        contract: felt,
-        check_list: felt*
+        check_calls: felt*
     ):
-    if allowed_selectors_index == allowed_selectors_len:
+    if permissions_index == permissions_len:
         return ()
     end
-    
-    let (allowed_selector) = _allowed_selectors.read(
-        contract, 
-        allowed_selectors_index
-    )
-    let check_selector = allowed_selector - selector
-    assert check_list[allowed_selectors_index] = check_selector
 
-    _check_permitted_selector(
-        allowed_selectors_index=allowed_selectors_index + 1,
-        allowed_selectors_len=allowed_selectors_len,
+    let (permission) = _permissions.read(permissions_index)
+    let check_to = permission.to - to
+    let check_selector = permission.selector - selector
+
+    assert check_calls[permissions_index] = check_to + check_selector
+
+    _check_permitted_call(
+        permissions_index=permissions_index + 1,
+        permissions_len=permissions_len,
+        to=to,
         selector=selector,
-        contract=contract,
-        check_list=check_list
+        check_calls=check_calls
     )
     return ()
 end
@@ -993,5 +882,29 @@ func delegate_validate{
         calldata_len: felt,
         calldata: felt
     ):
+    return ()
+end
+
+func from_call_array_to_call{syscall_ptr: felt*}(
+        call_array_len: felt,
+        call_array: CallArray*,
+        calldata: felt*,
+        calls: Call*
+    ):
+    # if no more calls
+    if call_array_len == 0:
+       return ()
+    end
+    
+    # parse the current call
+    assert [calls] = Call(
+            to=[call_array].to,
+            selector=[call_array].selector,
+            calldata_len=[call_array].data_len,
+            calldata=calldata + [call_array].data_offset
+        )
+    
+    # parse the remaining calls recursively
+    from_call_array_to_call(call_array_len - 1, call_array + CallArray.SIZE, calldata, calls + Call.SIZE)
     return ()
 end

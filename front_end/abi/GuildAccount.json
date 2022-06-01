@@ -36,6 +36,23 @@
     {
         "members": [
             {
+                "name": "account",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "role",
+                "offset": 1,
+                "type": "felt"
+            }
+        ],
+        "name": "Member",
+        "size": 2,
+        "type": "struct"
+    },
+    {
+        "members": [
+            {
                 "name": "to",
                 "offset": 0,
                 "type": "felt"
@@ -118,6 +135,25 @@
         "type": "event"
     },
     {
+        "data": [
+            {
+                "name": "hash",
+                "type": "felt"
+            },
+            {
+                "name": "response_len",
+                "type": "felt"
+            },
+            {
+                "name": "response",
+                "type": "felt*"
+            }
+        ],
+        "keys": [],
+        "name": "transaction_executed",
+        "type": "event"
+    },
+    {
         "inputs": [
             {
                 "name": "name",
@@ -178,6 +214,23 @@
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "name": "account",
+                "type": "felt"
+            }
+        ],
+        "name": "get_whitelisted_role",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "name": "get_permissions",
         "outputs": [
@@ -194,19 +247,30 @@
         "type": "function"
     },
     {
-        "inputs": [],
-        "name": "get_allowed_contracts",
-        "outputs": [
+        "inputs": [
             {
-                "name": "allowed_contracts_len",
+                "name": "members_len",
                 "type": "felt"
             },
             {
-                "name": "allowed_contracts",
-                "type": "felt*"
+                "name": "members",
+                "type": "Member*"
             }
         ],
-        "stateMutability": "view",
+        "name": "whitelist_members",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "join",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "leave",
+        "outputs": [],
         "type": "function"
     },
     {
@@ -218,23 +282,24 @@
             {
                 "name": "members",
                 "type": "felt*"
-            },
-            {
-                "name": "roles_len",
-                "type": "felt"
-            },
-            {
-                "name": "roles",
-                "type": "felt*"
             }
         ],
-        "name": "whitelist_members",
+        "name": "remove_members",
         "outputs": [],
         "type": "function"
     },
     {
-        "inputs": [],
-        "name": "join",
+        "inputs": [
+            {
+                "name": "address",
+                "type": "felt"
+            },
+            {
+                "name": "new_role",
+                "type": "felt"
+            }
+        ],
+        "name": "update_role",
         "outputs": [],
         "type": "function"
     },
@@ -271,12 +336,12 @@
     {
         "inputs": [
             {
-                "name": "to",
+                "name": "call_array_len",
                 "type": "felt"
             },
             {
-                "name": "function_selector",
-                "type": "felt"
+                "name": "call_array",
+                "type": "CallArray*"
             },
             {
                 "name": "calldata_len",
@@ -285,16 +350,20 @@
             {
                 "name": "calldata",
                 "type": "felt*"
+            },
+            {
+                "name": "nonce",
+                "type": "felt"
             }
         ],
-        "name": "execute_transaction",
+        "name": "execute_transactions",
         "outputs": [
             {
-                "name": "response_len",
+                "name": "retdata_len",
                 "type": "felt"
             },
             {
-                "name": "response",
+                "name": "retdata",
                 "type": "felt*"
             }
         ],
@@ -303,19 +372,30 @@
     {
         "inputs": [
             {
-                "name": "contract",
+                "name": "permissions_len",
                 "type": "felt"
             },
             {
-                "name": "function_selectors_len",
-                "type": "felt"
-            },
-            {
-                "name": "function_selectors",
-                "type": "felt*"
+                "name": "permissions",
+                "type": "Permission*"
             }
         ],
         "name": "initialize_permissions",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "permissions_len",
+                "type": "felt"
+            },
+            {
+                "name": "permissions",
+                "type": "Permission*"
+            }
+        ],
+        "name": "set_permissions",
         "outputs": [],
         "type": "function"
     },

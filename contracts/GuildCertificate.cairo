@@ -45,11 +45,11 @@ from openzeppelin.access.ownable import (
 # Structs
 #
 
-# struct CertificateTokenData:
-#     member token: felt
-#     member token_id: felt
-#     member amount: felt
-# end
+struct CertificateTokenData:
+    member token: felt
+    member token_id: felt
+    member amount: felt
+end
 
 #
 # Storage variables
@@ -77,6 +77,10 @@ end
 
 @storage_var
 func _certificate_token_amount(certificate_id: Uint256, token: felt, token_id: Uint256) -> (res: Uint256):
+end
+
+@storage_var
+func _certificate_token_data(certificate_id: felt) -> (res: CertificateTokenData):
 end
 
 #
@@ -332,6 +336,17 @@ func burn{
 end
 
 @external
+func guild_burn{
+        pedersen_ptr: HashBuiltin*, 
+        syscall_ptr: felt*, 
+        range_check_ptr
+    }(certificate_id: Uint256):
+    Ownable_only_owner()
+    ERC721_burn(certificate_id)
+    return ()
+end
+
+@external
 func add_token_data{
         pedersen_ptr: HashBuiltin*, 
         syscall_ptr: felt*, 
@@ -345,6 +360,13 @@ func add_token_data{
     Ownable_only_owner()
 
     _certificate_token_amount.write(certificate_id, token, token_id, amount)
+
+    # let data = CertificateTokenData(
+    #     token=token,
+    #     token_id=token_id,
+    #     amount=amount
+    # )
+    # _certificate_token_data.write(certificate_id, data)
 
     return ()
 end

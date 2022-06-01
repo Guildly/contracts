@@ -11,6 +11,7 @@ import {
 } from '@starknet-react/core'
 import { useTestNFTContract } from '../hooks/testNFT';
 import { toBN } from 'starknet/dist/utils/number'
+import TransactionDialog from '../components/transactionDialog'
 
 
 export default function TestToken() {
@@ -37,7 +38,7 @@ export default function TestToken() {
               || transaction.status === 'ACCEPTED_ON_L1')
               setMinted(true);
           }
-      }, [tokenMintData])
+      }, [tokenMintData, transactions])
 
     const tokenIdValue = useMemo(() => {
         if (tokenIdCountResult && tokenIdCountResult.length > 0) {
@@ -51,10 +52,25 @@ export default function TestToken() {
         }
     }, [tokenIdCountResult])
 
+    const [mintDialogToggled, setMintDialogToggled] = useState(false);
+
     return(
         <div className="background">
             <Header />
             <div className="content">
+
+                {
+                    mintDialogToggled ?
+                        <TransactionDialog
+                            title={"Minting Token"}
+                            description={"Minting a test ERC721 token."}
+                            close={() => setMintDialogToggled(false)}
+                            loading={tokenMintLoading}
+                            value={minted}
+                            setValue={setMinted}
+                        /> : null
+                }
+
                 <div className={styles.box}>
                     <div className={styles.header}>
                         <h1 className={styles.title}>Mint Test Token</h1>
@@ -62,7 +78,7 @@ export default function TestToken() {
                     {
                         !tokenMintData && !tokenMintLoading ?
                         <div 
-                            onClick={() => 
+                            onClick={() => {
                                 tokenMintInvoke({
                                     args: [account, tokenIdValue],
                                     metadata: { 
@@ -70,6 +86,8 @@ export default function TestToken() {
                                         message: 'mint a token' 
                                     }
                                 })
+                                setMintDialogToggled(true)
+                                }
                             }
                             className={styles.button_normal}
                         >
@@ -79,11 +97,11 @@ export default function TestToken() {
                         : null
                     }
 
-                    {
+                    {/* {
                         tokenMintLoading || (!minted && tokenMintData) ?
                         <Spinner color={"#a9d1ff"} className={styles.spinner_bottom} />
                         : null
-                    }
+                    } */}
 
                     {
                         minted ? <><h2 className={styles.subtitle}>Test Token Minted</h2></>
