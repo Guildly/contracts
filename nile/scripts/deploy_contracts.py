@@ -21,13 +21,16 @@ import subprocess
 
 TRANSACTION_VERSION = 0
 
+
 def to_uint(a):
     """Takes in value, returns uint256-ish tuple."""
     return (a & ((1 << 128) - 1), a >> 128)
 
+
 def str_to_felt(text):
     b_text = bytes(text, "ascii")
     return int.from_bytes(b_text, "big")
+
 
 def from_call_to_call_array(calls):
     """Transform from Call to CallArray."""
@@ -69,45 +72,44 @@ def get_transaction_hash(account, call_array, calldata, nonce, max_fee):
 
 
 def sign_transaction(sender, calls, nonce, max_fee=0):
-        """Sign a transaction for an Account."""
-        (call_array, calldata) = from_call_to_call_array(calls)
-        print("callarray:",call_array)
-        print("calldata:",calldata)
-        message_hash = get_transaction_hash(
-            int(sender, 16), call_array, calldata, nonce, max_fee
-        )
-        print("message_hash:",message_hash)
-        print("public key:",private_to_stark_key(1234))
-        sig_r, sig_s = sign(msg_hash=message_hash, priv_key=1234)
-        return (call_array, calldata, sig_r, sig_s)
+    """Sign a transaction for an Account."""
+    (call_array, calldata) = from_call_to_call_array(calls)
+    print("callarray:", call_array)
+    print("calldata:", calldata)
+    message_hash = get_transaction_hash(
+        int(sender, 16), call_array, calldata, nonce, max_fee
+    )
+    print("message_hash:", message_hash)
+    print("public key:", private_to_stark_key(1234))
+    sig_r, sig_s = sign(msg_hash=message_hash, priv_key=1234)
+    return (call_array, calldata, sig_r, sig_s)
+
 
 def run(nre):
+    account = "0x03994759bd805d30d46e533dd681ca80c7bc8d3255dab69cbf66cc26cf0192f7"
+
     guild_certificate_address, guild_certificate_abi = nre.deploy(
-        "GuildCertificate", 
+        "GuildCertificate",
         arguments=[
             str(str_to_felt("Test Certificate")),
             str(str_to_felt("TC")),
-            "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3"
+            account,
         ],
         # alias="guild_certificate"
     )
     print(guild_certificate_abi, guild_certificate_address)
     guild_address, guild_abi = nre.deploy(
-        "GuildAccount", 
-        arguments=[
-            str(str_to_felt("Test Guild")),
-            "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
-            guild_certificate_address
-        ],
+        "GuildAccount",
+        arguments=[str(str_to_felt("Test Guild")), account, guild_certificate_address],
         # alias="guild"
     )
     print(guild_abi, guild_address)
     test_nft_address, test_nft_abi = nre.deploy(
-        "TestNFT", 
+        "TestNFT",
         arguments=[
             str(str_to_felt("Test NFT")),
             str(str_to_felt("TNFT")),
-            "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
+            account,
         ],
         # alias="test_nft_2"
     )
@@ -120,19 +122,12 @@ def run(nre):
             "18",
             str(0),
             str(0),
-            "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3",
-            "0x0342732d1e1b6deb415d06154b7339c73bf8a6a1ba347208f71616dd5b20e3c3"
-        ]
+            account,
+            account,
+        ],
     )
     print(points_abi, points_contract_address)
     test_game_contract_address, test_game_abi = nre.deploy(
-        "GameContract",
-        arguments=[
-            test_nft_address,
-            points_contract_address
-        ]
+        "GameContract", arguments=[test_nft_address, points_contract_address]
     )
     print(test_game_abi, test_game_contract_address)
-   
-
-
