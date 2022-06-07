@@ -11,6 +11,6 @@ default_ecosystem: starknet
 #     version: 0.1.0
 #     contracts_folder: src
 
-# starknet:
-#   import_remapping:
-#     - "@openzeppelin=openzeppelin/0.1.0"
+# cairo:
+#   dependencies:
+#     - OpenZeppelinCairo@0.1.0

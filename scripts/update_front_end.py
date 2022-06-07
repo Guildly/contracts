@@ -15,7 +15,7 @@ import shutil
 def update_abis():
     # Copying artifacts abis into front_end folder
     abis_folder = os.path.abspath("artifacts/abis")
-    destination_folder = os.path.abspath("front_end/abi")
+    destination_folder = os.path.abspath("../game_guilds_front_end/abi")
     for file_name in os.listdir(abis_folder):
         source = abis_folder + "/" + file_name
         destination = destination_folder + "/" + file_name
