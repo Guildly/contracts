@@ -9,7 +9,7 @@ def account():
 
 @pytest.fixture(scope="session")
 def guild_certificate(account):
-    return project.GuildCerficate.deploy(
+    return project.GuildCertificate.deploy(
         str_to_felt("Test Guild Certificate"),
         str_to_felt("TGC"),
         account
@@ -19,6 +19,7 @@ def guild_certificate(account):
 @pytest.fixture(scope="session")
 def guild(account, guild_certificate):
     return project.GuildContract.deploy(
+        str_to_felt("Test Guild Contract"),
         account,
         guild_certificate
     )
