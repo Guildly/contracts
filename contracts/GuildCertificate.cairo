@@ -33,13 +33,9 @@ from openzeppelin.token.erc721.library import (
     ERC721_setTokenURI
 )
 
-from openzeppelin.introspection.ERC165 import ERC165_supports_interface
+from openzeppelin.introspection.ERC165 import ERC165
 
-from openzeppelin.access.ownable import (
-    Ownable_initializer,
-    Ownable_only_owner,
-    Ownable_transfer_ownership
-)
+from openzeppelin.access.ownable import Ownable
 
 #
 # Structs
@@ -93,7 +89,7 @@ func supportsInterface{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(interfaceId: felt) -> (success: felt):
-    let (success) = ERC165_supports_interface(interfaceId)
+    let (success) = ERC165.supports_interface(interfaceId)
     return (success)
 end
 
@@ -213,7 +209,7 @@ func constructor{
         owner: felt
     ):
     ERC721_initializer(name, symbol)
-    Ownable_initializer(owner)
+    Ownable.initializer(owner)
     return ()
 end
 
@@ -277,7 +273,7 @@ func setTokenURI{
         syscall_ptr: felt*, 
         range_check_ptr
     }(tokenId: Uint256, tokenURI: felt):
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
     ERC721_setTokenURI(tokenId, tokenURI)
     return ()
 end
@@ -288,7 +284,7 @@ func transfer_ownership{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
     }(new_owner: felt):
-    Ownable_transfer_ownership(new_owner)
+    Ownable.transfer_ownership(new_owner)
     return ()
 end
 
@@ -298,7 +294,7 @@ func mint{
         syscall_ptr: felt*, 
         range_check_ptr
     }(to: felt, guild: felt, role: felt):
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
 
     let (certificate_count) = _certificate_id_count.read()
     let (new_certificate_id, _) = uint256_add(certificate_count, Uint256(1,0))
@@ -317,7 +313,7 @@ func update_role{
         syscall_ptr: felt*, 
         range_check_ptr
     }(certificate_id: Uint256, role: felt):
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
 
     _role.write(certificate_id, role)
     return()
@@ -341,7 +337,7 @@ func guild_burn{
         syscall_ptr: felt*, 
         range_check_ptr
     }(certificate_id: Uint256):
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
     ERC721_burn(certificate_id)
     return ()
 end
@@ -357,7 +353,7 @@ func add_token_data{
         token_id: Uint256,
         amount: Uint256
     ):
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
 
     _certificate_token_amount.write(certificate_id, token, token_id, amount)
 
@@ -382,7 +378,7 @@ func change_token_data{
         token_id: Uint256,
         new_amount: Uint256
     ):
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
 
     _certificate_token_amount.write(certificate_id, token, token_id, new_amount)
 
@@ -402,7 +398,7 @@ func check_token_data{
         bool: felt
     ):
     alloc_locals
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
     let (amount) = _certificate_token_amount.read(certificate_id, token, token_id)
     let (check_amount) = uint256_lt(Uint256(0,0),amount)
     return(check_amount)

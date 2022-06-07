@@ -16,7 +16,7 @@ from starkware.starknet.common.syscalls import (
 
 from contracts.utils.constants import FALSE, TRUE
 
-from openzeppelin.introspection.ERC165 import ERC165_supports_interface 
+from openzeppelin.introspection.ERC165 import ERC165
 from openzeppelin.token.erc721.interfaces.IERC721 import IERC721
 from contracts.interfaces.IGuildCertificate import IGuildCertificate
 
@@ -28,25 +28,6 @@ from starkware.cairo.common.uint256 import (
     uint256_add
 )
 
-from openzeppelin.token.erc721.library import (
-    ERC721_name,
-    ERC721_symbol,
-    ERC721_balanceOf,
-    ERC721_ownerOf,
-    ERC721_getApproved,
-    ERC721_isApprovedForAll,
-    ERC721_tokenURI,
-
-    ERC721_initializer,
-    ERC721_approve, 
-    ERC721_setApprovalForAll, 
-    ERC721_transferFrom,
-    ERC721_safeTransferFrom,
-    ERC721_mint,
-    ERC721_burn,
-    ERC721_only_token_owner,
-    ERC721_setTokenURI
-)
 
 #
 # Structs
@@ -251,7 +232,7 @@ func supportsInterface{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(interfaceId: felt) -> (success: felt):
-    let (success) = ERC165_supports_interface(interfaceId)
+    let (success) = ERC165.supports_interface(interfaceId)
     return (success)
 end
 

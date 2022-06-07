@@ -26,12 +26,9 @@ from openzeppelin.token.erc721.library import (
     ERC721_setTokenURI
 )
 
-from openzeppelin.introspection.ERC165 import ERC165_supports_interface
+from openzeppelin.introspection.ERC165 import ERC165
 
-from openzeppelin.access.ownable import (
-    Ownable_initializer,
-    Ownable_only_owner
-)
+from openzeppelin.access.ownable import Ownable
 
 @storage_var
 func _token_id_count() -> (res : Uint256):
@@ -52,7 +49,7 @@ func constructor{
         owner: felt
     ):
     ERC721_initializer(name, symbol)
-    Ownable_initializer(owner)
+    Ownable.initializer(owner)
     return ()
 end
 
@@ -66,7 +63,7 @@ func supportsInterface{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(interfaceId: felt) -> (success: felt):
-    let (success) = ERC165_supports_interface(interfaceId)
+    let (success) = ERC165.supports_interface(interfaceId)
     return (success)
 end
 
@@ -211,7 +208,7 @@ func setTokenURI{
         syscall_ptr: felt*, 
         range_check_ptr
     }(tokenId: Uint256, tokenURI: felt):
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
     ERC721_setTokenURI(tokenId, tokenURI)
     return ()
 end
@@ -222,7 +219,7 @@ func mint{
         syscall_ptr: felt*, 
         range_check_ptr
     }(to: felt, tokenId: Uint256):
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
     ERC721_mint(to, tokenId)
     let (token_id_count) = _token_id_count.read()
     let (new_token_id, _) = uint256_add(token_id_count,Uint256(1,0))

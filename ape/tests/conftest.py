@@ -18,7 +18,7 @@ def guild_certificate(account):
 
 @pytest.fixture(scope="session")
 def guild(account, guild_certificate):
-    return project.GuildAccount.deploy(
+    return project.GuildContract.deploy(
         account,
         guild_certificate
     )
