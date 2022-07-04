@@ -15,7 +15,7 @@ import shutil
 def update_abis():
     # Copying artifacts abis into front_end folder
     abis_folder = os.path.abspath("artifacts/abis")
-    destination_folder = os.path.abspath("../game_guilds_front_end/abi")
+    destination_folder = os.path.abspath("../game_guilds_front_end/contracts/abi")
     for file_name in os.listdir(abis_folder):
         source = abis_folder + "/" + file_name
         destination = destination_folder + "/" + file_name
@@ -23,8 +23,30 @@ def update_abis():
             shutil.copy(source, destination)
             print('copied', file_name)
 
+def copy_nile_deployment_config():
+    # Copy goerli.deployments.txt contracts to front end
+    d = {}
+    with open('goerli.deployments.txt', 'r') as nile_file:
+        for line in nile_file:
+            d[line.split(':')[2].strip()] = line.split(':')[0]
+
+    x = { 
+    "networks": 
+        { "goerli": 
+            d
+        } 
+    }
+    with open("../game_guilds_front_end/deployments-config.json", "w") as deployments_config_json:
+        json.dump(x, deployments_config_json)
+
+    os.remove('goerli.deployments.txt')
+    print("Front end JSON updated!")
+
+
+
 def main():
     update_abis()
+    copy_nile_deployment_config()
 
 if __name__ == "__main__":
     main()

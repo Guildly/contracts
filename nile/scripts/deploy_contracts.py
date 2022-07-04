@@ -86,7 +86,8 @@ def sign_transaction(sender, calls, nonce, max_fee=0):
 
 
 def run(nre):
-    account = "0x03994759bd805d30d46e533dd681ca80c7bc8d3255dab69cbf66cc26cf0192f7"
+    contract_class_hash = "0x4c1b98b00ad584391fc2b77418836320a71b506a6fcfeb0ad74b73a04ea4dc8"
+    account = "0x01AFbaf9bfD9F77C0e1cB3bf41Ba680A6d4B370eEC53Af8578b2bB73C7fF499C"
 
     guild_certificate_address, guild_certificate_abi = nre.deploy(
         "GuildCertificate",
@@ -95,15 +96,27 @@ def run(nre):
             str(str_to_felt("TC")),
             account,
         ],
-        # alias="guild_certificate"
+        alias="guild_certificate"
     )
     print(guild_certificate_abi, guild_certificate_address)
     guild_address, guild_abi = nre.deploy(
-        "GuildAccount",
-        arguments=[str(str_to_felt("Test Guild")), account, guild_certificate_address],
-        # alias="guild"
+        "GuildContract",
+        arguments=[
+            str(str_to_felt("Test Guild")), 
+            account, 
+            guild_certificate_address
+        ],
+        alias="guild_contract"
     )
     print(guild_abi, guild_address)
+    guild_manager_address, guild_manager_abi = nre.deploy(
+        "GuildManager",
+        arguments=[
+            contract_class_hash, 
+        ],
+        alias="guild_manager"
+    )
+    print(guild_manager_abi, guild_manager_address)
     test_nft_address, test_nft_abi = nre.deploy(
         "TestNFT",
         arguments=[
@@ -111,7 +124,7 @@ def run(nre):
             str(str_to_felt("TNFT")),
             account,
         ],
-        # alias="test_nft_2"
+        alias="test_nft"
     )
     print(test_nft_abi, test_nft_address)
     points_contract_address, points_abi = nre.deploy(
@@ -125,9 +138,15 @@ def run(nre):
             account,
             account,
         ],
+        alias="points_contract"
     )
     print(points_abi, points_contract_address)
     test_game_contract_address, test_game_abi = nre.deploy(
-        "GameContract", arguments=[test_nft_address, points_contract_address]
+        "GameContract", 
+        arguments=[
+            test_nft_address, 
+            points_contract_address
+        ],
+        alias="game_contract"
     )
     print(test_game_abi, test_game_contract_address)

@@ -1,4 +1,4 @@
-"""GuildAccount.cairo test file."""
+"""GuildContract.cairo test file."""
 import asyncio
 from copyreg import constructor
 from ctypes.wintypes import POINT
@@ -199,10 +199,8 @@ async def test_permissions(contract_factory):
     calls = [(
         game_contract.contract_address, 
         "set_character_name",
-        [*[
-            str_to_felt("Bob"), 
-            account1.contract_address
-            ]
+        [
+            str_to_felt("Bob")
         ]
     )]
 
@@ -221,7 +219,7 @@ async def test_permissions(contract_factory):
         ],
     )
 
-    execution_info = await game_contract.get_character_name(account1.contract_address).call()
+    execution_info = await game_contract.get_character_name(guild_contract.contract_address).call()
     assert execution_info.result == (str_to_felt("Bob"),)
 
     with pytest.raises(StarkException):
@@ -389,7 +387,7 @@ async def test_multicall(contract_factory):
         (
             game_contract.contract_address,
             "set_character_name",
-            [str_to_felt("Adam"), account1.contract_address] 
+            [str_to_felt("Adam")] 
         ),
         (
             test_nft.contract_address,

@@ -76,8 +76,9 @@ func set_character_name{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(val: felt, account: felt) -> ():
-    _character_name.write(account, val)
+    }(val: felt) -> ():
+    let (caller) = get_caller_address()
+    _character_name.write(caller, val)
     return()
 end
 
@@ -86,14 +87,14 @@ func open_door{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(account: felt, token_id: Uint256):
+    }(token_id: Uint256):
     let (caller_address) = get_caller_address()
     let (token) = _token.read()
     let (owner) = IERC721.ownerOf(contract_address=token, tokenId=token_id)
     with_attr error_mesage("Caller is not owner"):
         assert caller_address = owner
     end
-    _door_opened.write(account, TRUE)
+    _door_opened.write(caller_address, TRUE)
     return ()
 end
 

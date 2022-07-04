@@ -24,10 +24,12 @@ pytest.ini
 
 # Unused folders + files
 test_account_abstraction.py.txt
-contracts/account_abstraction
 old_integration_tests
 scripts/pinata.py
 old_front_end
-
-# New tests
-tests/test_shared_wallet_new.py
+contracts/Proxy.cairo
+tests/test_proxy.py
+contracts/Upgradable.cairo
+protostar.toml
+contracts/AccessControl.cairo.txt
+ape
