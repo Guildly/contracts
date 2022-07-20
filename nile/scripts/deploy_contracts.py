@@ -86,29 +86,9 @@ def sign_transaction(sender, calls, nonce, max_fee=0):
 
 
 def run(nre):
-    contract_class_hash = "0x4c1b98b00ad584391fc2b77418836320a71b506a6fcfeb0ad74b73a04ea4dc8"
+    contract_class_hash = "0x4a413bedeab0eb735d98183139a7a9e798d89c9765c400972c69ca6f62e249c"
     account = "0x01AFbaf9bfD9F77C0e1cB3bf41Ba680A6d4B370eEC53Af8578b2bB73C7fF499C"
 
-    guild_certificate_address, guild_certificate_abi = nre.deploy(
-        "GuildCertificate",
-        arguments=[
-            str(str_to_felt("Test Certificate")),
-            str(str_to_felt("TC")),
-            account,
-        ],
-        alias="guild_certificate"
-    )
-    print(guild_certificate_abi, guild_certificate_address)
-    guild_address, guild_abi = nre.deploy(
-        "GuildContract",
-        arguments=[
-            str(str_to_felt("Test Guild")), 
-            account, 
-            guild_certificate_address
-        ],
-        alias="guild_contract"
-    )
-    print(guild_abi, guild_address)
     guild_manager_address, guild_manager_abi = nre.deploy(
         "GuildManager",
         arguments=[
@@ -117,6 +97,16 @@ def run(nre):
         alias="guild_manager"
     )
     print(guild_manager_abi, guild_manager_address)
+    guild_certificate_address, guild_certificate_abi = nre.deploy(
+        "GuildCertificate",
+        arguments=[
+            str(str_to_felt("Guild Certificate")),
+            str(str_to_felt("GC")),
+            guild_manager_address,
+        ],
+        alias="guild_certificate"
+    )
+    print(guild_certificate_abi, guild_certificate_address)
     test_nft_address, test_nft_abi = nre.deploy(
         "TestNFT",
         arguments=[

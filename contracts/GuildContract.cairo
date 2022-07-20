@@ -18,16 +18,20 @@ from contracts.utils.constants import FALSE, TRUE
 
 from openzeppelin.introspection.ERC165 import ERC165
 from openzeppelin.token.erc721.interfaces.IERC721 import IERC721
+from contracts.interfaces.IERC1155 import IERC1155
 from contracts.interfaces.IGuildCertificate import IGuildCertificate
 
 from contracts.lib.role import Role
+from contracts.lib.token_standard import TokenStandard
+from contracts.lib.math_utils import array_sum, array_product
 
 from starkware.cairo.common.uint256 import (
     Uint256, 
     uint256_lt,
-    uint256_add
+    uint256_add,
+    uint256_eq,
+    uint256_sub
 )
-
 
 #
 # Structs
@@ -59,12 +63,8 @@ struct Member:
     member role: felt
 end
 
-struct ERC721Token:
-    member token: felt
-    member token_id: Uint256
-end
-
-struct ERC1155Token:
+struct Token:
+    member token_standard: felt
     member token: felt
     member token_id: Uint256
     member amount: Uint256
@@ -75,13 +75,42 @@ end
 #
 
 @event
-func permissions_set(account: felt, permissions_len: felt, permissions: Permission*):
+func permissions_set(
+        account: felt, 
+        permissions_len: felt, 
+        permissions: Permission*
+    ):
 end
 
 @event
-func transaction_executed(hash: felt, response_len: felt, response: felt*):
+func transaction_executed(
+        account: felt,
+        hash: felt, 
+        response_len: felt, 
+        response: felt*
+    ):
 end
 
+@event
+func deposited(
+        account: felt, 
+        certificate_id: Uint256,
+        token_standard: felt, 
+        token: felt, 
+        token_id: Uint256
+    ):
+end
+
+@event
+func withdrawn(
+        account: felt, 
+        certificate_id: Uint256,
+        token_standard: felt,
+        token: felt, 
+        token_id: Uint256,
+        amount: Uint256
+    ):
+end
 
 #
 # Storage variables
@@ -109,6 +138,10 @@ end
 
 @storage_var
 func _whitelisted_role(account: felt) -> (res: felt):
+end
+
+@storage_var
+func _is_blacklisted(account: felt) -> (res: felt):
 end
 
 @storage_var
@@ -186,14 +219,16 @@ func require_admin{
         guild=contract_address
     )
 
-    let (_role) = IGuildCertificate.get_role(contract_address=guild_certificate, certificate_id=certificate_id)
+    let (_role) = IGuildCertificate.get_role(
+        contract_address=guild_certificate, 
+        certificate_id=certificate_id
+    )
 
     with_attr error_message("Caller is not owner"):
         assert _role = Role.ADMIN
     end
     return ()
 end
-
 
 func require_owner_or_member{
         syscall_ptr : felt*,
@@ -219,6 +254,23 @@ func require_owner_or_member{
     return ()
 end
 
+func require_not_blacklisted{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        account: felt
+    ):
+
+    let (is_blacklisted) = _is_blacklisted.read(account)
+
+    with_attr error_message("Guild Contract: Account is blacklisted"):
+        assert is_blacklisted = FALSE
+    end
+
+    return ()
+end
+
 #
 # Constructor
 #
@@ -236,8 +288,6 @@ func constructor{
     _name.write(name)
     _guild_master.write(master)
     _guild_certificate.write(guild_certificate)
-
-    let (contract_address) = get_contract_address()
 
     return ()
 end
@@ -411,62 +461,31 @@ func _get_permissions{
 end
 
 #
-# Storage helpers
+# Externals
 #
 
-func _whitelist_members{
+@external
+func whitelist_member{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        members_index: felt,
-        members_len: felt,
-        members: Member*
+        memb: Member
     ):
-    if members_index == members_len:
-        return ()
-    end
 
-    let account = members[members_index].account
-    let role = members[members_index].role
+    require_master()
+
+    let account = memb.account
+    let role = memb.role
 
     _whitelisted_role.write(account, role)
 
     let (count) = _whitelisted_members_count.read()
 
-    _whitelisted_members.write(count, members[members_index])
+    _whitelisted_members.write(count, memb)
 
     _whitelisted_members_count.write(count+1)
-
-    _whitelist_members(
-        members_index=members_index + 1, 
-        members_len=members_len, 
-        members=members
-    )
-    return ()
-end
-
-
-#
-# Externals
-#
-
-@external
-func whitelist_members{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        members_len: felt,
-        members: Member*
-    ):
-    require_master()
     
-    _whitelist_members(
-        members_index=0, 
-        members_len=members_len, 
-        members=members
-    )
     return ()
 end
 
@@ -479,10 +498,14 @@ func join{
     let (guild_certificate) = _guild_certificate.read()
     let (contract_address) = get_contract_address()
     let (caller_address) = get_caller_address()
+
     let (whitelisted_role) = _whitelisted_role.read(caller_address)
     with_attr error_mesage("Caller is not whitelisted"):
        assert_lt(0, whitelisted_role)
     end
+
+    require_not_blacklisted(caller_address)
+
     IGuildCertificate.mint(
         contract_address=guild_certificate,
         to=caller_address, 
@@ -508,6 +531,11 @@ func leave{
         guild=contract_address
     )
 
+    with_attr error_message(
+            "Guild Contract: Cannot leave, account has items in guild"
+        ):
+    end
+
     IGuildCertificate.burn(
         contract_address=guild_certificate,
         certificate_id=certificate_id
@@ -517,56 +545,53 @@ func leave{
 end
 
 @external
-func remove_members{
+func remove_member{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        members_len: felt,
-        members: felt*
+        account: felt
     ):
+    alloc_locals
+
     require_admin()
 
-    _remove_members(
-        members_index=0,
-        members_len=members_len,
-        members=members
-    )
-    return ()
-end
-
-func _remove_members{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        members_index: felt,
-        members_len: felt,
-        members: felt*
-    ):
-    if members_index == members_len:
-        return ()
-    end
     let (caller_address) = get_caller_address()
     let (contract_address) = get_contract_address()
     let (guild_certificate) = _guild_certificate.read()
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
         contract_address=guild_certificate,
-        owner=caller_address,
+        owner=account,
         guild=contract_address
     )
 
-    IGuildCertificate.guild_burn(
+    let (check) = IGuildCertificate.check_tokens_exist(
         contract_address=guild_certificate,
         certificate_id=certificate_id
     )
+    # tempvar guild_certificate = guild_certificate
 
-    _remove_members(
-        members_index=members_index + 1,
-        members_len=members_len,
-        members=members
-    )
+    if check == TRUE:
+        force_transfer_items(certificate_id, account)
+        IGuildCertificate.guild_burn(
+            contract_address=guild_certificate,
+            certificate_id=certificate_id
+        )
+        _is_blacklisted.write(account, TRUE)
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    else:
+        IGuildCertificate.guild_burn(
+            contract_address=guild_certificate,
+            certificate_id=certificate_id
+        )
+        _is_blacklisted.write(account, TRUE)
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    end
     return ()
 end
 
@@ -595,58 +620,45 @@ func update_role{
 end
 
 @external
-func batch_deposit_ERC721{
+func deposit{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        tokens_len: felt,
-        tokens: ERC721Token*
+        token_standard: felt,
+        token: felt,
+        token_id: Uint256,
+        amount: Uint256
     ):
+    alloc_locals
 
-    _batch_deposit_ERC721(
-        tokens_index=0,
-        tokens_len=tokens_len,
-        tokens=tokens
-    )
-    return ()
-end
+    local syscall_ptr: felt* = syscall_ptr
+    local pedersen_ptr: HashBuiltin* = pedersen_ptr
+    local range_check_ptr = range_check_ptr
 
-func _batch_deposit_ERC721{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        tokens_index: felt,
-        tokens_len: felt,
-        tokens: ERC721Token*
-    ):
-    if tokens_index == tokens_len:
-        return ()
+    require_owner()
+
+    let (check_not_zero) = uint256_lt(Uint256(0,0), amount)
+
+    with_attr error_message("Guild Contract: Amount cannot be 0"):
+        assert check_not_zero = TRUE
     end
 
-    deposit_ERC721(
-        tokens[tokens_index].token, 
-        tokens[tokens_index].token_id
-    )
-    return ()
-end
+    if token_standard == TokenStandard.ERC721:
+        let (check_one) = uint256_eq(amount, Uint256(1,0))
+        with_attr error_message("Guild Contract: ERC721 amount must be 1"):
+            assert check_one = TRUE
+        end
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    else:
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    end
 
-
-@external
-func deposit_ERC721{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        token: felt,
-        token_id: Uint256
-    ):
-    require_owner()
     let (guild_certificate) = _guild_certificate.read()
-
-    let amount: Uint256 = Uint256(1,0)
-
     let (caller_address) = get_caller_address()
     let (contract_address) = get_contract_address()
 
@@ -656,176 +668,132 @@ func deposit_ERC721{
         guild=contract_address
     )
 
-    let (check_exists) = IGuildCertificate.check_token_data(
+    let (check_exists) = IGuildCertificate.check_token_exists(
         contract_address=guild_certificate,
         certificate_id=certificate_id,
+        token_standard=token_standard,
         token=token,
         token_id=token_id
     )
 
-    with_attr error_message("Caller certificate already holds tokens"):
-        assert check_exists = FALSE
+    if token_standard == TokenStandard.ERC721:
+        with_attr error_message(
+            "Guild Contract: Caller certificate already holds ERC721 token"
+        ):
+            assert check_exists = FALSE
+        end
+        IERC721.transferFrom(
+            contract_address=token, 
+            from_=caller_address,
+            to=contract_address,
+            tokenId=token_id
+        )
+        IGuildCertificate.add_token_data(
+            contract_address=guild_certificate,
+            certificate_id=certificate_id,
+            token_standard=token_standard,
+            token=token,
+            token_id=token_id,
+            amount=amount
+        )
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    else:
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
     end
 
-    # Does the transfer (Also checks they have the token)
-    IERC721.transferFrom(
-        contract_address=token, 
-        from_=caller_address,
-        to=contract_address,
-        tokenId=token_id
-    )
-
-    IGuildCertificate.add_token_data(
+    let (initial_amount) = IGuildCertificate.get_token_amount(
         contract_address=guild_certificate,
         certificate_id=certificate_id,
+        token_standard=token_standard,
         token=token,
-        token_id=token_id,
-        amount=amount
+        token_id=token_id
     )
-    return ()
-end
 
-# @external
-# func batch_deposit_ERC1155{
-#         syscall_ptr : felt*, 
-#         pedersen_ptr : HashBuiltin*,
-#         range_check_ptr
-#     }(
-#         tokens_len: felt,
-#         tokens: ERC1155Token*
-#     ):
+    let (new_amount, _) = uint256_add(initial_amount, amount)
 
-
-#     _batch_deposit_ERC1155(
-#         tokens_index=0,
-#         tokens_len=tokens_len,
-#         tokens=tokens
-#     )
-#     return ()
-# end
-
-# func _batch_deposit_ERC1155{
-#         syscall_ptr : felt*, 
-#         pedersen_ptr : HashBuiltin*,
-#         range_check_ptr
-#     }(
-#         tokens_index: felt,
-#         tokens_len: felt,
-#         tokens: felt
-#     ):
-#     if tokens_index == tokens_len:
-#         return ()
-#     end
-
-#     deposit_ERC1155(
-#         tokens[tokens_index].token, 
-#         tokens[tokens_index].token_id,
-#         tokens[tokens_index].amount
-#     )
-#     return ()
-# end
-
-# @external
-# func deposit_ERC1155{
-#         syscall_ptr : felt*, 
-#         pedersen_ptr : HashBuiltin*,
-#         range_check_ptr
-#     }(
-#         token: felt,
-#         token_id: Uint256,
-#         amount: Uint256
-#     ):
-#     require_owner()
-#     let (guild_certificate) = _guild_certificate.read()
-
-#     let (caller_address) = get_caller_address()
-#     let (contract_address) = get_contract_address()
-
-#     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
-#         contract_address=guild_certificate,
-#         owner=caller_address,
-#         guild=contract_address
-#     )
-
-#     let (check_exists) = IGuildCertificate.check_token_data(
-#         contract_address=guild_certificate,
-#         certificate_id=certificate_id,
-#         token=token,
-#         token_id=token_id
-#     )
-
-#     with_attr error_message("Caller certificate already holds tokens"):
-#         assert check_exists = FALSE
-#     end
-
-#     # Does the transfer (Also checks they have the token)
-#     IERC1155.transferFrom(
-#         contract_address=token, 
-#         from_=caller_address,
-#         to=contract_address,
-#         tokenId=token_id
-#     )
-
-#     IGuildCertificate.add_token_data(
-#         contract_address=guild_certificate,
-#         certificate_id=certificate_id,
-#         token=token,
-#         token_id=token_id,
-#         amount=amount
-#     )
-#     return ()
-# end
-
-@external
-func batch_withdraw_ERC721{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        tokens_len: felt,
-        tokens: ERC721Token*
-    ):
-
-    _batch_withdraw_ERC721(
-        tokens_index=0,
-        tokens_len=tokens_len,
-        tokens=tokens
-    )
-    return ()
-end
-
-func _batch_withdraw_ERC721{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        tokens_index: felt,
-        tokens_len: felt,
-        tokens: ERC721Token*
-    ):
-    if tokens_index == tokens_len:
-        return ()
+    if token_standard == TokenStandard.ERC1155:
+        IERC1155.transferFrom(
+            contract_address=token, 
+            from_=caller_address,
+            to=contract_address,
+            tokenId=token_id,
+            amount=amount
+        )
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+        if check_exists == TRUE:
+            IGuildCertificate.change_token_data(
+                contract_address=guild_certificate,
+                certificate_id=certificate_id,
+                token_standard=token_standard,
+                token=token,
+                token_id=token_id,
+                new_amount=new_amount
+            )
+            tempvar syscall_ptr: felt* = syscall_ptr
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+        else:
+            IGuildCertificate.add_token_data(
+                contract_address=guild_certificate,
+                certificate_id=certificate_id,
+                token_standard=token_standard,
+                token=token,
+                token_id=token_id,
+                amount=amount
+            )
+            tempvar syscall_ptr: felt* = syscall_ptr
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+        end
+    else:
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
     end
 
-    withdraw_ERC721(tokens[tokens_index].token, tokens[tokens_index].token_id)
-
+    deposited.emit(
+        account=caller_address,
+        certificate_id=certificate_id,
+        token_standard=token_standard,
+        token=token,
+        token_id=token_id
+    )
     return ()
 end
 
 @external
-func withdraw_ERC721{
+func withdraw{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
+        token_standard: felt,
         token: felt,
-        token_id: Uint256
+        token_id: Uint256,
+        amount: Uint256
     ):
+    alloc_locals
+
+    local syscall_ptr: felt* = syscall_ptr
+    local pedersen_ptr: HashBuiltin* = pedersen_ptr
+    local range_check_ptr = range_check_ptr
+
     require_owner()
+
+    if token_standard == TokenStandard.ERC721:
+        let (check_one) = uint256_eq(amount, Uint256(1,0))
+        with_attr error_message("Guild Contract: ERC721 amount must be 1"):
+            assert check_one = TRUE
+        end
+    end
+
     let (guild_certificate) = _guild_certificate.read()
-
-    let new_amount: Uint256 = Uint256(0,0)
-
     let (caller_address) = get_caller_address()
     let (contract_address) = get_contract_address()
 
@@ -835,9 +803,10 @@ func withdraw_ERC721{
         guild=contract_address
     )
 
-    let (check_exists) = IGuildCertificate.check_token_data(
+    let (check_exists) = IGuildCertificate.check_token_exists(
         contract_address=guild_certificate,
         certificate_id=certificate_id,
+        token_standard=token_standard,
         token=token,
         token_id=token_id
     )
@@ -846,20 +815,74 @@ func withdraw_ERC721{
         assert check_exists = TRUE
     end
 
-    IERC721.transferFrom(
-        contract_address=token, 
-        from_=contract_address,
-        to=caller_address,
-        tokenId=token_id
-    )
+    if token_standard == TokenStandard.ERC721:
+        IERC721.transferFrom(
+            contract_address=token, 
+            from_=contract_address,
+            to=caller_address,
+            tokenId=token_id
+        )
+        IGuildCertificate.change_token_data(
+            contract_address=guild_certificate,
+            certificate_id=certificate_id,
+            token_standard=token_standard,
+            token=token,
+            token_id=token_id,
+            new_amount=Uint256(0,0)
+        )
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    else:
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    end
 
-    IGuildCertificate.change_token_data(
+    let (initial_amount) = IGuildCertificate.get_token_amount(
         contract_address=guild_certificate,
         certificate_id=certificate_id,
+        token_standard=token_standard,
+        token=token,
+        token_id=token_id
+    )
+
+    let (new_amount) = uint256_sub(initial_amount, amount)
+
+    if token_standard == TokenStandard.ERC1155:
+        IERC1155.transferFrom(
+            contract_address=token, 
+            from_=contract_address,
+            to=caller_address,
+            tokenId=token_id,
+            amount=amount
+        )
+        IGuildCertificate.change_token_data(
+            contract_address=guild_certificate,
+            certificate_id=certificate_id,
+            token_standard=token_standard,
+            token=token,
+            token_id=token_id,
+            new_amount=new_amount
+        )
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    else:
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    end
+
+    withdrawn.emit(
+        account=caller_address,
+        certificate_id=certificate_id,
+        token_standard=token_standard,
         token=token,
         token_id=token_id,
-        new_amount=new_amount
+        amount=amount
     )
+
     return ()
 end
 
@@ -880,6 +903,7 @@ func execute_transactions{
     ):
     alloc_locals
     require_owner_or_member()
+    let (caller) = get_caller_address()
 
     let (calls : Call*) = alloc()
 
@@ -901,7 +925,12 @@ func execute_transactions{
         response
     )
     # emit event
-    transaction_executed.emit(hash=tx_info.transaction_hash, response_len=response_len, response=response)
+    transaction_executed.emit(
+        account=caller,
+        hash=tx_info.transaction_hash, 
+        response_len=response_len, 
+        response=response
+    )
     return (retdata_len=response_len, retdata=response)
 end
 
@@ -982,6 +1011,11 @@ func set_permissions{
         permissions_len: felt,
         permissions: Permission*
     ):
+    alloc_locals
+
+    local syscall_ptr: felt* = syscall_ptr
+    local pedersen_ptr: HashBuiltin* = pedersen_ptr
+    local range_check_ptr = range_check_ptr
 
     _set_permissions(
         permissions_index=0,
@@ -989,13 +1023,13 @@ func set_permissions{
         permissions=permissions
     )
 
-    # let (caller) = get_caller_address()
+    let (caller) = get_caller_address()
 
-    # permissions_set.emit(
-    #     account=caller, 
-    #     permissions_len=permissions_len, 
-    #     permissions=permissions
-    # )
+    permissions_set.emit(
+        account=caller, 
+        permissions_len=permissions_len, 
+        permissions=permissions
+    )
     return ()
 end
 
@@ -1085,40 +1119,6 @@ func _check_permitted_call{
     return ()
 end
 
-@view
-func array_product{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr, 
-    }(
-        arr_len: felt,
-        arr: felt*
-    ) -> (product: felt):
-    if arr_len == 0:
-        return (product=1)
-    end
-
-    let (product_of_rest) = array_product(arr_len=arr_len - 1, arr=arr + 1)
-    return (product=[arr] * product_of_rest)
-end
-
-@view
-func array_sum{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr, 
-    }(
-        arr_len: felt,
-        arr: felt*
-    ) -> (sum: felt):
-    if arr_len == 0:
-        return (sum=0)
-    end
-
-    let (sum_of_rest) = array_sum(arr_len=arr_len - 1, arr=arr + 1)
-    return (sum=[arr] + sum_of_rest)
-end
-
 # Added for future intrgration with plugins
 @external
 func delegate_validate{
@@ -1157,5 +1157,125 @@ func from_call_array_to_call{syscall_ptr: felt*}(
     
     # parse the remaining calls recursively
     from_call_array_to_call(call_array_len - 1, call_array + CallArray.SIZE, calldata, calls + Call.SIZE)
+    return ()
+end
+
+func force_transfer_items{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+    }(certificate_id: Uint256, account: felt):
+    let (guild_certificate) = _guild_certificate.read()
+
+    let (tokens_len, tokens: Token*) = IGuildCertificate.get_tokens(
+        contract_address=guild_certificate,
+        certificate_id=certificate_id
+    )
+
+    _force_transfer_items(
+        tokens_index=0,
+        tokens_len=tokens_len,
+        tokens=tokens,
+        account=account
+    )
+
+    return()
+end
+
+func _force_transfer_items{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+    }(
+        tokens_index: felt,
+        tokens_len: felt,
+        tokens: Token*,
+        account: felt
+    ):
+    if tokens_index == tokens_len:
+        return ()
+    end
+
+    let token = tokens[tokens_index]
+
+    let (check_amount) = uint256_lt(Uint256(0,0), token.amount)
+
+    let (contract_address) = get_contract_address()
+    let (guild_certificate) = _guild_certificate.read()
+
+    let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
+        contract_address=guild_certificate,
+        owner=account,
+        guild=contract_address
+    )
+
+    if check_amount == TRUE:
+        if token.token_standard == TokenStandard.ERC721:
+            IERC721.transferFrom(
+                contract_address=token.token, 
+                from_=contract_address,
+                to=account,
+                tokenId=token.token_id
+            )
+            IGuildCertificate.change_token_data(
+                contract_address=guild_certificate,
+                certificate_id=certificate_id,
+                token_standard=token.token_standard,
+                token=token.token,
+                token_id=token.token_id,
+                new_amount=Uint256(0,0)
+            )
+            tempvar contract_address = contract_address
+            tempvar guild_certificate = guild_certificate
+            tempvar certificate_id: Uint256 = certificate_id
+            tempvar syscall_ptr: felt* = syscall_ptr
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+        else:
+            tempvar contract_address = contract_address
+            tempvar guild_certificate = guild_certificate
+            tempvar certificate_id: Uint256 = certificate_id
+            tempvar syscall_ptr: felt* = syscall_ptr
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+        end
+
+        if token.token_standard == TokenStandard.ERC1155:
+            IERC1155.transferFrom(
+                contract_address=token.token, 
+                from_=contract_address,
+                to=account,
+                tokenId=token.token_id,
+                amount=token.amount
+            )
+            IGuildCertificate.change_token_data(
+                contract_address=guild_certificate,
+                certificate_id=certificate_id,
+                token_standard=token.token_standard,
+                token=token.token,
+                token_id=token.token_id,
+                new_amount=Uint256(0,0)
+            )
+            tempvar syscall_ptr: felt* = syscall_ptr
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+        else:
+            tempvar syscall_ptr: felt* = syscall_ptr
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+        end
+    else:
+        tempvar syscall_ptr: felt* = syscall_ptr
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    end
+
+    _force_transfer_items(
+        tokens_index=tokens_index + 1,
+        tokens_len=tokens_len,
+        tokens=tokens,
+        account=account
+    )
+
     return ()
 end

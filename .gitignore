@@ -31,5 +31,5 @@ contracts/Proxy.cairo
 tests/test_proxy.py
 contracts/Upgradable.cairo
 protostar.toml
-contracts/AccessControl.cairo.txt
+contracts/AccessControl.cairo
 ape
