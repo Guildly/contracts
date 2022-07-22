@@ -88,12 +88,14 @@ namespace IGuildCertificate:
     end
 
     func burn(
-            certificate_id: Uint256
+            account: felt,
+            guild: felt
         ):
     end
 
     func guild_burn(
-            certificate_id: Uint256
+            account: felt,
+            guild: felt
         ):
     end
 

@@ -88,18 +88,6 @@ func member_removed(
 end
 
 @event
-func joined(
-        account: felt
-    ):
-end
-
-@event
-func left(
-        account: felt
-    ):
-end
-
-@event
 func permissions_set(
         account: felt, 
         permissions_len: felt, 
@@ -569,9 +557,6 @@ func join{
         role=whitelisted_role
     )
 
-    joined.emit(
-        account=caller_address
-    )
     return ()
 end
 
@@ -591,18 +576,21 @@ func leave{
         guild=contract_address
     )
 
-    with_attr error_message(
-            "Guild Contract: Cannot leave, account has items in guild"
-        ):
-    end
-
-    IGuildCertificate.burn(
+    let (check) = IGuildCertificate.check_tokens_exist(
         contract_address=guild_certificate,
         certificate_id=certificate_id
     )
 
-    left.emit(
-        account=caller_address
+    with_attr error_message(
+            "Guild Contract: Cannot leave, account has items in guild"
+        ):
+            assert check = FALSE
+    end
+
+    IGuildCertificate.burn(
+        contract_address=guild_certificate,
+        account=caller_address,
+        guild=contract_address
     )
 
     return ()
@@ -640,7 +628,8 @@ func remove_member{
         force_transfer_items(certificate_id, account)
         IGuildCertificate.guild_burn(
             contract_address=guild_certificate,
-            certificate_id=certificate_id
+            account=account,
+            guild=contract_address
         )
         _is_blacklisted.write(account, TRUE)
         tempvar syscall_ptr: felt* = syscall_ptr
@@ -649,7 +638,8 @@ func remove_member{
     else:
         IGuildCertificate.guild_burn(
             contract_address=guild_certificate,
-            certificate_id=certificate_id
+            account=account,
+            guild=contract_address
         )
         _is_blacklisted.write(account, TRUE)
         tempvar syscall_ptr: felt* = syscall_ptr

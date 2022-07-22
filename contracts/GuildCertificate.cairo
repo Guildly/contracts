@@ -41,11 +41,11 @@ end
 #
 
 @event
-func mint_certificate(account: felt, guild: felt, role: felt, id: Uint256):
+func mint_certificate(account: felt, guild: felt, id: Uint256):
 end
 
 @event
-func burn_certificate(account: felt, guild: felt, role: felt, id: Uint256):
+func burn_certificate(account: felt, guild: felt, id: Uint256):
 end
 
 #
@@ -303,6 +303,9 @@ func mint{
     _guild.write(new_certificate_id, guild)
 
     ERC721._mint(to, new_certificate_id)
+
+    mint_certificate.emit(to, guild, new_certificate_id)
+
     return ()
 end
 
@@ -324,9 +327,12 @@ func burn{
         pedersen_ptr: HashBuiltin*, 
         syscall_ptr: felt*, 
         range_check_ptr
-    }(certificate_id: Uint256):
+    }(account: felt, guild: felt):
+    alloc_locals
+    let (certificate_id: Uint256) = _certificate_id.read(account, guild)
     ERC721.assert_only_token_owner(certificate_id)
     ERC721._burn(certificate_id)
+    burn_certificate.emit(account, guild, certificate_id)
     return ()
 end
 
@@ -335,9 +341,12 @@ func guild_burn{
         pedersen_ptr: HashBuiltin*, 
         syscall_ptr: felt*, 
         range_check_ptr
-    }(certificate_id: Uint256):
+    }(account: felt, guild: felt):
+    alloc_locals
     assert_only_owner()
+    let (certificate_id: Uint256) = _certificate_id.read(account, guild)
     ERC721._burn(certificate_id)
+    burn_certificate.emit(account, guild, certificate_id)
     return ()
 end
 

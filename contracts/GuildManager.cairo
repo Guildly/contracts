@@ -35,6 +35,9 @@ end
 func guild_contract_deployed(contract_address : felt):
 end
 
+#
+# Constructor
+#
 
 @constructor
 func constructor{
@@ -45,6 +48,35 @@ func constructor{
     guild_class_hash.write(value=guild_class_hash_)
     return ()
 end
+
+#
+# Getters
+#
+
+@view
+func get_guild_contracts{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (
+        guilds_len : felt,
+        guilds : felt*
+    ):
+    alloc_locals
+    let (guilds: felt*) = alloc()
+    let (guilds_len) = guild_contract_count.read()
+
+    _get_guild_contracts(
+        guilds_index=0,
+        guilds_len=guilds_len,
+        guilds=guilds
+    )
+    return (guilds_len, guilds)
+end
+
+#
+# Externals
+#
 
 @external
 func deploy_guild_contract{
@@ -107,6 +139,10 @@ func check_valid_contract{
     return (value=TRUE)
 end
 
+#
+# Internals
+#
+
 func _check_valid_contract{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -132,27 +168,6 @@ func _check_valid_contract{
         checks=checks
     )
     return()
-end
-
-@view
-func get_guild_contracts{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (
-        guilds_len : felt,
-        guilds : felt*
-    ):
-    alloc_locals
-    let (guilds: felt*) = alloc()
-    let (guilds_len) = guild_contract_count.read()
-
-    _get_guild_contracts(
-        guilds_index=0,
-        guilds_len=guilds_len,
-        guilds=guilds
-    )
-    return (guilds_len, guilds)
 end
 
 func _get_guild_contracts{
