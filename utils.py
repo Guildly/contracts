@@ -100,6 +100,16 @@ def from_call_to_call_array(calls):
         calldata.extend(call[2])
     return (call_array, calldata)
 
+def from_role_to_role_array(roles):
+    role_array = []
+    selectors = []
+    for i, role in enumerate(roles):
+        assert len(role) == 2, "Invalid call parameters"
+        entry = (role[0], len(selectors), len(role[1]))
+        role_array.append(entry)
+        selectors.extend(role[1])
+    return (role_array, selectors)
+
 
 def get_transaction_hash(account, call_array, calldata, nonce, max_fee):
     execute_calldata = [
@@ -120,3 +130,15 @@ def get_transaction_hash(account, call_array, calldata, nonce, max_fee):
         StarknetChainId.TESTNET.value,
         [],
     )
+
+async def deploy_proxy(starknet, proxy_path, abi, params=None):
+    params = params or []
+    proxy_class = compile_starknet_files([proxy_path], debug_info=True)
+    declared_proxy = await starknet.declare(contract_class=proxy_class)
+    deployed_proxy = await starknet.deploy(contract_class=proxy_class, constructor_calldata=params)
+    wrapped_proxy = StarknetContract(
+        state=starknet.state,
+        abi=abi,
+        contract_address=deployed_proxy.contract_address,
+        deploy_execution_info=deployed_proxy.deploy_execution_info)
+    return deployed_proxy, wrapped_proxy

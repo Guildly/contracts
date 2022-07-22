@@ -86,7 +86,7 @@ def sign_transaction(sender, calls, nonce, max_fee=0):
 
 
 def run(nre):
-    contract_class_hash = "0x4a413bedeab0eb735d98183139a7a9e798d89c9765c400972c69ca6f62e249c"
+    contract_class_hash = "0x21cede9bf9d9c23cb4a4aab7556542472317ab76d7b011dec64e9c35d7e9711"
     account = "0x01AFbaf9bfD9F77C0e1cB3bf41Ba680A6d4B370eEC53Af8578b2bB73C7fF499C"
 
     guild_manager_address, guild_manager_abi = nre.deploy(

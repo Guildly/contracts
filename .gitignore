@@ -33,3 +33,8 @@ contracts/Upgradable.cairo
 protostar.toml
 contracts/AccessControl.cairo
 ape
+contracts/proxy
+contracts/access_control
+contracts/interfaces/IGuildCertificateAccess.cairo
+contracts/interfaces/IGuildContractAccess.cairo
+tests/test_access_control.py

@@ -44,7 +44,7 @@ struct Call:
     member calldata: felt*
 end
 
-# Tmp struct introduced whuke we wait for Cairo
+# Tmp struct introduced while we wait for Cairo
 # to support passing '[Call]' to __execute__
 struct CallArray:
     member to: felt
@@ -73,6 +73,31 @@ end
 #
 # Events
 #
+
+@event
+func member_whitelisted(
+        account: felt,
+        role: felt
+    ):
+end
+
+@event
+func member_removed(
+        account: felt
+    ):
+end
+
+@event
+func joined(
+        account: felt
+    ):
+end
+
+@event
+func left(
+        account: felt
+    ):
+end
 
 @event
 func permissions_set(
@@ -138,6 +163,10 @@ end
 
 @storage_var
 func _whitelisted_role(account: felt) -> (res: felt):
+end
+
+@storage_var
+func _is_whitelisted(account: felt) -> (res: felt):
 end
 
 @storage_var
@@ -254,6 +283,23 @@ func require_owner_or_member{
     return ()
 end
 
+func require_not_whitelisted{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        account: felt
+    ):
+
+    let (bool) = _is_whitelisted.read(account)
+
+    with_attr error_mesage("Guild Contract: Account is already whitelisted"):
+        assert bool = FALSE
+    end
+
+    return ()
+end
+
 func require_not_blacklisted{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -288,6 +334,8 @@ func constructor{
     _name.write(name)
     _guild_master.write(master)
     _guild_certificate.write(guild_certificate)
+
+
 
     return ()
 end
@@ -475,9 +523,12 @@ func whitelist_member{
 
     require_master()
 
+    require_not_whitelisted(memb.account)
+
     let account = memb.account
     let role = memb.role
 
+    _is_whitelisted.write(account, TRUE)
     _whitelisted_role.write(account, role)
 
     let (count) = _whitelisted_members_count.read()
@@ -485,6 +536,11 @@ func whitelist_member{
     _whitelisted_members.write(count, memb)
 
     _whitelisted_members_count.write(count+1)
+
+    member_whitelisted.emit(
+        account=memb.account,
+        role=memb.role
+    )
     
     return ()
 end
@@ -511,6 +567,10 @@ func join{
         to=caller_address, 
         guild=contract_address,
         role=whitelisted_role
+    )
+
+    joined.emit(
+        account=caller_address
     )
     return ()
 end
@@ -539,6 +599,10 @@ func leave{
     IGuildCertificate.burn(
         contract_address=guild_certificate,
         certificate_id=certificate_id
+    )
+
+    left.emit(
+        account=caller_address
     )
 
     return ()
@@ -592,6 +656,10 @@ func remove_member{
         tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
     end
+
+    member_removed.emit(
+        account=account
+    )
     return ()
 end
 
