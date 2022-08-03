@@ -96,7 +96,6 @@ func deploy_guild_proxy_contract{
         contract_address_salt=current_salt,
         constructor_calldata_size=6,
         constructor_calldata=calldata,
-        deploy_from_zero=1
     )
     salt.write(value=current_salt + 1)
 
