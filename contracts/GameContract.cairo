@@ -7,7 +7,7 @@ from starkware.starknet.common.syscalls import call_contract, get_caller_address
 from contracts.interfaces.IExperiencePoints import IExperiencePoints
 from openzeppelin.token.erc721.interfaces.IERC721 import IERC721
 
-from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.uint256 import Uint256, uint256_lt
 
 
 from contracts.utils.constants import FALSE, TRUE
@@ -21,11 +21,7 @@ func _token() -> (res: felt):
 end
 
 @storage_var
-func _character_name(account: felt) -> (res: felt):
-end
-
-@storage_var
-func _door_opened(account: felt) -> (res: felt):
+func _goblin_kill_count(guild: felt) -> (res: felt):
 end
 
 @storage_var
@@ -48,22 +44,12 @@ end
 #
 
 @view
-func get_character_name{
+func get_goblin_kill_count{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(account: felt) -> (res: felt):
-    let (val) = _character_name.read(account)
-    return (val)
-end
-
-@view
-func get_door{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(account: felt) -> (res: felt):
-    let (val) = _door_opened.read(account)
+    }(guild: felt) -> (res: felt):
+    let (val) = _goblin_kill_count.read(guild)
     return (val)
 end
 
@@ -72,30 +58,22 @@ end
 #
 
 @external
-func set_character_name{
+func kill_goblin{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(val: felt) -> ():
+    }() -> ():
+    alloc_locals
     let (caller) = get_caller_address()
-    _character_name.write(caller, val)
-    return()
-end
-
-@external
-func open_door{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(token_id: Uint256):
-    let (caller_address) = get_caller_address()
     let (token) = _token.read()
-    let (owner) = IERC721.ownerOf(contract_address=token, tokenId=token_id)
-    with_attr error_mesage("Caller is not owner"):
-        assert caller_address = owner
+    let (balance) = IERC721.balanceOf(contract_address=token, owner=caller)
+    let (check_balance) = uint256_lt(Uint256(0,0), balance)
+    with_attr error_mesage("Game Contract: Owner does not hold token."):
+        assert check_balance = TRUE
     end
-    _door_opened.write(caller_address, TRUE)
-    return ()
+    let (goblin_kill_count) = _goblin_kill_count.read(caller)
+    _goblin_kill_count.write(caller, goblin_kill_count + 1)
+    return()
 end
 
 @external

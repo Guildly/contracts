@@ -2,10 +2,27 @@
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.starknet.common.syscalls import deploy
+from starkware.starknet.common.syscalls import deploy, get_caller_address
 from contracts.lib.math_utils import array_product
 
 from starkware.cairo.common.bool import TRUE, FALSE
+
+#
+# Constants
+#
+
+const INITIALIZE_SELECTOR = 215307247182100370520050591091822763712463273430149262739280891880522753123
+
+#
+# Structs
+#
+
+struct ProxyDeployData:
+    member implementation: felt
+    member selector: felt
+    member calldata_len: felt
+    member calldata: felt*
+end
 
 #
 # Storage variables
@@ -13,6 +30,10 @@ from starkware.cairo.common.bool import TRUE, FALSE
 
 @storage_var
 func salt() -> (value : felt):
+end
+
+@storage_var
+func guild_proxy_class_hash() -> (value : felt):
 end
 
 @storage_var
@@ -32,74 +53,55 @@ end
 #
 
 @event
-func guild_contract_deployed(contract_address : felt):
+func guild_contract_deployed(name : felt, contract_address : felt):
 end
 
-#
-# Constructor
-#
 
 @constructor
 func constructor{
     syscall_ptr : felt*,
     pedersen_ptr : HashBuiltin*,
     range_check_ptr,
-}(guild_class_hash_ : felt):
+}(
+    guild_proxy_class_hash_ : felt,
+    guild_class_hash_ : felt
+):
+    guild_proxy_class_hash.write(value=guild_proxy_class_hash_)
     guild_class_hash.write(value=guild_class_hash_)
     return ()
 end
 
-#
-# Getters
-#
-
-@view
-func get_guild_contracts{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (
-        guilds_len : felt,
-        guilds : felt*
-    ):
-    alloc_locals
-    let (guilds: felt*) = alloc()
-    let (guilds_len) = guild_contract_count.read()
-
-    _get_guild_contracts(
-        guilds_index=0,
-        guilds_len=guilds_len,
-        guilds=guilds
-    )
-    return (guilds_len, guilds)
-end
-
-#
-# Externals
-#
-
 @external
-func deploy_guild_contract{
+func deploy_guild_proxy_contract{
     syscall_ptr : felt*,
     pedersen_ptr : HashBuiltin*,
     range_check_ptr,
     }(
         name : felt,
-        master : felt,
         guild_certificate : felt
     ):
     let (current_salt) = salt.read()
+    let (proxy_class_hash) = guild_proxy_class_hash.read()
     let (class_hash) = guild_class_hash.read()
+    let (caller_address) = get_caller_address()
+    let (calldata : felt*) = alloc()
+    assert calldata[0] = class_hash
+    assert calldata[1] = INITIALIZE_SELECTOR
+    assert calldata[2] = 3
+    assert calldata[3] = name
+    assert calldata[4] = caller_address
+    assert calldata[5] = guild_certificate
     let (contract_address) = deploy(
-        class_hash=class_hash,
+        class_hash=proxy_class_hash,
         contract_address_salt=current_salt,
-        constructor_calldata_size=3,
-        constructor_calldata=cast(
-            new (name,master,guild_certificate,), felt*),
+        constructor_calldata_size=6,
+        constructor_calldata=calldata,
+        deploy_from_zero=1
     )
     salt.write(value=current_salt + 1)
 
     guild_contract_deployed.emit(
+        name=name,
         contract_address=contract_address
     )
 
@@ -139,10 +141,6 @@ func check_valid_contract{
     return (value=TRUE)
 end
 
-#
-# Internals
-#
-
 func _check_valid_contract{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -168,6 +166,27 @@ func _check_valid_contract{
         checks=checks
     )
     return()
+end
+
+@view
+func get_guild_contracts{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (
+        guilds_len : felt,
+        guilds : felt*
+    ):
+    alloc_locals
+    let (guilds: felt*) = alloc()
+    let (guilds_len) = guild_contract_count.read()
+
+    _get_guild_contracts(
+        guilds_index=0,
+        guilds_len=guilds_len,
+        guilds=guilds
+    )
+    return (guilds_len, guilds)
 end
 
 func _get_guild_contracts{

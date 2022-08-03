@@ -4,6 +4,7 @@
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
+from starkware.cairo.common.cairo_keccak.keccak import keccak_felts
 from starkware.cairo.common.math import assert_le, assert_lt
 from starkware.cairo.common.memcpy import memcpy
 
@@ -306,12 +307,12 @@ func require_not_blacklisted{
 end
 
 #
-# Constructor
+# Initialize
 #
 
-@constructor
-func constructor{
-        syscall_ptr : felt*, 
+@external
+func initialize{
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -323,11 +324,8 @@ func constructor{
     _guild_master.write(master)
     _guild_certificate.write(guild_certificate)
 
-
-
     return ()
-end
-
+end 
 #
 # Getters
 #
@@ -360,6 +358,16 @@ func master{
     }() -> (master : felt):
     let (master) = _guild_master.read()
     return (master)
+end
+
+@view
+func guild_certificate{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (guild_certificate : felt):
+    let (guild_certificate) = _guild_certificate.read()
+    return (guild_certificate)
 end
 
 @view

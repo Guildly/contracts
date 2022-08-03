@@ -258,6 +258,7 @@ func constructor{
     ):
     ERC721.initializer(name, symbol)
     _guild_manager.write(guild_manager)
+    
     return ()
 end
 

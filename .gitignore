@@ -1,5 +1,6 @@
 node_modules
 .env
+.env*.local
 
 #Nile files
 goerli.deployments.txt
@@ -38,3 +39,7 @@ contracts/access_control
 contracts/interfaces/IGuildCertificateAccess.cairo
 contracts/interfaces/IGuildContractAccess.cairo
 tests/test_access_control.py
+contracts/on_received
+contracts/permission_update
+contracts/GuildContractNew.cairo
+contracts/token
