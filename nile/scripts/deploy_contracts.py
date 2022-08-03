@@ -9,6 +9,7 @@ from starkware.starknet.definitions.general_config import StarknetChainId
 from starkware.starknet.public.abi import get_selector_from_name
 
 from nile.core.call_or_invoke import call_or_invoke
+from nile.core.account import Account
 import os
 import subprocess
 
@@ -90,9 +91,7 @@ def run(nre):
     contract_class_hash = "0x30f9635123bcab8a18f178dede11b457f1cdc590e5f043cd66d324ce369cd08"
     account = "0x01AFbaf9bfD9F77C0e1cB3bf41Ba680A6d4B370eEC53Af8578b2bB73C7fF499C"
 
-    account = nre.get_or_deploy_account(
-        signer="ACCOUNT_PRIVATE_KEY"
-    )
+    # account = Account("ACCOUNT_PRIVATE_KEY", "goerli")
 
     guild_manager_address, guild_manager_abi = nre.deploy(
         "GuildManager",
