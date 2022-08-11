@@ -23,7 +23,7 @@ from openzeppelin.introspection.ERC165 import ERC165
 from openzeppelin.access.ownable import Ownable
 
 from contracts.lib.math_utils import uint256_array_sum
-from contracts.utils.helpers import find_uint256_value
+from contracts.utils.helpers import find_value, find_uint256_value
 
 #
 # Structs
@@ -547,7 +547,7 @@ func get_tokens_data_index{
         token_id: Uint256
     ) -> (index: felt):
     alloc_locals
-    let (checks: Uint256*) = alloc()
+    let (checks: felt*) = alloc()
     let (tokens_data_len) = _certificate_tokens_data_len.read(certificate_id)
 
     _get_tokens_data_index(
@@ -560,11 +560,18 @@ func get_tokens_data_index{
         checks=checks
     )
 
-    let (index) = find_uint256_value(
+    # let (index) = find_uint256_value(
+    #     arr_index=0,
+    #     arr_len=tokens_data_len,
+    #     arr=checks,
+    #     value=Uint256(0,0)
+    # )
+
+    let (index) = find_value(
         arr_index=0,
         arr_len=tokens_data_len,
         arr=checks,
-        value=Uint256(0,0)
+        value=0
     )
 
     return (index=index)
@@ -581,7 +588,7 @@ func _get_tokens_data_index{
         token_standard: felt,
         token: felt,
         token_id: Uint256,
-        checks: Uint256*
+        checks: felt*
     ):
     if tokens_data_index == tokens_data_len:
         return ()
@@ -597,7 +604,8 @@ func _get_tokens_data_index{
     let (check_token_id) = uint256_sub(token_data.token_id, token_id)
 
     let add_1 = check_token_standard + check_token
-    let (check_token_data, _) = uint256_add(Uint256(add_1,0), check_token_id)
+    let check_token_data = add_1 + check_token_id.low
+    # let (check_token_data, _) = uint256_add(Uint256(add_1,0), check_token_id)
 
     assert checks[tokens_data_index] = check_token_data
 

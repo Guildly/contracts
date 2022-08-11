@@ -53,7 +53,7 @@ end
 #
 
 @event
-func guild_contract_deployed(name : felt, contract_address : felt):
+func guild_contract_deployed(name : felt, master : felt, contract_address : felt):
 end
 
 
@@ -101,6 +101,7 @@ func deploy_guild_proxy_contract{
 
     guild_contract_deployed.emit(
         name=name,
+        master=caller_address,
         contract_address=contract_address
     )
 
