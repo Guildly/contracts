@@ -565,13 +565,6 @@ func get_tokens_data_index{
         checks=checks
     )
 
-    # let (index) = find_uint256_value(
-    #     arr_index=0,
-    #     arr_len=tokens_data_len,
-    #     arr=checks,
-    #     value=Uint256(0,0)
-    # )
-
     let (index) = find_value(
         arr_index=0,
         arr_len=tokens_data_len,

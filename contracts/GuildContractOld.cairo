@@ -25,7 +25,6 @@ from contracts.interfaces.IGuildCertificate import IGuildCertificate
 from contracts.lib.role_new import Role
 from contracts.lib.token_standard import TokenStandard
 from contracts.lib.math_utils import array_sum, array_product
-from contracts.utils.helpers import find_value
 
 from starkware.cairo.common.uint256 import (
     Uint256, 
@@ -86,13 +85,6 @@ end
 @event
 func member_removed(
         account: felt
-    ):
-end
-
-@event
-func member_role_updated(
-        account: felt,
-        new_role: felt
     ):
 end
 
@@ -679,10 +671,6 @@ func update_role{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(address: felt, new_role: felt):
-    alloc_locals
-
-    require_admin()
-    
     let (contract_address) = get_contract_address()
     let (guild_certificate) = _guild_certificate.read()
 
@@ -692,25 +680,11 @@ func update_role{
         guild=contract_address
     )
 
-    let (whitelisted_members_index) = get_whitelisted_members_index(
-        account=address
-    )
-
-    let member_data = Member(
-        account=address,
-        role=new_role
-    )
-
-    _whitelisted_members.write(whitelisted_members_index, member_data)
-    _whitelisted_role.write(address, new_role)
-
     IGuildCertificate.update_role(
         contract_address=guild_certificate,
         certificate_id=certificate_id,
         role=new_role
     )
-
-    member_role_updated.emit(address,new_role)
 
     return ()
 end
@@ -1371,64 +1345,6 @@ func _force_transfer_items{
         tokens_len=tokens_len,
         tokens=tokens,
         account=account
-    )
-
-    return ()
-end
-
-func get_whitelisted_members_index{        
-        pedersen_ptr: HashBuiltin*, 
-        syscall_ptr: felt*, 
-        range_check_ptr
-    }(account: felt) -> (index: felt):
-    alloc_locals
-    let (checks: felt*) = alloc()
-    let (whitelisted_members_len) = _whitelisted_members_count.read()
-
-    _get_whitelisted_members_index(
-        whitelisted_members_index=0,
-        whitelisted_members_len=whitelisted_members_len,
-        account=account,
-        checks=checks
-    )
-
-    let (index) = find_value(
-        arr_index=0,
-        arr_len=whitelisted_members_len,
-        arr=checks,
-        value=0
-    )
-
-    return (index=index)
-end
-
-func _get_whitelisted_members_index{        
-        pedersen_ptr: HashBuiltin*, 
-        syscall_ptr: felt*, 
-        range_check_ptr
-    }(
-        whitelisted_members_index: felt,
-        whitelisted_members_len: felt,
-        account: felt,
-        checks: felt*
-    ):
-    if whitelisted_members_index == whitelisted_members_len:
-        return ()
-    end
-
-    let (whitelisted_member) = _whitelisted_members.read(
-        whitelisted_members_index
-    )
-
-    let check = whitelisted_member.account - account
-
-    assert checks[whitelisted_members_index] = check
-
-    _get_whitelisted_members_index(
-        whitelisted_members_index=whitelisted_members_index + 1,
-        whitelisted_members_len=whitelisted_members_len,
-        account=account,
-        checks=checks
     )
 
     return ()
