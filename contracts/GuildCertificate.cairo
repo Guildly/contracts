@@ -22,7 +22,7 @@ from openzeppelin.introspection.ERC165 import ERC165
 
 from openzeppelin.access.ownable import Ownable
 
-from contracts.lib.math_utils import uint256_array_sum
+from contracts.lib.math_utils import uint256_array_sum, array_product
 from contracts.utils.helpers import find_value, find_uint256_value
 
 #
@@ -100,7 +100,12 @@ func assert_only_owner{
     }():
     let (caller) = get_caller_address()
     let (guild_manager) = _guild_manager.read()
-    IGuildManager.check_valid_contract(guild_manager, caller)
+    let (check_guild) = IGuildManager.check_valid_contract(guild_manager, caller)
+    let check_manager = guild_manager - caller
+    let check_product = check_guild * check_manager
+    with_attr error_message("Guild Manager: Contract is not valid"):
+        assert check_product = 0
+    end
     return ()
 end
 
