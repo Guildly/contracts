@@ -88,7 +88,7 @@ def sign_transaction(sender, calls, nonce, max_fee=0):
 
 def run(nre):
     proxy_class_hash = "0x25ec026985a3bf9d0cc1fe17326b245dfdc3ff89b8fde106542a3ea56c5a918"
-    contract_class_hash = "0x5e6ca4240cffa80dcb0d5ac9354aa88ed64991d099dfccc6d03d3210000a67c"
+    contract_class_hash = "0x6ed6e7a7d736638ff0fb8dbf33ccf74e767f6915bee2c57f785f419752679d4"
     account = "0x01AFbaf9bfD9F77C0e1cB3bf41Ba680A6d4B370eEC53Af8578b2bB73C7fF499C"
 
     # account = Account("ACCOUNT_PRIVATE_KEY", "goerli")

@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: MIT
-# OpenZeppelin Contracts for Cairo v0.2.0 (upgrades/library.cairo)
-
+# OpenZeppelin Contracts for Cairo v0.3.2 (upgrades/library.cairo)
 %lang starknet
 
 from starkware.starknet.common.syscalls import get_caller_address

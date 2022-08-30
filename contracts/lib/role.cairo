@@ -1,5 +1,5 @@
-namespace Role:
+namespace GuildRoles:
     const MEMBER = 1
-    const ADMIN = 2
-    const OWNER = 3
+    const OWNER = 2
+    const ADMIN = 3
 end

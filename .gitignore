@@ -29,7 +29,6 @@ old_integration_tests
 scripts/pinata.py
 old_front_end
 contracts/Proxy.cairo
-tests/test_proxy.py
 contracts/Upgradable.cairo
 protostar.toml
 contracts/AccessControl.cairo
@@ -41,5 +40,10 @@ contracts/interfaces/IGuildContractAccess.cairo
 tests/test_access_control.py
 contracts/on_received
 contracts/permission_update
-contracts/GuildContractNew.cairo
+contracts/guild_contract_new.cairo
+contracts/guild_certificate_new.cairo
 contracts/token
+contracts/reward_system
+tests/test_proxy_upgrade.py
+tests/test_reward_system.py
+tests/test_proxy_new.py
