@@ -28,7 +28,6 @@ test_account_abstraction.py.txt
 old_integration_tests
 scripts/pinata.py
 old_front_end
-contracts/Proxy.cairo
 contracts/Upgradable.cairo
 protostar.toml
 contracts/AccessControl.cairo
