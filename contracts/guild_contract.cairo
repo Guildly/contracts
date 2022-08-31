@@ -16,8 +16,8 @@ from starkware.starknet.common.syscalls import (
 
 from starkware.cairo.common.bool import TRUE, FALSE
 
-from openzeppelin.introspection.ERC165 import ERC165
-from openzeppelin.token.erc721.interfaces.IERC721 import IERC721
+from openzeppelin.introspection.erc165.library import ERC165
+from openzeppelin.token.erc721.IERC721 import IERC721
 from contracts.interfaces.IERC1155 import IERC1155
 from contracts.interfaces.IGuildCertificate import IGuildCertificate
 

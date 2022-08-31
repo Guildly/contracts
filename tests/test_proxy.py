@@ -28,11 +28,11 @@ signer1 = Signer(123456789987654321)
 signer2 = Signer(987654321123456789)
 signer3 = Signer(567899876512344321)
 
-# CONTRACTS_PATH = os.path.join(os.path.dirname(__file__), "..", "contracts")
-# OZ_CONTRACTS_PATH = os.path.join(os.path.dirname(__file__), "..", "lib", "cairo_contracts", "src")
-# here = os.path.abspath(os.path.dirname(__file__))
+CONTRACTS_PATH = os.path.join(os.path.dirname(__file__), "..", "contracts")
+OZ_CONTRACTS_PATH = os.path.join(os.path.dirname(__file__), "..", "lib", "cairo_contracts", "src")
+here = os.path.abspath(os.path.dirname(__file__))
 
-# CAIRO_PATH = [CONTRACTS_PATH, OZ_CONTRACTS_PATH, here]
+CAIRO_PATH = [CONTRACTS_PATH, OZ_CONTRACTS_PATH, here]
 
 
 @pytest.fixture(scope="module")
@@ -44,39 +44,39 @@ async def contract_factory():
     starknet = await Starknet.empty()
     account1 = await starknet.deploy(
         "contracts/tests/Account.cairo",
-        # cairo_path=CAIRO_PATH,
+        cairo_path=CAIRO_PATH,
         constructor_calldata=[signer1.public_key],
     )
     account2 = await starknet.deploy(
         "contracts/tests/Account.cairo",
-        # cairo_path=CAIRO_PATH,
+        cairo_path=CAIRO_PATH,
         constructor_calldata=[signer2.public_key],
     )
     account3 = await starknet.deploy(
         "contracts/tests/Account.cairo",
-        # cairo_path=CAIRO_PATH,
+        cairo_path=CAIRO_PATH,
         constructor_calldata=[signer3.public_key],
     )
     guild_contract_class_hash = await starknet.declare(
         source=GUILD_CONTRACT,
-        # cairo_path=CAIRO_PATH,
+        cairo_path=CAIRO_PATH,
     )
     guild_manager_class_hash = await starknet.declare(
         source=GUILD_MANAGER,
-        # cairo_path=CAIRO_PATH,
+        cairo_path=CAIRO_PATH,
     )
     guild_certificate_class_hash = await starknet.declare(
         source=GUILD_CERTIFICATE,
-        # cairo_path=CAIRO_PATH,
+        cairo_path=CAIRO_PATH,
     )
     guild_proxy_class_hash = await starknet.declare(
         source=PROXY,
-        # cairo_path=CAIRO_PATH,
+        cairo_path=CAIRO_PATH,
     )
 
     guild_manager_proxy = await starknet.deploy(
         source=PROXY,
-        # cairo_path=CAIRO_PATH,
+        cairo_path=CAIRO_PATH,
         constructor_calldata=[
             guild_manager_class_hash.class_hash,
             get_selector_from_name("initializer"),
@@ -89,7 +89,7 @@ async def contract_factory():
 
     guild_certificate_proxy = await starknet.deploy(
         source=PROXY,
-        # cairo_path=CAIRO_PATH,
+        cairo_path=CAIRO_PATH,
         constructor_calldata=[
             guild_certificate_class_hash.class_hash,
             get_selector_from_name("initializer"),
