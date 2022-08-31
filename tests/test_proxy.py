@@ -28,6 +28,12 @@ signer1 = Signer(123456789987654321)
 signer2 = Signer(987654321123456789)
 signer3 = Signer(567899876512344321)
 
+# CONTRACTS_PATH = os.path.join(os.path.dirname(__file__), "..", "contracts")
+# OZ_CONTRACTS_PATH = os.path.join(os.path.dirname(__file__), "..", "lib", "cairo_contracts", "src")
+# here = os.path.abspath(os.path.dirname(__file__))
+
+# CAIRO_PATH = [CONTRACTS_PATH, OZ_CONTRACTS_PATH, here]
+
 
 @pytest.fixture(scope="module")
 def event_loop():
@@ -37,32 +43,40 @@ def event_loop():
 async def contract_factory():
     starknet = await Starknet.empty()
     account1 = await starknet.deploy(
-        "openzeppelin/account/presets/Account.cairo",
-        constructor_calldata=[signer1.public_key]
+        "contracts/tests/Account.cairo",
+        # cairo_path=CAIRO_PATH,
+        constructor_calldata=[signer1.public_key],
     )
     account2 = await starknet.deploy(
-        "openzeppelin/account/presets/Account.cairo",
-        constructor_calldata=[signer2.public_key]
+        "contracts/tests/Account.cairo",
+        # cairo_path=CAIRO_PATH,
+        constructor_calldata=[signer2.public_key],
     )
     account3 = await starknet.deploy(
-        "openzeppelin/account/presets/Account.cairo",
-        constructor_calldata=[signer3.public_key]
+        "contracts/tests/Account.cairo",
+        # cairo_path=CAIRO_PATH,
+        constructor_calldata=[signer3.public_key],
     )
     guild_contract_class_hash = await starknet.declare(
-        source=GUILD_CONTRACT
+        source=GUILD_CONTRACT,
+        # cairo_path=CAIRO_PATH,
     )
     guild_manager_class_hash = await starknet.declare(
-        source=GUILD_MANAGER
+        source=GUILD_MANAGER,
+        # cairo_path=CAIRO_PATH,
     )
     guild_certificate_class_hash = await starknet.declare(
-        source=GUILD_CERTIFICATE
+        source=GUILD_CERTIFICATE,
+        # cairo_path=CAIRO_PATH,
     )
     guild_proxy_class_hash = await starknet.declare(
-        source=PROXY
+        source=PROXY,
+        # cairo_path=CAIRO_PATH,
     )
 
     guild_manager_proxy = await starknet.deploy(
         source=PROXY,
+        # cairo_path=CAIRO_PATH,
         constructor_calldata=[
             guild_manager_class_hash.class_hash,
             get_selector_from_name("initializer"),
@@ -75,6 +89,7 @@ async def contract_factory():
 
     guild_certificate_proxy = await starknet.deploy(
         source=PROXY,
+        # cairo_path=CAIRO_PATH,
         constructor_calldata=[
             guild_certificate_class_hash.class_hash,
             get_selector_from_name("initializer"),
@@ -100,6 +115,7 @@ async def contract_factory():
 
     guild_contract_proxy = await starknet.deploy(
         source=PROXY, 
+        cairo_path=CAIRO_PATH,
         constructor_calldata=[            
             guild_contract_class_hash.class_hash,
             get_selector_from_name("initializer"),
@@ -120,6 +136,7 @@ async def contract_factory():
 
     test_nft = await starknet.deploy(
         source=TEST_NFT,
+        cairo_path=CAIRO_PATH,
         constructor_calldata=[
             str_to_felt("Test NFT"),
             str_to_felt("TNFT"),
@@ -130,6 +147,7 @@ async def contract_factory():
     
     test_nft_2 = await starknet.deploy(
         source=TEST_NFT,
+        cairo_path=CAIRO_PATH,
         constructor_calldata=[
             str_to_felt("Test NFT"),
             str_to_felt("TNFT"),
@@ -138,7 +156,9 @@ async def contract_factory():
     )
 
     points_contract = await starknet.deploy(
-        source=POINTS_CONTRACT, constructor_calldata=[
+        source=POINTS_CONTRACT,
+        cairo_path=CAIRO_PATH,
+        constructor_calldata=[
             str_to_felt("Experience Points"),
             str_to_felt("EP"),
             18,
@@ -149,7 +169,9 @@ async def contract_factory():
     )
 
     game_contract = await starknet.deploy(
-        source=GAME_CONTRACT, constructor_calldata=[
+        source=GAME_CONTRACT,
+        cairo_path=CAIRO_PATH,
+        constructor_calldata=[
             test_nft.contract_address, 
             points_contract.contract_address
         ]

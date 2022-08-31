@@ -41,12 +41,12 @@ namespace MathUtils:
             return (sum=Uint256(0, 0))
         end
 
-        with_attr error_message("Math Utils: Value is not a valid Uint256"):
-            uint256_check([arr])
-        end
-
         let (sum_of_rest) = uint256_array_sum(arr_len=arr_len - 1, arr=arr + Uint256.SIZE)
         let (sum, _) = uint256_add([arr], sum_of_rest)
+
+        with_attr error_message("Math Utils: Value is not a valid Uint256"):
+            uint256_check(sum)
+        end
         return (sum=sum)
     end
 
@@ -57,12 +57,12 @@ namespace MathUtils:
             return (product=Uint256(1, 0))
         end
 
-        with_attr error_message("Math Utils: Value is not a valid Uint256"):
-            uint256_check([arr])
-        end
-
         let (product_of_rest) = uint256_array_product(arr_len=arr_len - 1, arr=arr + Uint256.SIZE)
         let (product, _) = uint256_mul([arr], product_of_rest)
+
+        with_attr error_message("Math Utils: Value is not a valid Uint256"):
+            uint256_check(product)
+        end
         return (product=product)
     end
 end

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
-# OpenZeppelin Contracts for Cairo v0.3.2 (upgrades/library.cairo)
+# OpenZeppelin Contracts for Cairo v0.2.0 (upgrades/library.cairo)
+
 %lang starknet
 
 from starkware.starknet.common.syscalls import get_caller_address
@@ -119,10 +120,8 @@ namespace Proxy:
             range_check_ptr
         }(new_implementation: felt):
         with_attr error_message("Proxy: implementation hash cannot be zero"):
-            assert_not_zero(new_implementation)
+            Proxy_implementation_hash.write(new_implementation)
         end
-
-        Proxy_implementation_hash.write(new_implementation)
         Upgraded.emit(new_implementation)
         return ()
     end

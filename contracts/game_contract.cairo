@@ -5,7 +5,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_contract_address
 
 from contracts.interfaces.IExperiencePoints import IExperiencePoints
-from openzeppelin.token.erc721.IERC721 import IERC721
+from openzeppelin.token.erc721.interfaces.IERC721 import IERC721
 
 from starkware.cairo.common.uint256 import Uint256, uint256_lt
 from starkware.cairo.common.bool import TRUE, FALSE

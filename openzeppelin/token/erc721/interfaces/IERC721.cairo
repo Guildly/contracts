@@ -5,10 +5,10 @@
 
 from starkware.cairo.common.uint256 import Uint256
 
-from openzeppelin.introspection.ERC165 import ERC165
+from openzeppelin.introspection.IERC165 import IERC165
 
 @contract_interface
-namespace IERC1155:
+namespace IERC721:
     func balanceOf(owner: felt) -> (balance: Uint256):
     end
 
@@ -18,32 +18,22 @@ namespace IERC1155:
     func safeTransferFrom(
             from_: felt, 
             to: felt, 
-            tokenId: Uint256,
-            amount: Uint256,
-            # data_len: felt,
-            # data: felt*
-        ):
-    end
-
-    func safeBatchTransferFrom(
-            from_: felt,
-            to: felt,
-            ids_len: felt,
-            ids: Uint256*,
-            amounts_len: felt,
-            amounts: Uint256*,
+            tokenId: Uint256, 
             data_len: felt,
-            data: felt*,
+            data: felt*
         ):
     end
 
-    func approve(approved: felt, tokenId: Uint256, amount: Uint256):
+    func transferFrom(from_: felt, to: felt, tokenId: Uint256):
+    end
+
+    func approve(approved: felt, tokenId: Uint256):
     end
 
     func setApprovalForAll(operator: felt, approved: felt):
     end
 
-    func getApproved(tokenId: Uint256) -> (approved: felt, amount: felt):
+    func getApproved(tokenId: Uint256) -> (approved: felt):
     end
 
     func isApprovedForAll(owner: felt, operator: felt) -> (isApproved: felt):
