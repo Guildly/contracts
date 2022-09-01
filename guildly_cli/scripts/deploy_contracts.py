@@ -14,6 +14,10 @@ from nile.core.declare import declare
 import os
 import subprocess
 
+import sys
+
+from guildly_cli.scripts.caller_invoke import send
+
 # deploy account, dummy contract, owner contract
 # sign transaction to set value to 1
 # send call to owner contract to ultimately call set value (should error out)
@@ -109,7 +113,8 @@ def run(nre):
         ],
         alias="proxy_guild_manager"
     )
-    account.send(
+    send(
+        account,
         guild_proxy_manager_address,
         "initializer", 
         calldata=[
@@ -126,45 +131,46 @@ def run(nre):
         arguments=[
             guild_certificate_class_hash,
         ],
-        alias="guild_certificate"
+        alias="guild_certificate",
     )
-    account.send(
+    send(
+        account,
         guild_proxy_certificate_address,
         "initializer", 
         calldata=[
             str(str_to_felt("Guild Certificate")),
             str(str_to_felt("GC")),
             strhex_as_strfelt(guild_proxy_manager_address),
-        ]
+        ],
     )
     print(guild_proxy_certificate_abi, guild_proxy_certificate_address)
 
     test_nft_address, test_nft_abi = nre.deploy(
-        "TestNFT",
+        "test_nft",
         arguments=[
             str(str_to_felt("Test NFT")),
             str(str_to_felt("TNFT")),
-            account,
+            strhex_as_strfelt(account.address),
         ],
         alias="test_nft"
     )
     print(test_nft_abi, test_nft_address)
     points_contract_address, points_abi = nre.deploy(
-        "ExperiencePoints",
+        "experience_points",
         arguments=[
             str(str_to_felt("Experience Points")),
             str(str_to_felt("EP")),
             "18",
             str(0),
             str(0),
-            account,
-            account,
+            strhex_as_strfelt(account.address),
+            strhex_as_strfelt(account.address),
         ],
         alias="points_contract"
     )
     print(points_abi, points_contract_address)
     test_game_contract_address, test_game_abi = nre.deploy(
-        "GameContract", 
+        "game_contract", 
         arguments=[
             test_nft_address, 
             points_contract_address
