@@ -39,7 +39,6 @@ def copy_nile_deployment_config():
     with open("../game_guilds_front_end/deployments-config.json", "w") as deployments_config_json:
         json.dump(x, deployments_config_json)
 
-    os.remove('goerli.deployments.txt')
     print("Front end JSON updated!")
 
 
