@@ -95,18 +95,16 @@ end
 # Guards
 #
 
-func assert_only_owner{
+func assert_only_guild{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }():
     let (caller) = get_caller_address()
     let (guild_manager) = _guild_manager.read()
-    let (check_guild) = IGuildManager.check_valid_contract(guild_manager, caller)
-    let check_manager = guild_manager - caller
-    let check_product = check_guild * check_manager
+    let (check_guild) = IGuildManager.get_is_guild(guild_manager, caller)
     with_attr error_message("Guild Certificate: Contract is not valid"):
-        assert check_product = 0
+        assert check_guild = TRUE
     end
     return ()
 end
@@ -380,7 +378,7 @@ func setTokenURI{
         syscall_ptr: felt*, 
         range_check_ptr
     }(tokenId: Uint256, tokenURI: felt):
-    assert_only_owner()
+    assert_only_guild()
     ERC721._set_token_uri(tokenId, tokenURI)
     return ()
 end
@@ -401,7 +399,7 @@ func mint{
         syscall_ptr: felt*, 
         range_check_ptr
     }(to: felt, guild: felt, role: felt):
-    assert_only_owner()
+    assert_only_guild()
 
     let (certificate_count) = _certificate_id_count.read()
     let (new_certificate_id, _) = uint256_add(certificate_count, Uint256(1,0))
@@ -424,7 +422,7 @@ func update_role{
         syscall_ptr: felt*, 
         range_check_ptr
     }(certificate_id: Uint256, role: felt):
-    assert_only_owner()
+    assert_only_guild()
 
     _role.write(certificate_id, role)
     return()
@@ -452,7 +450,7 @@ func guild_burn{
         range_check_ptr
     }(account: felt, guild: felt):
     alloc_locals
-    assert_only_owner()
+    assert_only_guild()
     let (certificate_id: Uint256) = _certificate_id.read(account, guild)
     ERC721._burn(certificate_id)
     BurnCertificate.emit(account, guild, certificate_id)
@@ -471,7 +469,7 @@ func add_token_data{
         token_id: Uint256,
         amount: Uint256
     ):
-    assert_only_owner()
+    assert_only_guild()
 
     _certificate_token_amount.write(
         certificate_id, 
@@ -508,7 +506,7 @@ func change_token_data{
         token_id: Uint256,
         new_amount: Uint256
     ):
-    assert_only_owner()
+    assert_only_guild()
 
     _certificate_token_amount.write(
         certificate_id, 
@@ -553,7 +551,7 @@ func check_token_exists{
         bool: felt
     ):
     alloc_locals
-    assert_only_owner()
+    assert_only_guild()
     let (amount) = _certificate_token_amount.read(
         certificate_id,
         token_standard,
@@ -573,7 +571,7 @@ func check_tokens_exist{
         certificate_id: Uint256
     ) -> (bool: felt):
     alloc_locals
-    assert_only_owner()
+    assert_only_guild()
     let (checks: Uint256*) = alloc()
 
     let (tokens_data_len) = _certificate_tokens_data_len.read(certificate_id)

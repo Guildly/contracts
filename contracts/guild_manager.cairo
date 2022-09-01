@@ -50,12 +50,9 @@ func guild_class_hash() -> (value : felt):
 end
 
 @storage_var
-func guild_contract_count() -> (res : felt):
+func is_guild(address : felt) -> (res : felt):
 end
 
-@storage_var
-func guild_contracts(index : felt) -> (value : felt):
-end
 
 #
 # Events
@@ -112,6 +109,8 @@ func deploy_guild_proxy_contract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin
     )
     salt.write(value=current_salt + 1)
 
+    is_guild.write(contract_address, TRUE)
+
     let (initialize_calldata : felt*) = alloc()
     assert initialize_calldata[0] = name
     assert initialize_calldata[1] = caller_address
@@ -127,48 +126,13 @@ func deploy_guild_proxy_contract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin
 
     GuildContractDeployed.emit(name=name, master=caller_address, contract_address=contract_address)
 
-    let (contract_count) = guild_contract_count.read()
-    guild_contracts.write(contract_count, contract_address)
-    guild_contract_count.write(contract_count + 1)
-
-    IGuildCertificate.mint(
-        contract_address=guild_certificate,
-        to=caller_address,
-        guild=contract_address,
-        role=GuildRoles.ADMIN,
-    )
-
     return (contract_address)
 end
 
-@external
-func check_valid_contract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+@view
+func get_is_guild{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     address : felt
 ) -> (value : felt):
-    alloc_locals
-    let (checks : felt*) = alloc()
-    let (guilds_len) = guild_contract_count.read()
-
-    _check_valid_contract(guilds_index=0, guilds_len=guilds_len, address=address, checks=checks)
-
-    let (check_product) = MathUtils.array_product(guilds_len, checks)
-
-    return (value=check_product)
-end
-
-func _check_valid_contract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    guilds_index : felt, guilds_len : felt, address : felt, checks : felt*
-):
-    if guilds_index == guilds_len:
-        return ()
-    end
-
-    let (guild_contract) = guild_contracts.read(guilds_index)
-    let check = address - guild_contract
-    assert checks[guilds_index] = check
-
-    _check_valid_contract(
-        guilds_index=guilds_index + 1, guilds_len=guilds_len, address=address, checks=checks
-    )
-    return ()
+    let (value) = is_guild.read(address)
+    return (value)
 end

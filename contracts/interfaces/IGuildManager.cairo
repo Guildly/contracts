@@ -3,7 +3,7 @@
 @contract_interface
 namespace IGuildManager:
 
-    func check_valid_contract(
+    func get_is_guild(
             address : felt
         ) -> (
             value : felt

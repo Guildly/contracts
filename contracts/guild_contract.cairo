@@ -337,6 +337,16 @@ func initializer{
     _name.write(name)
     _guild_master.write(master)
     _guild_certificate.write(guild_certificate)
+
+    let (contract_address) = get_contract_address()
+
+    IGuildCertificate.mint(
+        contract_address=guild_certificate,
+        to=master, 
+        guild=contract_address,
+        role=GuildRoles.ADMIN
+    )
+
     Proxy.initializer(proxy_admin)
     return ()
 end 
