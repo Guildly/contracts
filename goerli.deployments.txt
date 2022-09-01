@@ -1,0 +1,1 @@
+0x05700eF55012cd0FCf132b5d2693B01c3e1EB690A8EA23a05Ad7FcB07A1EeFc8:/artifacts/abis/Account.json:account-0

@@ -10,6 +10,7 @@ from starkware.starknet.public.abi import get_selector_from_name
 
 from nile.core.call_or_invoke import call_or_invoke
 from nile.core.account import Account
+from nile.core.declare import declare
 import os
 import subprocess
 
@@ -31,6 +32,13 @@ def to_uint(a):
 def str_to_felt(text):
     b_text = bytes(text, "ascii")
     return int.from_bytes(b_text, "big")
+
+def strhex_as_strfelt(strhex: str):
+    """Converts a string in hex format to a string in felt format"""
+    if strhex is not None:
+        return str(int(strhex, 16))
+    else:
+        print("strhex address is None.")
 
 
 def from_call_to_call_array(calls):
@@ -87,31 +95,50 @@ def sign_transaction(sender, calls, nonce, max_fee=0):
 
 
 def run(nre):
-    proxy_class_hash = "0x25ec026985a3bf9d0cc1fe17326b245dfdc3ff89b8fde106542a3ea56c5a918"
-    contract_class_hash = "0x6ed6e7a7d736638ff0fb8dbf33ccf74e767f6915bee2c57f785f419752679d4"
-    account = "0x01AFbaf9bfD9F77C0e1cB3bf41Ba680A6d4B370eEC53Af8578b2bB73C7fF499C"
+    proxy_class_hash = declare("proxy", nre.network, "proxy")
+    guild_contract_class_hash = declare("guild_contract", nre.network, "guild_contract")
+    guild_manager_class_hash = declare("guild_manager", nre.network, "guild_manager")
+    guild_certificate_class_hash = declare("guild_certificate", nre.network, "guild_certificate")
 
-    # account = Account("ACCOUNT_PRIVATE_KEY", "goerli")
+    account = Account("STARKNET_PRIVATE_KEY", nre.network)
 
-    guild_manager_address, guild_manager_abi = nre.deploy(
-        "GuildManager",
+    guild_proxy_manager_address, guild_proxy_manager_abi = nre.deploy(
+        "proxy",
         arguments=[
-            proxy_class_hash,
-            contract_class_hash, 
+            guild_manager_class_hash,
         ],
-        alias="guild_manager"
+        alias="proxy_guild_manager"
     )
-    print(guild_manager_abi, guild_manager_address)
-    guild_certificate_address, guild_certificate_abi = nre.deploy(
-        "GuildCertificate",
+    account.send(
+        guild_proxy_manager_address,
+        "initializer", 
+        calldata=[
+            strhex_as_strfelt(proxy_class_hash),
+            strhex_as_strfelt(proxy_class_hash),
+            strhex_as_strfelt(account.address)
+        ]
+    )
+
+    print(guild_proxy_manager_abi, guild_proxy_manager_address)
+
+    guild_proxy_certificate_address, guild_proxy_certificate_abi = nre.deploy(
+        "proxy",
         arguments=[
-            str(str_to_felt("Guild Certificate")),
-            str(str_to_felt("GC")),
-            guild_manager_address,
+            guild_certificate_class_hash,
         ],
         alias="guild_certificate"
     )
-    print(guild_certificate_abi, guild_certificate_address)
+    account.send(
+        guild_proxy_certificate_address,
+        "initializer", 
+        calldata=[
+            str(str_to_felt("Guild Certificate")),
+            str(str_to_felt("GC")),
+            strhex_as_strfelt(guild_proxy_manager_address),
+        ]
+    )
+    print(guild_proxy_certificate_abi, guild_proxy_certificate_address)
+
     test_nft_address, test_nft_abi = nre.deploy(
         "TestNFT",
         arguments=[

@@ -79,8 +79,14 @@ async def contract_factory():
         cairo_path=CAIRO_PATH,
         constructor_calldata=[
             guild_manager_class_hash.class_hash,
-            get_selector_from_name("initializer"),
-            3,
+        ]
+    )
+
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_manager_proxy.contract_address,
+        selector_name="initializer",
+        calldata=[
             guild_proxy_class_hash.class_hash,
             guild_contract_class_hash.class_hash,
             account1.contract_address
@@ -92,8 +98,14 @@ async def contract_factory():
         cairo_path=CAIRO_PATH,
         constructor_calldata=[
             guild_certificate_class_hash.class_hash,
-            get_selector_from_name("initializer"),
-            4,
+        ]
+    )
+
+    await signer1.send_transaction(
+        account=account1,
+        to=guild_certificate_proxy.contract_address,
+        selector_name="initializer",
+        calldata=[
             str_to_felt("Guild certificate"),
             str_to_felt("GC"),
             guild_manager_proxy.contract_address,
@@ -118,12 +130,6 @@ async def contract_factory():
         cairo_path=CAIRO_PATH,
         constructor_calldata=[            
             guild_contract_class_hash.class_hash,
-            get_selector_from_name("initializer"),
-            4,
-            str_to_felt("Test Guild"),
-            account1.contract_address,
-            guild_certificate_proxy.contract_address,
-            account1.contract_address
         ]
     )
 

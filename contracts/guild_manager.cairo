@@ -2,7 +2,11 @@
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.starknet.common.syscalls import deploy, get_caller_address
+from starkware.starknet.common.syscalls import (
+    deploy, 
+    get_caller_address, 
+    call_contract
+)
 from contracts.lib.math_utils import MathUtils
 
 from starkware.cairo.common.bool import TRUE, FALSE
@@ -97,22 +101,29 @@ func deploy_guild_proxy_contract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin
     let (class_hash) = guild_class_hash.read()
     let (caller_address) = get_caller_address()
     let (proxy_admin) = Proxy.get_admin()
-    let (calldata : felt*) = alloc()
-    assert calldata[0] = class_hash
-    assert calldata[1] = INITIALIZE_SELECTOR
-    assert calldata[2] = 4
-    assert calldata[3] = name
-    assert calldata[4] = caller_address
-    assert calldata[5] = guild_certificate
-    assert calldata[6] = proxy_admin
+    let (deploy_calldata : felt*) = alloc()
+    assert deploy_calldata[0] = class_hash
     let (contract_address) = deploy(
         class_hash=proxy_class_hash,
         contract_address_salt=current_salt,
-        constructor_calldata_size=7,
-        constructor_calldata=calldata,
+        constructor_calldata_size=1,
+        constructor_calldata=deploy_calldata,
         deploy_from_zero=0,
     )
     salt.write(value=current_salt + 1)
+
+    let (initialize_calldata : felt*) = alloc()
+    assert initialize_calldata[0] = name
+    assert initialize_calldata[1] = caller_address
+    assert initialize_calldata[2] = guild_certificate
+    assert initialize_calldata[3] = proxy_admin
+
+    let res = call_contract(
+        contract_address=contract_address,
+        function_selector=INITIALIZE_SELECTOR,
+        calldata_size=4,
+        calldata=initialize_calldata,
+    )
 
     GuildContractDeployed.emit(name=name, master=caller_address, contract_address=contract_address)
 

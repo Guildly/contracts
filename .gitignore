@@ -3,7 +3,6 @@ node_modules
 .env.nile
 
 #Nile files
-goerli.deployments.txt
 accounts.json
 node.json
 artifacts/
@@ -19,6 +18,9 @@ __pycache__
 #Ape
 ape-config.yaml
 .build
+
+#Openzeppelin
+openzeppelin
 
 #Pytest
 pytest.ini
