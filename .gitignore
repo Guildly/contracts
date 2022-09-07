@@ -1,6 +1,7 @@
 node_modules
 .env
 .env.nile
+.vscode
 
 #Nile files
 accounts.json
