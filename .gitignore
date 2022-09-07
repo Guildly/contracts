@@ -47,3 +47,6 @@ contracts/reward_system
 tests/test_proxy_upgrade.py
 tests/test_reward_system.py
 tests/test_proxy_new.py
+
+# virtualenv
+venv

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 %lang starknet
 
 from starkware.cairo.common.alloc import alloc
@@ -8,10 +8,10 @@ from starkware.cairo.common.math import assert_le, assert_lt
 from starkware.cairo.common.memcpy import memcpy
 
 from starkware.starknet.common.syscalls import (
-    call_contract, 
-    get_caller_address, 
+    call_contract,
+    get_caller_address,
     get_contract_address,
-    get_tx_info
+    get_tx_info,
 )
 
 from starkware.cairo.common.bool import TRUE, FALSE
@@ -26,981 +26,773 @@ from contracts.lib.token_standard import TokenStandard
 from contracts.lib.math_utils import MathUtils
 from contracts.utils.helpers import find_value
 
-from starkware.cairo.common.uint256 import (
-    Uint256, 
-    uint256_lt,
-    uint256_add,
-    uint256_eq,
-    uint256_sub
-)
+from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_add, uint256_eq, uint256_sub
 
 from openzeppelin.upgrades.library import Proxy
 
-#
-# Structs
-#
+//
+// Structs
+//
 
-struct Call:
-    member to: felt
-    member selector: felt
-    member calldata_len: felt
-    member calldata: felt*
-end
+struct Call {
+    to: felt,
+    selector: felt,
+    calldata_len: felt,
+    calldata: felt*,
+}
 
-# Tmp struct introduced while we wait for Cairo
-# to support passing '[Call]' to __execute__
-struct CallArray:
-    member to: felt
-    member selector: felt
-    member data_offset: felt
-    member data_len: felt
-end
+// Tmp struct introduced while we wait for Cairo
+// to support passing '[Call]' to __execute__
+struct CallArray {
+    to: felt,
+    selector: felt,
+    data_offset: felt,
+    data_len: felt,
+}
 
-struct Permission:
-    member to: felt
-    member selector: felt
-end
+struct Permission {
+    to: felt,
+    selector: felt,
+}
 
-struct Member:
-    member account: felt
-    member role: felt
-end
+struct Member {
+    account: felt,
+    role: felt,
+}
 
-struct Token:
-    member token_standard: felt
-    member token: felt
-    member token_id: Uint256
-    member amount: Uint256
-end
+struct Token {
+    token_standard: felt,
+    token: felt,
+    token_id: Uint256,
+    amount: Uint256,
+}
 
-#
-# Events
-#
-
-@event
-func MemberWhitelisted(
-        account: felt,
-        role: felt
-    ):
-end
+//
+// Events
+//
 
 @event
-func MemberRemoved(
-        account: felt
-    ):
-end
+func MemberWhitelisted(account: felt, role: felt) {
+}
 
 @event
-func MemberRoleUpdated(
-        account: felt,
-        new_role: felt
-    ):
-end
+func MemberRemoved(account: felt) {
+}
 
 @event
-func PermissionsSet(
-        account: felt, 
-        permissions_len: felt, 
-        permissions: Permission*
-    ):
-end
+func MemberRoleUpdated(account: felt, new_role: felt) {
+}
 
 @event
-func TransactionExecuted(
-        account: felt,
-        hash: felt, 
-        response_len: felt, 
-        response: felt*
-    ):
-end
+func PermissionsSet(account: felt, permissions_len: felt, permissions: Permission*) {
+}
+
+@event
+func TransactionExecuted(account: felt, hash: felt, response_len: felt, response: felt*) {
+}
 
 @event
 func Deposited(
-        account: felt, 
-        certificate_id: Uint256,
-        token_standard: felt, 
-        token: felt, 
-        token_id: Uint256
-    ):
-end
+    account: felt,
+    certificate_id: Uint256,
+    token_standard: felt,
+    token: felt,
+    token_id: Uint256,
+    amount: Uint256,
+) {
+}
 
 @event
 func Withdrawn(
-        account: felt, 
-        certificate_id: Uint256,
-        token_standard: felt,
-        token: felt, 
-        token_id: Uint256,
-        amount: Uint256
-    ):
-end
+    account: felt,
+    certificate_id: Uint256,
+    token_standard: felt,
+    token: felt,
+    token_id: Uint256,
+    amount: Uint256,
+) {
+}
 
-#
-# Storage variables
-#
-
-@storage_var
-func _name() -> (res: felt):
-end
+//
+// Storage variables
+//
 
 @storage_var
-func _guild_master() -> (res: felt):
-end
+func _name() -> (res: felt) {
+}
 
 @storage_var
-func _is_permissions_initialized() -> (res: felt):
-end
+func _guild_master() -> (res: felt) {
+}
 
 @storage_var
-func _whitelisted_members_count() -> (res: felt):
-end
+func _is_permissions_initialized() -> (res: felt) {
+}
 
 @storage_var
-func _whitelisted_members(index: felt) -> (res: Member):
-end
+func _whitelisted_members_count() -> (res: felt) {
+}
 
 @storage_var
-func _whitelisted_role(account: felt) -> (res: felt):
-end
+func _whitelisted_members(index: felt) -> (res: Member) {
+}
 
 @storage_var
-func _is_whitelisted(account: felt) -> (res: felt):
-end
+func _whitelisted_role(account: felt) -> (res: felt) {
+}
 
 @storage_var
-func _is_blacklisted(account: felt) -> (res: felt):
-end
+func _is_whitelisted(account: felt) -> (res: felt) {
+}
 
 @storage_var
-func _permissions_len() -> (res: felt):
-end
+func _is_blacklisted(account: felt) -> (res: felt) {
+}
 
 @storage_var
-func _permissions(index: felt) -> (res: Permission):
-end
+func _permissions_len() -> (res: felt) {
+}
 
 @storage_var
-func _guild_certificate() -> (res: felt):
-end
+func _permissions(index: felt) -> (res: Permission) {
+}
 
 @storage_var
-func _current_nonce() -> (res: felt):
-end
+func _guild_certificate() -> (res: felt) {
+}
 
-#
-# Guards
-#
+@storage_var
+func _current_nonce() -> (res: felt) {
+}
 
-func require_master{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }():
-    alloc_locals
-    let (caller) = get_caller_address()
-    let (master) = _guild_master.read()
+//
+// Guards
+//
 
-    with_attr error_message("Guild Contract: Caller is not guild master"):
-        assert caller = master
-    end
-    return ()
-end
+func require_master{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    alloc_locals;
+    let (caller) = get_caller_address();
+    let (master) = _guild_master.read();
 
-func require_admin{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }():
-    alloc_locals
-    let (caller_address) = get_caller_address()
-    let (contract_address) = get_contract_address()
-    let (guild_certificate) = _guild_certificate.read()
+    with_attr error_message("Guild Contract: Caller is not guild master") {
+        assert caller = master;
+    }
+    return ();
+}
+
+func require_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    alloc_locals;
+    let (caller_address) = get_caller_address();
+    let (contract_address) = get_contract_address();
+    let (guild_certificate) = _guild_certificate.read();
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
-        contract_address=guild_certificate,
-        owner=caller_address,
-        guild=contract_address
-    )
+        contract_address=guild_certificate, owner=caller_address, guild=contract_address
+    );
 
     let (_role) = IGuildCertificate.get_role(
-        contract_address=guild_certificate, 
-        certificate_id=certificate_id
-    )
+        contract_address=guild_certificate, certificate_id=certificate_id
+    );
 
-    with_attr error_message("Guild Contract: Caller is not admin"):
-        assert _role = GuildRoles.ADMIN
-    end
-    return ()
-end
+    with_attr error_message("Guild Contract: Caller is not admin") {
+        assert _role = GuildRoles.ADMIN;
+    }
+    return ();
+}
 
-func require_owner_or_member{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }():
-    alloc_locals
-    let (caller_address) = get_caller_address()
-    let (contract_address) = get_contract_address()
-    let (guild_certificate) = _guild_certificate.read()
+func require_owner_or_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    alloc_locals;
+    let (caller_address) = get_caller_address();
+    let (contract_address) = get_contract_address();
+    let (guild_certificate) = _guild_certificate.read();
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
-        contract_address=guild_certificate,
-        owner=caller_address,
-        guild=contract_address
-    )
+        contract_address=guild_certificate, owner=caller_address, guild=contract_address
+    );
 
-    let (check) = uint256_lt(Uint256(0,0),certificate_id)
+    let (check) = uint256_lt(Uint256(0, 0), certificate_id);
 
-    with_attr error_mesage("Guild Contract: Caller must have access"):
-        assert check = TRUE
-    end
-    return ()
-end
+    with_attr error_mesage("Guild Contract: Caller must have access") {
+        assert check = TRUE;
+    }
+    return ();
+}
 
-func require_admin_or_owner{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }():
-    alloc_locals
-    let (caller_address) = get_caller_address()
-    let (contract_address) = get_contract_address()
-    let (guild_certificate) = _guild_certificate.read()
+func require_admin_or_owner{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    alloc_locals;
+    let (caller_address) = get_caller_address();
+    let (contract_address) = get_contract_address();
+    let (guild_certificate) = _guild_certificate.read();
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
-        contract_address=guild_certificate,
-        owner=caller_address,
-        guild=contract_address
-    )
+        contract_address=guild_certificate, owner=caller_address, guild=contract_address
+    );
 
     let (_role) = IGuildCertificate.get_role(
-        contract_address=guild_certificate, 
-        certificate_id=certificate_id
-    )
+        contract_address=guild_certificate, certificate_id=certificate_id
+    );
 
-    with_attr error_message("Guild Contract: Caller is not admin or owner"):
-        assert_lt(1, _role)
-    end
+    with_attr error_message("Guild Contract: Caller is not admin or owner") {
+        assert_lt(1, _role);
+    }
 
-    return ()
-end
+    return ();
+}
 
-func require_not_whitelisted{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        account: felt
-    ):
+func require_not_whitelisted{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    account: felt
+) {
+    let (bool) = _is_whitelisted.read(account);
 
-    let (bool) = _is_whitelisted.read(account)
+    with_attr error_mesage("Guild Contract: Account is already whitelisted") {
+        assert bool = FALSE;
+    }
 
-    with_attr error_mesage("Guild Contract: Account is already whitelisted"):
-        assert bool = FALSE
-    end
+    return ();
+}
 
-    return ()
-end
+func require_not_blacklisted{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    account: felt
+) {
+    let (is_blacklisted) = _is_blacklisted.read(account);
 
-func require_not_blacklisted{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        account: felt
-    ):
+    with_attr error_message("Guild Contract: Account is blacklisted") {
+        assert is_blacklisted = FALSE;
+    }
 
-    let (is_blacklisted) = _is_blacklisted.read(account)
+    return ();
+}
 
-    with_attr error_message("Guild Contract: Account is blacklisted"):
-        assert is_blacklisted = FALSE
-    end
-
-    return ()
-end
-
-#
-# Initialize & upgrade
-#
+//
+// Initialize & upgrade
+//
 
 @external
-func initializer{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        name: felt,
-        master: felt,
-        guild_certificate: felt,
-        proxy_admin: felt
-    ):
-    _name.write(name)
-    _guild_master.write(master)
-    _guild_certificate.write(guild_certificate)
+func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    name: felt, master: felt, guild_certificate: felt, proxy_admin: felt
+) {
+    _name.write(name);
+    _guild_master.write(master);
+    _guild_certificate.write(guild_certificate);
 
-    let (contract_address) = get_contract_address()
+    let (contract_address) = get_contract_address();
 
     IGuildCertificate.mint(
-        contract_address=guild_certificate,
-        to=master, 
-        guild=contract_address,
-        role=GuildRoles.ADMIN
-    )
+        contract_address=guild_certificate, to=master, guild=contract_address, role=GuildRoles.ADMIN
+    );
 
-    Proxy.initializer(proxy_admin)
-    return ()
-end 
+    Proxy.initializer(proxy_admin);
+    return ();
+}
 
 @external
-func upgrade{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        implementation: felt
-    ):
-    Proxy.assert_only_admin()
-    Proxy._set_implementation_hash(implementation)
-    return ()
-end
+func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    implementation: felt
+) {
+    Proxy.assert_only_admin();
+    Proxy._set_implementation_hash(implementation);
+    return ();
+}
 
-#
-# Getters
-#
+//
+// Getters
+//
 
 @view
-func supportsInterface{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(interfaceId: felt) -> (success: felt):
-    let (success) = ERC165.supports_interface(interfaceId)
-    return (success)
-end
+func supportsInterface{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    interfaceId: felt
+) -> (success: felt) {
+    let (success) = ERC165.supports_interface(interfaceId);
+    return (success,);
+}
 
 @view
-func name{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (name: felt):
-    let (name) = _name.read()
-    return (name)
-end
+func name{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (name: felt) {
+    let (name) = _name.read();
+    return (name,);
+}
 
 @view
-func master{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (master : felt):
-    let (master) = _guild_master.read()
-    return (master)
-end
+func master{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (master: felt) {
+    let (master) = _guild_master.read();
+    return (master,);
+}
 
 @view
-func guild_certificate{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (guild_certificate : felt):
-    let (guild_certificate) = _guild_certificate.read()
-    return (guild_certificate)
-end
+func guild_certificate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    guild_certificate: felt
+) {
+    let (guild_certificate) = _guild_certificate.read();
+    return (guild_certificate,);
+}
 
 @view
-func is_permissions_initialized{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (res: felt):
-    let (initialized) = _is_permissions_initialized.read()
-    return (res=initialized)
-end
+func is_permissions_initialized{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    ) -> (res: felt) {
+    let (initialized) = _is_permissions_initialized.read();
+    return (res=initialized);
+}
 
 @view
-func get_nonce{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (res: felt):
-    let (res) = _current_nonce.read()
-    return (res=res)
-end
+func get_nonce{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (res: felt) {
+    let (res) = _current_nonce.read();
+    return (res=res);
+}
 
 @view
-func get_whitelisted_role{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(account: felt) -> (res: felt):
+func get_whitelisted_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    account: felt
+) -> (res: felt) {
+    let (role) = _whitelisted_role.read(account);
 
-    let (role) = _whitelisted_role.read(account)
-
-    return (res=role)
-end
+    return (res=role);
+}
 
 @view
-func get_whitelisted_members{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (
-        members_len: felt,
-        members: Member*
-    ):
-    alloc_locals
-    let (members: Member*) = alloc()
+func get_whitelisted_members{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    members_len: felt, members: Member*
+) {
+    alloc_locals;
+    let (members: Member*) = alloc();
 
-    let (members_len) = _whitelisted_members_count.read()
+    let (members_len) = _whitelisted_members_count.read();
+
+    _get_whitelisted_members(members_index=0, members_len=members_len, members=members);
+
+    return (members_len=members_len, members=members);
+}
+
+func _get_whitelisted_members{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    members_index: felt, members_len: felt, members: Member*
+) {
+    if (members_index == members_len) {
+        return ();
+    }
+
+    let (whitelisted_member) = _whitelisted_members.read(members_index);
+
+    assert members[members_index] = whitelisted_member;
 
     _get_whitelisted_members(
-        members_index=0,
-        members_len=members_len,
-        members=members
-    )
-
-    return (
-        members_len=members_len,
-        members=members
-    )
-end
-
-func _get_whitelisted_members{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        members_index: felt,
-        members_len: felt,
-        members: Member*
-    ):
-    if members_index == members_len:
-        return ()
-    end
-
-    let (whitelisted_member) = _whitelisted_members.read(members_index)
-
-    assert members[members_index] = whitelisted_member
-
-    _get_whitelisted_members(
-        members_index=members_index + 1,
-        members_len=members_len,
-        members=members
-    )
-    return ()
-end
+        members_index=members_index + 1, members_len=members_len, members=members
+    );
+    return ();
+}
 
 @view
-func get_permissions{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (
-        permissions_len: felt,
-        permissions: Permission*
-    ):
-    alloc_locals
-    let (permissions: Permission*) = alloc()
+func get_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    permissions_len: felt, permissions: Permission*
+) {
+    alloc_locals;
+    let (permissions: Permission*) = alloc();
 
-    let (permissions_len) = _permissions_len.read()
+    let (permissions_len) = _permissions_len.read();
 
-    _get_permissions(
-        permissions_index=0,
-        permissions_len=permissions_len,
-        permissions=permissions
-    )
+    _get_permissions(permissions_index=0, permissions_len=permissions_len, permissions=permissions);
 
-    return (
-        permissions_len=permissions_len,
-        permissions=permissions
-    )
-end
+    return (permissions_len=permissions_len, permissions=permissions);
+}
 
-func _get_permissions{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        permissions_index: felt,
-        permissions_len: felt,
-        permissions: Permission*
-    ):
-    if permissions_index == permissions_len:
-        return ()
-    end
+func _get_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    permissions_index: felt, permissions_len: felt, permissions: Permission*
+) {
+    if (permissions_index == permissions_len) {
+        return ();
+    }
 
-    let (permission) = _permissions.read(permissions_index)
+    let (permission) = _permissions.read(permissions_index);
 
-    assert permissions[permissions_index] = permission
+    assert permissions[permissions_index] = permission;
 
     _get_permissions(
         permissions_index=permissions_index + 1,
         permissions_len=permissions_len,
-        permissions=permissions
-    )
-    return ()
-end
+        permissions=permissions,
+    );
+    return ();
+}
 
-#
-# Externals
-#
-
-@external
-func whitelist_member{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        memb: Member
-    ):
-
-    require_master()
-
-    require_not_whitelisted(memb.account)
-
-    let account = memb.account
-    let role = memb.role
-
-    _is_whitelisted.write(account, TRUE)
-    _whitelisted_role.write(account, role)
-
-    let (count) = _whitelisted_members_count.read()
-
-    _whitelisted_members.write(count, memb)
-
-    _whitelisted_members_count.write(count+1)
-
-    MemberWhitelisted.emit(
-        account=memb.account,
-        role=memb.role
-    )
-    
-    return ()
-end
+//
+// Externals
+//
 
 @external
-func join{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }():
-    let (guild_certificate) = _guild_certificate.read()
-    let (contract_address) = get_contract_address()
-    let (caller_address) = get_caller_address()
+func whitelist_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    memb: Member
+) {
+    require_master();
 
-    let (whitelisted_role) = _whitelisted_role.read(caller_address)
-    with_attr error_mesage("Guild Contract: Caller is not whitelisted"):
-       assert_lt(0, whitelisted_role)
-    end
+    require_not_whitelisted(memb.account);
 
-    require_not_blacklisted(caller_address)
+    let account = memb.account;
+    let role = memb.role;
+
+    _is_whitelisted.write(account, TRUE);
+    _whitelisted_role.write(account, role);
+
+    let (count) = _whitelisted_members_count.read();
+
+    _whitelisted_members.write(count, memb);
+
+    _whitelisted_members_count.write(count + 1);
+
+    MemberWhitelisted.emit(account=memb.account, role=memb.role);
+
+    return ();
+}
+
+@external
+func join{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    let (guild_certificate) = _guild_certificate.read();
+    let (contract_address) = get_contract_address();
+    let (caller_address) = get_caller_address();
+
+    let (whitelisted_role) = _whitelisted_role.read(caller_address);
+    with_attr error_mesage("Guild Contract: Caller is not whitelisted") {
+        assert_lt(0, whitelisted_role);
+    }
+
+    require_not_blacklisted(caller_address);
 
     IGuildCertificate.mint(
         contract_address=guild_certificate,
-        to=caller_address, 
+        to=caller_address,
         guild=contract_address,
-        role=whitelisted_role
-    )
+        role=whitelisted_role,
+    );
 
-    return ()
-end
+    return ();
+}
 
 @external
-func leave{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }():
-    let (guild_certificate) = _guild_certificate.read()
-    let (contract_address) = get_contract_address()
-    let (caller_address) = get_caller_address()
+func leave{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    let (guild_certificate) = _guild_certificate.read();
+    let (contract_address) = get_contract_address();
+    let (caller_address) = get_caller_address();
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
-        contract_address=guild_certificate,
-        owner=caller_address,
-        guild=contract_address
-    )
+        contract_address=guild_certificate, owner=caller_address, guild=contract_address
+    );
 
     let (check) = IGuildCertificate.check_tokens_exist(
-        contract_address=guild_certificate,
-        certificate_id=certificate_id
-    )
+        contract_address=guild_certificate, certificate_id=certificate_id
+    );
 
-    with_attr error_message(
-            "Guild Contract: Cannot leave, account has items in guild"
-        ):
-            assert check = FALSE
-    end
+    with_attr error_message("Guild Contract: Cannot leave, account has items in guild") {
+        assert check = FALSE;
+    }
 
     IGuildCertificate.guild_burn(
-        contract_address=guild_certificate,
-        account=caller_address,
-        guild=contract_address
-    )
+        contract_address=guild_certificate, account=caller_address, guild=contract_address
+    );
 
-    return ()
-end
+    return ();
+}
 
 @external
-func remove_member{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        account: felt
-    ):
-    alloc_locals
+func remove_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(account: felt) {
+    alloc_locals;
 
-    require_admin()
+    require_admin();
 
-    let (caller_address) = get_caller_address()
-    let (contract_address) = get_contract_address()
-    let (guild_certificate) = _guild_certificate.read()
+    let (caller_address) = get_caller_address();
+    let (contract_address) = get_contract_address();
+    let (guild_certificate) = _guild_certificate.read();
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
-        contract_address=guild_certificate,
-        owner=account,
-        guild=contract_address
-    )
+        contract_address=guild_certificate, owner=account, guild=contract_address
+    );
 
     let (check) = IGuildCertificate.check_tokens_exist(
-        contract_address=guild_certificate,
-        certificate_id=certificate_id
-    )
-    # tempvar guild_certificate = guild_certificate
+        contract_address=guild_certificate, certificate_id=certificate_id
+    );
+    // tempvar guild_certificate = guild_certificate
 
-    if check == TRUE:
-        force_transfer_items(certificate_id, account)
+    if (check == TRUE) {
+        force_transfer_items(certificate_id, account);
         IGuildCertificate.guild_burn(
-            contract_address=guild_certificate,
-            account=account,
-            guild=contract_address
-        )
-        _is_blacklisted.write(account, TRUE)
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    else:
+            contract_address=guild_certificate, account=account, guild=contract_address
+        );
+        _is_blacklisted.write(account, TRUE);
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
         IGuildCertificate.guild_burn(
-            contract_address=guild_certificate,
-            account=account,
-            guild=contract_address
-        )
-        _is_blacklisted.write(account, TRUE)
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    end
+            contract_address=guild_certificate, account=account, guild=contract_address
+        );
+        _is_blacklisted.write(account, TRUE);
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
 
-    MemberRemoved.emit(
-        account=account
-    )
-    return ()
-end
+    MemberRemoved.emit(account=account);
+    return ();
+}
 
 @external
-func update_role{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(address: felt, new_role: felt):
-    alloc_locals
+func update_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    address: felt, new_role: felt
+) {
+    alloc_locals;
 
-    require_admin()
-    
-    let (contract_address) = get_contract_address()
-    let (guild_certificate) = _guild_certificate.read()
+    require_admin();
+
+    let (contract_address) = get_contract_address();
+    let (guild_certificate) = _guild_certificate.read();
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
-        contract_address=guild_certificate,
-        owner=address,
-        guild=contract_address
-    )
+        contract_address=guild_certificate, owner=address, guild=contract_address
+    );
 
-    let (whitelisted_members_index) = get_whitelisted_members_index(
-        account=address
-    )
+    let (whitelisted_members_index) = get_whitelisted_members_index(account=address);
 
-    let member_data = Member(
-        account=address,
-        role=new_role
-    )
+    let member_data = Member(account=address, role=new_role);
 
-    _whitelisted_members.write(whitelisted_members_index, member_data)
-    _whitelisted_role.write(address, new_role)
+    _whitelisted_members.write(whitelisted_members_index, member_data);
+    _whitelisted_role.write(address, new_role);
 
     IGuildCertificate.update_role(
-        contract_address=guild_certificate,
-        certificate_id=certificate_id,
-        role=new_role
-    )
+        contract_address=guild_certificate, certificate_id=certificate_id, role=new_role
+    );
 
-    MemberRoleUpdated.emit(address,new_role)
+    MemberRoleUpdated.emit(address, new_role);
 
-    return ()
-end
+    return ();
+}
 
 @external
-func deposit{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        token_standard: felt,
-        token: felt,
-        token_id: Uint256,
-        amount: Uint256
-    ):
-    alloc_locals
+func deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    token_standard: felt, token: felt, token_id: Uint256, amount: Uint256
+) {
+    alloc_locals;
 
-    local syscall_ptr: felt* = syscall_ptr
-    local pedersen_ptr: HashBuiltin* = pedersen_ptr
-    local range_check_ptr = range_check_ptr
+    local syscall_ptr: felt* = syscall_ptr;
+    local pedersen_ptr: HashBuiltin* = pedersen_ptr;
+    local range_check_ptr = range_check_ptr;
 
-    require_admin_or_owner()
+    require_admin_or_owner();
 
-    let (check_not_zero) = uint256_lt(Uint256(0,0), amount)
+    let (check_not_zero) = uint256_lt(Uint256(0, 0), amount);
 
-    with_attr error_message("Guild Contract: Amount cannot be 0"):
-        assert check_not_zero = TRUE
-    end
+    with_attr error_message("Guild Contract: Amount cannot be 0") {
+        assert check_not_zero = TRUE;
+    }
 
-    if token_standard == TokenStandard.ERC721:
-        let (check_one) = uint256_eq(amount, Uint256(1,0))
-        with_attr error_message("Guild Contract: ERC721 amount must be 1"):
-            assert check_one = TRUE
-        end
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    else:
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    end
+    if (token_standard == TokenStandard.ERC721) {
+        let (check_one) = uint256_eq(amount, Uint256(1, 0));
+        with_attr error_message("Guild Contract: ERC721 amount must be 1") {
+            assert check_one = TRUE;
+        }
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
 
-    let (guild_certificate) = _guild_certificate.read()
-    let (caller_address) = get_caller_address()
-    let (contract_address) = get_contract_address()
+    let (guild_certificate) = _guild_certificate.read();
+    let (caller_address) = get_caller_address();
+    let (contract_address) = get_contract_address();
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
-        contract_address=guild_certificate,
-        owner=caller_address,
-        guild=contract_address
-    )
+        contract_address=guild_certificate, owner=caller_address, guild=contract_address
+    );
 
     let (check_exists) = IGuildCertificate.check_token_exists(
         contract_address=guild_certificate,
         certificate_id=certificate_id,
         token_standard=token_standard,
         token=token,
-        token_id=token_id
-    )
+        token_id=token_id,
+    );
 
-    if token_standard == TokenStandard.ERC721:
-        with_attr error_message(
-            "Guild Contract: Caller certificate already holds ERC721 token"
-        ):
-            assert check_exists = FALSE
-        end
+    if (token_standard == TokenStandard.ERC721) {
+        with_attr error_message("Guild Contract: Caller certificate already holds ERC721 token") {
+            assert check_exists = FALSE;
+        }
         IERC721.transferFrom(
-            contract_address=token, 
-            from_=caller_address,
-            to=contract_address,
-            tokenId=token_id
-        )
+            contract_address=token, from_=caller_address, to=contract_address, tokenId=token_id
+        );
         IGuildCertificate.add_token_data(
             contract_address=guild_certificate,
             certificate_id=certificate_id,
             token_standard=token_standard,
             token=token,
             token_id=token_id,
-            amount=amount
-        )
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    else:
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    end
+            amount=amount,
+        );
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
 
     let (initial_amount) = IGuildCertificate.get_token_amount(
         contract_address=guild_certificate,
         certificate_id=certificate_id,
         token_standard=token_standard,
         token=token,
-        token_id=token_id
-    )
+        token_id=token_id,
+    );
 
-    let (new_amount, _) = uint256_add(initial_amount, amount)
+    let (new_amount, _) = uint256_add(initial_amount, amount);
 
-    if token_standard == TokenStandard.ERC1155:
-        # let (data: felt*) = alloc()
+    if (token_standard == TokenStandard.ERC1155) {
+        // let (data: felt*) = alloc()
         IERC1155.safeTransferFrom(
-            contract_address=token, 
+            contract_address=token,
             from_=caller_address,
             to=contract_address,
             tokenId=token_id,
             amount=amount,
-            # data_len=0,
-            # data=data
-        )
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-        if check_exists == TRUE:
+        );
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+        if (check_exists == TRUE) {
             IGuildCertificate.change_token_data(
                 contract_address=guild_certificate,
                 certificate_id=certificate_id,
                 token_standard=token_standard,
                 token=token,
                 token_id=token_id,
-                new_amount=new_amount
-            )
-            tempvar syscall_ptr: felt* = syscall_ptr
-            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-            tempvar range_check_ptr = range_check_ptr
-        else:
+                new_amount=new_amount,
+            );
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        } else {
             IGuildCertificate.add_token_data(
                 contract_address=guild_certificate,
                 certificate_id=certificate_id,
                 token_standard=token_standard,
                 token=token,
                 token_id=token_id,
-                amount=amount
-            )
-            tempvar syscall_ptr: felt* = syscall_ptr
-            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-            tempvar range_check_ptr = range_check_ptr
-        end
-    else:
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    end
+                amount=amount,
+            );
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        }
+    } else {
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
 
     Deposited.emit(
         account=caller_address,
         certificate_id=certificate_id,
         token_standard=token_standard,
         token=token,
-        token_id=token_id
-    )
-    return ()
-end
+        token_id=token_id,
+        amount=amount,
+    );
+    return ();
+}
 
 @external
-func withdraw{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        token_standard: felt,
-        token: felt,
-        token_id: Uint256,
-        amount: Uint256
-    ):
-    alloc_locals
+func withdraw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    token_standard: felt, token: felt, token_id: Uint256, amount: Uint256
+) {
+    alloc_locals;
 
-    local syscall_ptr: felt* = syscall_ptr
-    local pedersen_ptr: HashBuiltin* = pedersen_ptr
-    local range_check_ptr = range_check_ptr
+    local syscall_ptr: felt* = syscall_ptr;
+    local pedersen_ptr: HashBuiltin* = pedersen_ptr;
+    local range_check_ptr = range_check_ptr;
 
-    require_admin_or_owner()
+    require_admin_or_owner();
 
-    if token_standard == TokenStandard.ERC721:
-        let (check_one) = uint256_eq(amount, Uint256(1,0))
-        with_attr error_message("Guild Contract: ERC721 amount must be 1"):
-            assert check_one = TRUE
-        end
-    end
+    if (token_standard == TokenStandard.ERC721) {
+        let (check_one) = uint256_eq(amount, Uint256(1, 0));
+        with_attr error_message("Guild Contract: ERC721 amount must be 1") {
+            assert check_one = TRUE;
+        }
+    }
 
-    let (guild_certificate) = _guild_certificate.read()
-    let (caller_address) = get_caller_address()
-    let (contract_address) = get_contract_address()
+    let (guild_certificate) = _guild_certificate.read();
+    let (caller_address) = get_caller_address();
+    let (contract_address) = get_contract_address();
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
-        contract_address=guild_certificate,
-        owner=caller_address,
-        guild=contract_address
-    )
+        contract_address=guild_certificate, owner=caller_address, guild=contract_address
+    );
 
     let (check_exists) = IGuildCertificate.check_token_exists(
         contract_address=guild_certificate,
         certificate_id=certificate_id,
         token_standard=token_standard,
         token=token,
-        token_id=token_id
-    )
+        token_id=token_id,
+    );
 
-    with_attr error_message("Guild Contract: Caller certificate doesn't hold tokens"):
-        assert check_exists = TRUE
-    end
+    with_attr error_message("Guild Contract: Caller certificate doesn't hold tokens") {
+        assert check_exists = TRUE;
+    }
 
-    if token_standard == TokenStandard.ERC721:
+    if (token_standard == TokenStandard.ERC721) {
         IERC721.transferFrom(
-            contract_address=token, 
-            from_=contract_address,
-            to=caller_address,
-            tokenId=token_id
-        )
+            contract_address=token, from_=contract_address, to=caller_address, tokenId=token_id
+        );
         IGuildCertificate.change_token_data(
             contract_address=guild_certificate,
             certificate_id=certificate_id,
             token_standard=token_standard,
             token=token,
             token_id=token_id,
-            new_amount=Uint256(0,0)
-        )
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    else:
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    end
+            new_amount=Uint256(0, 0),
+        );
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
 
     let (initial_amount) = IGuildCertificate.get_token_amount(
         contract_address=guild_certificate,
         certificate_id=certificate_id,
         token_standard=token_standard,
         token=token,
-        token_id=token_id
-    )
+        token_id=token_id,
+    );
 
-    let (new_amount) = uint256_sub(initial_amount, amount)
+    let (new_amount) = uint256_sub(initial_amount, amount);
 
-    if token_standard == TokenStandard.ERC1155:
-        # let (data: felt*) = alloc()
+    if (token_standard == TokenStandard.ERC1155) {
+        // let (data: felt*) = alloc()
         IERC1155.safeTransferFrom(
-            contract_address=token, 
+            contract_address=token,
             from_=contract_address,
             to=caller_address,
             tokenId=token_id,
             amount=amount,
-            # data_len=0,
-            # data=data
-        )
+        );
         IGuildCertificate.change_token_data(
             contract_address=guild_certificate,
             certificate_id=certificate_id,
             token_standard=token_standard,
             token=token,
             token_id=token_id,
-            new_amount=new_amount
-        )
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    else:
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    end
+            new_amount=new_amount,
+        );
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
 
     Withdrawn.emit(
         account=caller_address,
@@ -1008,464 +800,354 @@ func withdraw{
         token_standard=token_standard,
         token=token,
         token_id=token_id,
-        amount=amount
-    )
+        amount=amount,
+    );
 
-    return ()
-end
+    return ();
+}
 
 @external
-func execute_transactions{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        call_array_len: felt,
-        call_array: CallArray*,
-        calldata_len: felt,
-        calldata: felt*,
-        nonce: felt
-    ) -> (
-        retdata_len: felt,
-        retdata: felt*
-    ):
-    alloc_locals
-    require_owner_or_member()
-    let (caller) = get_caller_address()
+func execute_transactions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    call_array_len: felt, call_array: CallArray*, calldata_len: felt, calldata: felt*, nonce: felt
+) -> (retdata_len: felt, retdata: felt*) {
+    alloc_locals;
+    require_owner_or_member();
+    let (caller) = get_caller_address();
 
-    let (calls : Call*) = alloc()
+    let (calls: Call*) = alloc();
 
-    from_call_array_to_call(call_array_len, call_array, calldata, calls)
+    from_call_array_to_call(call_array_len, call_array, calldata, calls);
 
-    let calls_len = call_array_len
+    let calls_len = call_array_len;
 
-    let (current_nonce) = _current_nonce.read()
-    assert current_nonce = nonce
-    _current_nonce.write(value=current_nonce + 1)
+    let (current_nonce) = _current_nonce.read();
+    assert current_nonce = nonce;
+    _current_nonce.write(value=current_nonce + 1);
 
-    let (tx_info) = get_tx_info()
+    let (tx_info) = get_tx_info();
 
-    let (response : felt*) = alloc()
+    let (response: felt*) = alloc();
 
-   let (response_len) = execute_list(
-        calls_len,
-        calls,
-        response
-    )
-    # emit event
+    let (response_len) = execute_list(calls_len, calls, response);
+    // emit event
     TransactionExecuted.emit(
-        account=caller,
-        hash=tx_info.transaction_hash, 
-        response_len=response_len, 
-        response=response
-    )
-    return (retdata_len=response_len, retdata=response)
-end
+        account=caller, hash=tx_info.transaction_hash, response_len=response_len, response=response
+    );
+    return (retdata_len=response_len, retdata=response);
+}
 
-func execute_list{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        calls_len: felt,
-        calls: Call*,
-        response: felt*
-    ) -> (
-        response_len: felt
-    ):
-    alloc_locals
+func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    calls_len: felt, calls: Call*, response: felt*
+) -> (response_len: felt) {
+    alloc_locals;
 
-    # if no more calls
-    if calls_len == 0:
-        return (0)
-    end
+    // if no more calls
+    if (calls_len == 0) {
+        return (0,);
+    }
 
-    let this_call: Call = [calls]
+    let this_call: Call = [calls];
 
-    # Check the tranasction is permitted
-    check_permitted_call(
-        this_call.to, 
-        this_call.selector
-    )
+    // Check the tranasction is permitted
+    check_permitted_call(this_call.to, this_call.selector);
 
-    # Actually execute it
+    // Actually execute it
     let res = call_contract(
         contract_address=this_call.to,
         function_selector=this_call.selector,
         calldata_size=this_call.calldata_len,
         calldata=this_call.calldata,
-    )
+    );
 
-    # copy the result in response
-    memcpy(response, res.retdata, res.retdata_size)
-    # do the next calls recursively
-    let (response_len) = execute_list(calls_len - 1, calls + Call.SIZE, response + res.retdata_size)
-    return (response_len + res.retdata_size)
-end
-
-@external
-func initialize_permissions{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        permissions_len: felt,
-        permissions: Permission*
-    ):
-    require_master()
-
-    let (check_initialized) = _is_permissions_initialized.read()
-
-    with_attr error_message("Guild Contract: Permissions already initialized"):
-        assert check_initialized = FALSE
-    end
-
-    set_permissions(
-        permissions_len=permissions_len,
-        permissions=permissions
-    )
-
-    _is_permissions_initialized.write(TRUE)
-
-    return ()
-end
+    // copy the result in response
+    memcpy(response, res.retdata, res.retdata_size);
+    // do the next calls recursively
+    let (response_len) = execute_list(
+        calls_len - 1, calls + Call.SIZE, response + res.retdata_size
+    );
+    return (response_len + res.retdata_size,);
+}
 
 @external
-func set_permissions{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        permissions_len: felt,
-        permissions: Permission*
-    ):
-    alloc_locals
+func initialize_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    permissions_len: felt, permissions: Permission*
+) {
+    require_master();
 
-    local syscall_ptr: felt* = syscall_ptr
-    local pedersen_ptr: HashBuiltin* = pedersen_ptr
-    local range_check_ptr = range_check_ptr
+    let (check_initialized) = _is_permissions_initialized.read();
 
-    _set_permissions(
-        permissions_index=0,
-        permissions_len=permissions_len,
-        permissions=permissions
-    )
+    with_attr error_message("Guild Contract: Permissions already initialized") {
+        assert check_initialized = FALSE;
+    }
 
-    let (caller) = get_caller_address()
+    set_permissions(permissions_len=permissions_len, permissions=permissions);
 
-    PermissionsSet.emit(
-        account=caller, 
-        permissions_len=permissions_len, 
-        permissions=permissions
-    )
-    return ()
-end
+    _is_permissions_initialized.write(TRUE);
 
-func _set_permissions{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        permissions_index: felt,
-        permissions_len: felt,
-        permissions: Permission*
-    ):
-    if permissions_index == permissions_len:
-        return ()
-    end
+    return ();
+}
 
-    let (permissions_count) = _permissions_len.read()
+@external
+func set_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    permissions_len: felt, permissions: Permission*
+) {
+    alloc_locals;
 
-    _permissions.write(permissions_index, permissions[permissions_index])
+    local syscall_ptr: felt* = syscall_ptr;
+    local pedersen_ptr: HashBuiltin* = pedersen_ptr;
+    local range_check_ptr = range_check_ptr;
 
-    _permissions_len.write(permissions_count + 1)
+    _set_permissions(permissions_index=0, permissions_len=permissions_len, permissions=permissions);
+
+    let (caller) = get_caller_address();
+
+    PermissionsSet.emit(account=caller, permissions_len=permissions_len, permissions=permissions);
+    return ();
+}
+
+func _set_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    permissions_index: felt, permissions_len: felt, permissions: Permission*
+) {
+    if (permissions_index == permissions_len) {
+        return ();
+    }
+
+    let (permissions_count) = _permissions_len.read();
+
+    _permissions.write(permissions_index, permissions[permissions_index]);
+
+    _permissions_len.write(permissions_count + 1);
 
     _set_permissions(
         permissions_index=permissions_index + 1,
         permissions_len=permissions_len,
-        permissions=permissions
-    )
-    return ()
-end
+        permissions=permissions,
+    );
+    return ();
+}
 
-func check_permitted_call{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr, 
-    }(        
-        to: felt,
-        selector: felt
-    ):
-    alloc_locals
-    let (permissions_len) = _permissions_len.read()
-    let (check_calls) = alloc()
-    _check_permitted_call(
-        permissions_index=0, 
-        permissions_len=permissions_len,
-        to=to,
-        selector=selector,
-        check_calls=check_calls
-    )
-    let (check_calls_product) = MathUtils.array_product(
-        arr_len=permissions_len,
-        arr=check_calls
-    )
-    with_attr error_mesage("Guild Contract: Contract is not permitted"):
-        assert check_calls_product = 0
-    end
-    return ()
-end
+func check_permitted_call{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    to: felt, selector: felt
+) {
+    alloc_locals;
+    let (permissions_len) = _permissions_len.read();
+    let (check) = _check_permitted_call(
+        permissions_index=0, permissions_len=permissions_len, to=to, selector=selector
+    );
 
-func _check_permitted_call{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr, 
-    }(
-        permissions_index: felt,
-        permissions_len: felt,
-        to: felt,
-        selector: felt,
-        check_calls: felt*
-    ):
-    if permissions_index == permissions_len:
-        return ()
-    end
+    with_attr error_mesage("Guild Contract: Contract is not permitted") {
+        assert check = TRUE;
+    }
+    // let (check_calls_product) = MathUtils.array_product(
+    //     arr_len=permissions_len,
+    //     arr=check_calls
+    // )
+    // with_attr error_mesage("Guild Contract: Contract is not permitted"):
+    //     assert check_calls_product = 0
+    // end
+    return ();
+}
 
-    let (permission) = _permissions.read(permissions_index)
-    let check_to = permission.to - to
-    let check_selector = permission.selector - selector
+func _check_permitted_call{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    permissions_index: felt, permissions_len: felt, to: felt, selector: felt
+) -> (check: felt) {
+    if (permissions_index == permissions_len) {
+        return (check=FALSE);
+    }
 
-    assert check_calls[permissions_index] = check_to + check_selector
+    let (permission) = _permissions.read(permissions_index);
+    let check_to = permission.to - to;
+    let check_selector = permission.selector - selector;
+
+    if (check_to + check_selector == 0) {
+        return (check=TRUE);
+    }
 
     _check_permitted_call(
         permissions_index=permissions_index + 1,
         permissions_len=permissions_len,
         to=to,
         selector=selector,
-        check_calls=check_calls
-    )
-    return ()
-end
+    );
+    return (check=FALSE);
+}
 
-# Added for future intrgration with plugins
+// Added for future intrgration with plugins
 @external
-func delegate_validate{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-    }(
-        plugin_data_len: felt,
-        plugin_data: felt*,
-        call_array_len: felt,
-        call_array: CallArray*,
-        calldata_len: felt,
-        calldata: felt
-    ):
-    return ()
-end
+func delegate_validate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    plugin_data_len: felt,
+    plugin_data: felt*,
+    call_array_len: felt,
+    call_array: CallArray*,
+    calldata_len: felt,
+    calldata: felt,
+) {
+    return ();
+}
 
 func from_call_array_to_call{syscall_ptr: felt*}(
-        call_array_len: felt,
-        call_array: CallArray*,
-        calldata: felt*,
-        calls: Call*
-    ):
-    # if no more calls
-    if call_array_len == 0:
-       return ()
-    end
-    
-    # parse the current call
-    assert [calls] = Call(
-            to=[call_array].to,
-            selector=[call_array].selector,
-            calldata_len=[call_array].data_len,
-            calldata=calldata + [call_array].data_offset
-        )
-    
-    # parse the remaining calls recursively
-    from_call_array_to_call(call_array_len - 1, call_array + CallArray.SIZE, calldata, calls + Call.SIZE)
-    return ()
-end
+    call_array_len: felt, call_array: CallArray*, calldata: felt*, calls: Call*
+) {
+    // if no more calls
+    if (call_array_len == 0) {
+        return ();
+    }
 
-func force_transfer_items{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-    }(certificate_id: Uint256, account: felt):
-    let (guild_certificate) = _guild_certificate.read()
+    // parse the current call
+    assert [calls] = Call(
+        to=[call_array].to,
+        selector=[call_array].selector,
+        calldata_len=[call_array].data_len,
+        calldata=calldata + [call_array].data_offset
+        );
+
+    // parse the remaining calls recursively
+    from_call_array_to_call(
+        call_array_len - 1, call_array + CallArray.SIZE, calldata, calls + Call.SIZE
+    );
+    return ();
+}
+
+func force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    certificate_id: Uint256, account: felt
+) {
+    let (guild_certificate) = _guild_certificate.read();
 
     let (tokens_len, tokens: Token*) = IGuildCertificate.get_tokens(
-        contract_address=guild_certificate,
-        certificate_id=certificate_id
-    )
+        contract_address=guild_certificate, certificate_id=certificate_id
+    );
 
-    _force_transfer_items(
-        tokens_index=0,
-        tokens_len=tokens_len,
-        tokens=tokens,
-        account=account
-    )
+    _force_transfer_items(tokens_index=0, tokens_len=tokens_len, tokens=tokens, account=account);
 
-    return()
-end
+    return ();
+}
 
-func _force_transfer_items{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-    }(
-        tokens_index: felt,
-        tokens_len: felt,
-        tokens: Token*,
-        account: felt
-    ):
-    alloc_locals
-    if tokens_index == tokens_len:
-        return ()
-    end
+func _force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    tokens_index: felt, tokens_len: felt, tokens: Token*, account: felt
+) {
+    alloc_locals;
+    if (tokens_index == tokens_len) {
+        return ();
+    }
 
-    let token = tokens[tokens_index]
+    let token = tokens[tokens_index];
 
-    let (check_amount) = uint256_lt(Uint256(0,0), token.amount)
+    let (check_amount) = uint256_lt(Uint256(0, 0), token.amount);
 
-    let (contract_address) = get_contract_address()
-    let (guild_certificate) = _guild_certificate.read()
+    let (contract_address) = get_contract_address();
+    let (guild_certificate) = _guild_certificate.read();
 
     let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
-        contract_address=guild_certificate,
-        owner=account,
-        guild=contract_address
-    )
+        contract_address=guild_certificate, owner=account, guild=contract_address
+    );
 
-    if check_amount == TRUE:
-        if token.token_standard == TokenStandard.ERC721:
+    if (check_amount == TRUE) {
+        if (token.token_standard == TokenStandard.ERC721) {
             IERC721.transferFrom(
-                contract_address=token.token, 
+                contract_address=token.token,
                 from_=contract_address,
                 to=account,
-                tokenId=token.token_id
-            )
+                tokenId=token.token_id,
+            );
             IGuildCertificate.change_token_data(
                 contract_address=guild_certificate,
                 certificate_id=certificate_id,
                 token_standard=token.token_standard,
                 token=token.token,
                 token_id=token.token_id,
-                new_amount=Uint256(0,0)
-            )
-            tempvar contract_address = contract_address
-            tempvar guild_certificate = guild_certificate
-            tempvar certificate_id: Uint256 = certificate_id
-            tempvar syscall_ptr: felt* = syscall_ptr
-            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-            tempvar range_check_ptr = range_check_ptr
-        else:
-            tempvar contract_address = contract_address
-            tempvar guild_certificate = guild_certificate
-            tempvar certificate_id: Uint256 = certificate_id
-            tempvar syscall_ptr: felt* = syscall_ptr
-            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-            tempvar range_check_ptr = range_check_ptr
-        end
+                new_amount=Uint256(0, 0),
+            );
+            tempvar contract_address = contract_address;
+            tempvar guild_certificate = guild_certificate;
+            tempvar certificate_id: Uint256 = certificate_id;
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        } else {
+            tempvar contract_address = contract_address;
+            tempvar guild_certificate = guild_certificate;
+            tempvar certificate_id: Uint256 = certificate_id;
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        }
 
-        if token.token_standard == TokenStandard.ERC1155:
-            # let (data: felt*) = alloc()
+        if (token.token_standard == TokenStandard.ERC1155) {
+            // let (data: felt*) = alloc()
             IERC1155.safeTransferFrom(
-                contract_address=token.token, 
+                contract_address=token.token,
                 from_=contract_address,
                 to=account,
                 tokenId=token.token_id,
                 amount=token.amount,
-                # data_len=0,
-                # data=data
-            )
+            );
             IGuildCertificate.change_token_data(
                 contract_address=guild_certificate,
                 certificate_id=certificate_id,
                 token_standard=token.token_standard,
                 token=token.token,
                 token_id=token.token_id,
-                new_amount=Uint256(0,0)
-            )
-            tempvar syscall_ptr: felt* = syscall_ptr
-            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-            tempvar range_check_ptr = range_check_ptr
-        else:
-            tempvar syscall_ptr: felt* = syscall_ptr
-            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-            tempvar range_check_ptr = range_check_ptr
-        end
-    else:
-        tempvar syscall_ptr: felt* = syscall_ptr
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    end
+                new_amount=Uint256(0, 0),
+            );
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        } else {
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        }
+    } else {
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
 
     _force_transfer_items(
-        tokens_index=tokens_index + 1,
-        tokens_len=tokens_len,
-        tokens=tokens,
-        account=account
-    )
+        tokens_index=tokens_index + 1, tokens_len=tokens_len, tokens=tokens, account=account
+    );
 
-    return ()
-end
+    return ();
+}
 
-func get_whitelisted_members_index{        
-        pedersen_ptr: HashBuiltin*, 
-        syscall_ptr: felt*, 
-        range_check_ptr
-    }(account: felt) -> (index: felt):
-    alloc_locals
-    let (checks: felt*) = alloc()
-    let (whitelisted_members_len) = _whitelisted_members_count.read()
+func get_whitelisted_members_index{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
+    account: felt
+) -> (index: felt) {
+    alloc_locals;
+    let (checks: felt*) = alloc();
+    let (whitelisted_members_len) = _whitelisted_members_count.read();
 
     _get_whitelisted_members_index(
         whitelisted_members_index=0,
         whitelisted_members_len=whitelisted_members_len,
         account=account,
-        checks=checks
-    )
+        checks=checks,
+    );
 
-    let (index) = find_value(
-        arr_index=0,
-        arr_len=whitelisted_members_len,
-        arr=checks,
-        value=0
-    )
+    let (index) = find_value(arr_index=0, arr_len=whitelisted_members_len, arr=checks, value=0);
 
-    return (index=index)
-end
+    return (index=index);
+}
 
-func _get_whitelisted_members_index{        
-        pedersen_ptr: HashBuiltin*, 
-        syscall_ptr: felt*, 
-        range_check_ptr
-    }(
-        whitelisted_members_index: felt,
-        whitelisted_members_len: felt,
-        account: felt,
-        checks: felt*
-    ):
-    if whitelisted_members_index == whitelisted_members_len:
-        return ()
-    end
+func _get_whitelisted_members_index{
+    pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr
+}(whitelisted_members_index: felt, whitelisted_members_len: felt, account: felt, checks: felt*) {
+    if (whitelisted_members_index == whitelisted_members_len) {
+        return ();
+    }
 
-    let (whitelisted_member) = _whitelisted_members.read(
-        whitelisted_members_index
-    )
+    let (whitelisted_member) = _whitelisted_members.read(whitelisted_members_index);
 
-    let check = whitelisted_member.account - account
+    let check = whitelisted_member.account - account;
 
-    assert checks[whitelisted_members_index] = check
+    assert checks[whitelisted_members_index] = check;
 
     _get_whitelisted_members_index(
         whitelisted_members_index=whitelisted_members_index + 1,
         whitelisted_members_len=whitelisted_members_len,
         account=account,
-        checks=checks
-    )
+        checks=checks,
+    );
 
-    return ()
-end
+    return ();
+}

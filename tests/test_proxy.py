@@ -689,7 +689,7 @@ async def test_multicall(contract_factory):
         (
             test_nft.contract_address,
             "symbol",
-            []
+            [] 
         )
     ]
 
