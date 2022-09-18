@@ -15,24 +15,17 @@ from utils import (
     from_call_to_call_array
 )
 
-GUILD_CONTRACT = os.path.join("contracts", "guild_contract.cairo")
-GUILD_CONTRACT_UPGRADE = os.path.join("contracts/proxy_upgrade", "guild_contract_upgrade.cairo")
-GUILD_MANAGER = os.path.join("contracts", "guild_manager.cairo")
-GUILD_CERTIFICATE = os.path.join("contracts", "guild_certificate.cairo")
-POINTS_CONTRACT = os.path.join("contracts", "experience_points.cairo")
-GAME_CONTRACT = os.path.join("contracts", "game_contract.cairo")
-TEST_NFT = os.path.join("contracts", "test_nft.cairo")
-PROXY = os.path.join("contracts", "proxy.cairo")
+GUILD_CONTRACT = os.path.join("contracts", "GuildContractNew.cairo")
+GUILD_MANAGER = os.path.join("contracts", "GuildManager.cairo")
+GUILD_CERTIFICATE = os.path.join("contracts", "GuildCertificate.cairo")
+POINTS_CONTRACT = os.path.join("contracts", "ExperiencePoints.cairo")
+GAME_CONTRACT = os.path.join("contracts", "GameContract.cairo")
+TEST_NFT = os.path.join("contracts", "TestNFT.cairo")
+GUILD_PROXY = os.path.join("contracts", "Proxy.cairo")
 
 signer1 = Signer(123456789987654321)
 signer2 = Signer(987654321123456789)
 signer3 = Signer(567899876512344321)
-
-CONTRACTS_PATH = os.path.join(os.path.dirname(__file__), "..", "contracts")
-OZ_CONTRACTS_PATH = os.path.join(os.path.dirname(__file__), "..", "lib", "cairo_contracts", "src")
-here = os.path.abspath(os.path.dirname(__file__))
-
-CAIRO_PATH = [CONTRACTS_PATH, OZ_CONTRACTS_PATH, here]
 
 
 @pytest.fixture(scope="module")
@@ -43,106 +36,73 @@ def event_loop():
 async def contract_factory():
     starknet = await Starknet.empty()
     account1 = await starknet.deploy(
-        "contracts/tests/Account.cairo",
-        cairo_path=CAIRO_PATH,
-        constructor_calldata=[signer1.public_key],
+        "openzeppelin/account/Account.cairo",
+        constructor_calldata=[signer1.public_key]
     )
     account2 = await starknet.deploy(
-        "contracts/tests/Account.cairo",
-        cairo_path=CAIRO_PATH,
-        constructor_calldata=[signer2.public_key],
+        "openzeppelin/account/Account.cairo",
+        constructor_calldata=[signer2.public_key]
     )
     account3 = await starknet.deploy(
-        "contracts/tests/Account.cairo",
-        cairo_path=CAIRO_PATH,
-        constructor_calldata=[signer3.public_key],
+        "openzeppelin/account/Account.cairo",
+        constructor_calldata=[signer3.public_key]
     )
     guild_contract_class_hash = await starknet.declare(
-        source=GUILD_CONTRACT,
-        cairo_path=CAIRO_PATH,
-    )
-    guild_manager_class_hash = await starknet.declare(
-        source=GUILD_MANAGER,
-        cairo_path=CAIRO_PATH,
-    )
-    guild_certificate_class_hash = await starknet.declare(
-        source=GUILD_CERTIFICATE,
-        cairo_path=CAIRO_PATH,
+        source=GUILD_CONTRACT
     )
     guild_proxy_class_hash = await starknet.declare(
-        source=PROXY,
-        cairo_path=CAIRO_PATH,
+        source=GUILD_PROXY
     )
-
-    guild_manager_proxy = await starknet.deploy(
-        source=PROXY,
-        cairo_path=CAIRO_PATH,
+    guild_manager = await starknet.deploy(
+        source=GUILD_MANAGER,
         constructor_calldata=[
-            guild_manager_class_hash.class_hash,
-        ]
-    )
-
-    await signer1.send_transaction(
-        account=account1,
-        to=guild_manager_proxy.contract_address,
-        selector_name="initializer",
-        calldata=[
             guild_proxy_class_hash.class_hash,
-            guild_contract_class_hash.class_hash,
-            account1.contract_address
+            guild_contract_class_hash.class_hash
         ]
     )
-
-    guild_certificate_proxy = await starknet.deploy(
-        source=PROXY,
-        cairo_path=CAIRO_PATH,
+    guild_certificate = await starknet.deploy(
+        source=GUILD_CERTIFICATE,
         constructor_calldata=[
-            guild_certificate_class_hash.class_hash,
-        ]
-    )
-
-    await signer1.send_transaction(
-        account=account1,
-        to=guild_certificate_proxy.contract_address,
-        selector_name="initializer",
-        calldata=[
             str_to_felt("Guild certificate"),
             str_to_felt("GC"),
-            guild_manager_proxy.contract_address,
-            account1.contract_address
-        ]
+            guild_manager.contract_address
+        ],
     )
 
-    execution_info = await signer1.send_transaction(
+    await signer1.send_transaction(
         account=account1,
-        to=guild_manager_proxy.contract_address,
+        to=guild_manager.contract_address,
         selector_name="deploy_guild_proxy_contract",
         calldata=[
             str_to_felt("Test Guild"),
-            guild_certificate_proxy.contract_address
+            guild_certificate.contract_address
         ]
     )
 
-    guild_proxy_address = execution_info.result.response
+    execution_info = await guild_manager.get_guild_contracts().call()
+    guild_proxy_address = execution_info.result.guilds[0]
 
-    guild_contract_proxy = await starknet.deploy(
-        source=PROXY, 
-        cairo_path=CAIRO_PATH,
+    deployed_proxy = await starknet.deploy(
+        source=GUILD_PROXY, 
         constructor_calldata=[            
             guild_contract_class_hash.class_hash,
+            get_selector_from_name("initialize"),
+            3,
+            str_to_felt("Test Guild"),
+            account1.contract_address,
+            guild_certificate.contract_address
         ]
     )
 
     guild_proxy = StarknetContract(
         state=starknet.state,
         abi=guild_proxy_class_hash.abi,
-        contract_address=guild_proxy_address[0],
-        deploy_execution_info=guild_contract_proxy.deploy_execution_info
+        contract_address=guild_proxy_address,
+        deploy_execution_info=deployed_proxy.deploy_execution_info
     )
 
     test_nft = await starknet.deploy(
         source=TEST_NFT,
-        cairo_path=CAIRO_PATH,
         constructor_calldata=[
             str_to_felt("Test NFT"),
             str_to_felt("TNFT"),
@@ -153,7 +113,6 @@ async def contract_factory():
     
     test_nft_2 = await starknet.deploy(
         source=TEST_NFT,
-        cairo_path=CAIRO_PATH,
         constructor_calldata=[
             str_to_felt("Test NFT"),
             str_to_felt("TNFT"),
@@ -162,9 +121,7 @@ async def contract_factory():
     )
 
     points_contract = await starknet.deploy(
-        source=POINTS_CONTRACT,
-        cairo_path=CAIRO_PATH,
-        constructor_calldata=[
+        source=POINTS_CONTRACT, constructor_calldata=[
             str_to_felt("Experience Points"),
             str_to_felt("EP"),
             18,
@@ -175,9 +132,7 @@ async def contract_factory():
     )
 
     game_contract = await starknet.deploy(
-        source=GAME_CONTRACT,
-        cairo_path=CAIRO_PATH,
-        constructor_calldata=[
+        source=GAME_CONTRACT, constructor_calldata=[
             test_nft.contract_address, 
             points_contract.contract_address
         ]
@@ -189,8 +144,8 @@ async def contract_factory():
         account1, 
         account2, 
         account3, 
-        guild_manager_proxy, 
-        guild_certificate_proxy, 
+        guild_manager, 
+        guild_certificate, 
         guild_proxy,
         test_nft,
         test_nft_2,
@@ -381,6 +336,7 @@ async def test_non_permissioned(contract_factory):
             ],
         )
 
+
 @pytest.mark.asyncio
 async def test_deposit_and_withdraw(contract_factory):
     """Test deposit and withdraw owned asset."""
@@ -523,46 +479,27 @@ async def test_deposit_and_withdraw(contract_factory):
         ],
     )
 
-    execution_info = await signer1.send_transaction(
-        account=account1,
-        to=guild_certificate.contract_address,
-        selector_name="get_certificate_id",
-        calldata=[
-            account1.contract_address,
-            guild_proxy.contract_address
-        ]
-    )
+    execution_info = await guild_certificate.get_certificate_id(
+        account1.contract_address,
+        guild_proxy.contract_address
+    ).call()
+    certificate_id = execution_info.result.certificate_id
 
-    certificate_id = execution_info.result.response
+    execution_info = await guild_certificate.get_token_amount(
+        certificate_id,
+        1,
+        test_nft.contract_address,
+        to_uint(2)
+    ).call()
+    amount = execution_info.result.amount
 
-    execution_info = await signer1.send_transaction(
-        account=account1,
-        to=guild_certificate.contract_address,
-        selector_name="get_token_amount",
-        calldata=[
-            *to_uint(certificate_id[0]),
-            1,
-            test_nft.contract_address,
-            *to_uint(2)
-        ]
-    )
+    assert amount == to_uint(1)
 
-    amount = execution_info.result.response
-
-    assert to_uint(amount[0]) == to_uint(1)
-
-    execution_info = await signer1.send_transaction(
-        account=account1,
-        to=guild_certificate.contract_address,
-        selector_name="get_tokens",
-        calldata=[
-            *to_uint(certificate_id[0]),
-        ]
-    )
-
-    amount = execution_info.result.response
-
-    assert to_uint(amount[3]) == to_uint(1)
+    execution_info = await guild_certificate.get_tokens(
+        certificate_id
+    ).call()
+    amount = execution_info.result.tokens[0].amount
+    assert amount == to_uint(1)
 
     await signer1.send_transaction(
         account=account1,
@@ -600,21 +537,21 @@ async def test_deposit_and_withdraw(contract_factory):
         ],
     )
 
-    execution_info = await signer1.send_transaction(
-        account=account1,
-        to=guild_certificate.contract_address,
-        selector_name="get_token_amount",
-        calldata=[
-            *to_uint(certificate_id[0]),
-            1,
-            test_nft.contract_address,
-            *to_uint(2)
-        ]
-    )
+    execution_info = await guild_certificate.get_token_amount(
+        certificate_id,
+        1,
+        test_nft.contract_address,
+        to_uint(2)
+    ).call()
+    amount = execution_info.result.amount
 
-    amount = execution_info.result.response
+    assert amount == to_uint(0)
 
-    assert to_uint(amount[0]) == to_uint(0)
+    execution_info = await guild_certificate.get_tokens(
+        certificate_id
+    ).call()
+    amount = execution_info.result.tokens[0].amount
+    assert amount == to_uint(0)
 
 
 @pytest.mark.asyncio
@@ -689,7 +626,7 @@ async def test_multicall(contract_factory):
         (
             test_nft.contract_address,
             "symbol",
-            [] 
+            []
         )
     ]
 
@@ -749,6 +686,12 @@ async def test_remove_with_items(contract_factory):
         ]
     )
 
+    execution_info = await guild_certificate.get_certificate_id(
+        account3.contract_address,
+        guild_proxy.contract_address
+    ).call()
+    certificate_id = execution_info.result.certificate_id
+
     await signer2.send_transaction(
         account=account2,
         to=guild_proxy.contract_address,
@@ -758,33 +701,15 @@ async def test_remove_with_items(contract_factory):
         ],
     )
 
-    execution_info = await signer1.send_transaction(
-        account=account1,
-        to=guild_certificate.contract_address,
-        selector_name="get_certificate_id",
-        calldata=[
-            account3.contract_address,
-            guild_proxy.contract_address
-        ]
-    )
+    execution_info = await guild_certificate.get_token_amount(
+        certificate_id,
+        1,
+        test_nft.contract_address,
+        to_uint(5)
+    ).call()
+    amount = execution_info.result.amount
 
-    certificate_id = execution_info.result.response
-
-    execution_info = await signer1.send_transaction(
-        account=account1,
-        to=guild_certificate.contract_address,
-        selector_name="get_token_amount",
-        calldata=[
-            *to_uint(certificate_id[0]),
-            1,
-            test_nft.contract_address,
-            *to_uint(5)
-        ]
-    )
-
-    amount = execution_info.result.response
-
-    assert to_uint(amount[0]) == to_uint(0)
+    assert amount == to_uint(0)
 
 @pytest.mark.asyncio
 async def add_multiple_ERC721(contract_factory):
@@ -914,6 +839,9 @@ async def test_withdraw_out_of_many(contract_factory):
         calls=calls
     )
 
+    execution_info = await guild_certificate.get_tokens(to_uint(1)).call()
+    print(execution_info.result)
+
     await signer1.send_transaction(
         account=account1,
         to=guild_proxy.contract_address,
@@ -975,4 +903,3 @@ async def test_update_role(contract_factory):
                 *to_uint(1)
             ],
         )
-
