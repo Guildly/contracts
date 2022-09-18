@@ -130,14 +130,6 @@ func _is_permissions_initialized() -> (res: felt) {
 }
 
 @storage_var
-func _whitelisted_members_count() -> (res: felt) {
-}
-
-@storage_var
-func _whitelisted_members(index: felt) -> (res: Member) {
-}
-
-@storage_var
 func _whitelisted_role(account: felt) -> (res: felt) {
 }
 
@@ -150,11 +142,7 @@ func _is_blacklisted(account: felt) -> (res: felt) {
 }
 
 @storage_var
-func _permissions_len() -> (res: felt) {
-}
-
-@storage_var
-func _permissions(index: felt) -> (res: Permission) {
+func _is_permission(permission: Permission) -> (res: felt) {
 }
 
 @storage_var
@@ -232,8 +220,27 @@ func require_admin_or_owner{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, rang
         contract_address=guild_certificate, certificate_id=certificate_id
     );
 
+    if (_role == GuildRoles.OWNER) {
+        let check_owner = TRUE;
+        tempvar check_owner = check_owner;
+    } else {
+        let check_owner = FALSE;
+        tempvar check_owner = check_owner;
+    }
+
+    if (_role == GuildRoles.ADMIN) {
+        let check_admin = TRUE;
+        tempvar check_admin = check_admin;
+    } else {
+        let check_admin = FALSE;
+        tempvar check_admin = check_admin;
+    }
+
+    let check_owner_or_admin = check_owner + check_admin;
+
+
     with_attr error_message("Guild Contract: Caller is not admin or owner") {
-        assert_lt(1, _role);
+        assert_lt(0, check_owner_or_admin);
     }
 
     return ();
@@ -348,70 +355,6 @@ func get_whitelisted_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
     return (res=role);
 }
 
-@view
-func get_whitelisted_members{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
-    members_len: felt, members: Member*
-) {
-    alloc_locals;
-    let (members: Member*) = alloc();
-
-    let (members_len) = _whitelisted_members_count.read();
-
-    _get_whitelisted_members(members_index=0, members_len=members_len, members=members);
-
-    return (members_len=members_len, members=members);
-}
-
-func _get_whitelisted_members{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    members_index: felt, members_len: felt, members: Member*
-) {
-    if (members_index == members_len) {
-        return ();
-    }
-
-    let (whitelisted_member) = _whitelisted_members.read(members_index);
-
-    assert members[members_index] = whitelisted_member;
-
-    _get_whitelisted_members(
-        members_index=members_index + 1, members_len=members_len, members=members
-    );
-    return ();
-}
-
-@view
-func get_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
-    permissions_len: felt, permissions: Permission*
-) {
-    alloc_locals;
-    let (permissions: Permission*) = alloc();
-
-    let (permissions_len) = _permissions_len.read();
-
-    _get_permissions(permissions_index=0, permissions_len=permissions_len, permissions=permissions);
-
-    return (permissions_len=permissions_len, permissions=permissions);
-}
-
-func _get_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    permissions_index: felt, permissions_len: felt, permissions: Permission*
-) {
-    if (permissions_index == permissions_len) {
-        return ();
-    }
-
-    let (permission) = _permissions.read(permissions_index);
-
-    assert permissions[permissions_index] = permission;
-
-    _get_permissions(
-        permissions_index=permissions_index + 1,
-        permissions_len=permissions_len,
-        permissions=permissions,
-    );
-    return ();
-}
-
 //
 // Externals
 //
@@ -429,12 +372,6 @@ func whitelist_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 
     _is_whitelisted.write(account, TRUE);
     _whitelisted_role.write(account, role);
-
-    let (count) = _whitelisted_members_count.read();
-
-    _whitelisted_members.write(count, memb);
-
-    _whitelisted_members_count.write(count + 1);
 
     MemberWhitelisted.emit(account=memb.account, role=memb.role);
 
@@ -506,7 +443,6 @@ func remove_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_p
     let (check) = IGuildCertificate.check_tokens_exist(
         contract_address=guild_certificate, certificate_id=certificate_id
     );
-    // tempvar guild_certificate = guild_certificate
 
     if (check == TRUE) {
         force_transfer_items(certificate_id, account);
@@ -546,11 +482,8 @@ func update_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
         contract_address=guild_certificate, owner=address, guild=contract_address
     );
 
-    let (whitelisted_members_index) = get_whitelisted_members_index(account=address);
-
     let member_data = Member(account=address, role=new_role);
 
-    _whitelisted_members.write(whitelisted_members_index, member_data);
     _whitelisted_role.write(address, new_role);
 
     IGuildCertificate.update_role(
@@ -912,11 +845,7 @@ func _set_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
         return ();
     }
 
-    let (permissions_count) = _permissions_len.read();
-
-    _permissions.write(permissions_index, permissions[permissions_index]);
-
-    _permissions_len.write(permissions_count + 1);
+    _is_permission.write(permissions[permissions_index], TRUE);
 
     _set_permissions(
         permissions_index=permissions_index + 1,
@@ -930,58 +859,16 @@ func check_permitted_call{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
     to: felt, selector: felt
 ) {
     alloc_locals;
-    let (permissions_len) = _permissions_len.read();
-    let (check) = _check_permitted_call(
-        permissions_index=0, permissions_len=permissions_len, to=to, selector=selector
+    let execute_call = Permission(
+        to,
+        selector
     );
+
+    let (is_permitted) = _is_permission.read(execute_call);
 
     with_attr error_mesage("Guild Contract: Contract is not permitted") {
-        assert check = TRUE;
+        assert is_permitted = TRUE;
     }
-    // let (check_calls_product) = MathUtils.array_product(
-    //     arr_len=permissions_len,
-    //     arr=check_calls
-    // )
-    // with_attr error_mesage("Guild Contract: Contract is not permitted"):
-    //     assert check_calls_product = 0
-    // end
-    return ();
-}
-
-func _check_permitted_call{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    permissions_index: felt, permissions_len: felt, to: felt, selector: felt
-) -> (check: felt) {
-    if (permissions_index == permissions_len) {
-        return (check=FALSE);
-    }
-
-    let (permission) = _permissions.read(permissions_index);
-    let check_to = permission.to - to;
-    let check_selector = permission.selector - selector;
-
-    if (check_to + check_selector == 0) {
-        return (check=TRUE);
-    }
-
-    _check_permitted_call(
-        permissions_index=permissions_index + 1,
-        permissions_len=permissions_len,
-        to=to,
-        selector=selector,
-    );
-    return (check=FALSE);
-}
-
-// Added for future intrgration with plugins
-@external
-func delegate_validate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    plugin_data_len: felt,
-    plugin_data: felt*,
-    call_array_len: felt,
-    call_array: CallArray*,
-    calldata_len: felt,
-    calldata: felt,
-) {
     return ();
 }
 
@@ -1105,48 +992,6 @@ func _force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range
 
     _force_transfer_items(
         tokens_index=tokens_index + 1, tokens_len=tokens_len, tokens=tokens, account=account
-    );
-
-    return ();
-}
-
-func get_whitelisted_members_index{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
-    account: felt
-) -> (index: felt) {
-    alloc_locals;
-    let (checks: felt*) = alloc();
-    let (whitelisted_members_len) = _whitelisted_members_count.read();
-
-    _get_whitelisted_members_index(
-        whitelisted_members_index=0,
-        whitelisted_members_len=whitelisted_members_len,
-        account=account,
-        checks=checks,
-    );
-
-    let (index) = find_value(arr_index=0, arr_len=whitelisted_members_len, arr=checks, value=0);
-
-    return (index=index);
-}
-
-func _get_whitelisted_members_index{
-    pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr
-}(whitelisted_members_index: felt, whitelisted_members_len: felt, account: felt, checks: felt*) {
-    if (whitelisted_members_index == whitelisted_members_len) {
-        return ();
-    }
-
-    let (whitelisted_member) = _whitelisted_members.read(whitelisted_members_index);
-
-    let check = whitelisted_member.account - account;
-
-    assert checks[whitelisted_members_index] = check;
-
-    _get_whitelisted_members_index(
-        whitelisted_members_index=whitelisted_members_index + 1,
-        whitelisted_members_len=whitelisted_members_len,
-        account=account,
-        checks=checks,
     );
 
     return ();

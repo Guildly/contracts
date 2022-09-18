@@ -280,7 +280,8 @@ async def test_permissions(contract_factory):
                 "mint",
                 [account1.contract_address, *to_uint(1)],
             )
-        ]
+        ],
+        [signer1]
     )
 
     await sender.send_transaction(
@@ -290,7 +291,8 @@ async def test_permissions(contract_factory):
                 "approve",
                 [guild_proxy.contract_address, *to_uint(1)],
             )
-        ]
+        ],
+        [signer1]
     )
 
     await sender.send_transaction(
@@ -305,7 +307,8 @@ async def test_permissions(contract_factory):
                     *to_uint(1)
                 ],
             )
-        ]
+        ],
+        [signer1]
     )
 
     await sender.send_transaction(
@@ -321,7 +324,8 @@ async def test_permissions(contract_factory):
                     get_selector_from_name("symbol")
                 ],
             )
-        ]
+        ],
+        [signer1]
     )
 
     calls = [(
@@ -345,7 +349,8 @@ async def test_permissions(contract_factory):
                     0
                 ],
             )
-        ]
+        ],
+        [signer1]
     )
 
     execution_info = await game_contract.get_goblin_kill_count(
@@ -366,638 +371,662 @@ async def test_permissions(contract_factory):
                         get_selector_from_name("name"),
                     ],
                 )
-            ]
+            ],
+            [signer1]
         )
 
-# @pytest.mark.asyncio
-# async def test_non_permissioned(contract_factory):
-#     """Test calling function that has not been permissioned."""
-#     (
-#         starknet,
-#         account1,
-#         account2,
-#         account3,
-#         guild_manager,
-#         guild_certificate,
-#         guild_proxy,
-#         test_nft,
-#         test_nft_2,
-#         game_contract
-#     ) = contract_factory
+@pytest.mark.asyncio
+async def test_non_permissioned(contract_factory):
+    """Test calling function that has not been permissioned."""
+    (
+        starknet,
+        account1,
+        account2,
+        account3,
+        guild_manager_proxy,
+        guild_certificate_proxy,
+        guild_proxy,
+        test_nft,
+        test_nft_2,
+        game_contract,
+    ) = contract_factory
 
-#     calls = [(
-#         test_nft.contract_address,
-#         "name",
-#         [0]
-#     )]
+    calls = [(
+        test_nft.contract_address,
+        "name",
+        [0]
+    )]
 
-#     (call_array, calldata) = from_call_to_call_array(calls)
+    (call_array, calldata) = from_call_to_call_array(calls)
 
-#     with pytest.raises(StarkException):
-#         await signer1.send_transaction(
-#             account=account1,
-#             to=guild_proxy.contract_address,
-#             selector_name="execute_transactions",
-#             calldata=[
-#                 len(call_array),
-#                 *[x for t in call_array for x in t],
-#                 len(calldata),
-#                 *calldata,
-#                 1
-#             ],
-#         )
+    sender = TransactionSender(account1)
 
-# @pytest.mark.asyncio
-# async def test_deposit_and_withdraw(contract_factory):
-#     """Test deposit and withdraw owned asset."""
-#     (
-#         starknet,
-#         account1,
-#         account2,
-#         account3,
-#         guild_manager,
-#         guild_certificate,
-#         guild_proxy,
-#         test_nft,
-#         test_nft_2,
-#         game_contract
-#     ) = contract_factory
+    with pytest.raises(StarkException):
+        await sender.send_transaction(
+            [
+                (
+                    guild_proxy.contract_address,
+                    "execute_transactions",
+                    [
+                        len(call_array),
+                        *[x for t in call_array for x in t],
+                        len(calldata),
+                        *calldata,
+                        0
+                    ],
+                )
+            ],
+            [signer1]
+        )
 
-# #     calls = [
-# #     (
-# #         test_nft.contract_address,
-# #         "mint",
-# #         [account1.contract_address, *to_uint(2)]
-# #     ),
-# #     (
-# #         test_nft.contract_address,
-# #         "mint",
-# #         [account1.contract_address, *to_uint(3)]
-# #     ),
-# #     (
-# #         test_nft.contract_address,
-# #         "approve",
-# #         [account1.contract_address, *to_uint(2)]
-# #     ),
-# #     (
-# #         test_nft.contract_address,
-# #         "approve",
-# #         [account1.contract_address, *to_uint(3)]
-# #     ),
-# #     (
-# #         guild_proxy.contract_address,
-# #         "deposit",
-# #         [
-# #             1,
-# #             test_nft.contract_address,
-# #             *to_uint(2),
-# #             *to_uint(1)
-# #         ]
-# #     ),
-# #     (
-# #         guild_proxy.contract_address,
-# #         "deposit",
-# #         [
-# #             1,
-# #             test_nft.contract_address,
-# #             *to_uint(3),
-# #             *to_uint(1)
-# #         ]
-# #     )
-# # ]
+@pytest.mark.asyncio
+async def test_deposit_and_withdraw(contract_factory):
+    """Test deposit and withdraw owned asset."""
+    (
+        starknet,
+        account1,
+        account2,
+        account3,
+        guild_manager_proxy,
+        guild_certificate_proxy,
+        guild_proxy,
+        test_nft,
+        test_nft_2,
+        game_contract,
+    ) = contract_factory
 
-# # await signer1.send_transactions(
-# #     account=account1,
-# #     calls=calls
-# # )
+    calls = [
+        (
+            test_nft.contract_address,
+            "mint",
+            [account1.contract_address, *to_uint(2)]
+        ),
+        (
+            test_nft.contract_address,
+            "mint",
+            [account1.contract_address, *to_uint(3)]
+        ),
+        (
+            test_nft_2.contract_address,
+            "mint",
+            [account1.contract_address, *to_uint(1)]
+        ),
+        (
+            test_nft.contract_address,
+            "approve",
+            [guild_proxy.contract_address, *to_uint(2)]
+        ),
+        (
+            test_nft.contract_address,
+            "approve",
+            [guild_proxy.contract_address, *to_uint(3)]
+        ),
+        (
+            test_nft_2.contract_address,
+            "approve",
+            [guild_proxy.contract_address, *to_uint(1)]
+        ),
+        (
+            guild_proxy.contract_address,
+            "deposit",
+            [
+                1,
+                test_nft.contract_address,
+                *to_uint(2),
+                *to_uint(1)
+            ]
+        ),
+        (
+            guild_proxy.contract_address,
+            "deposit",
+            [
+                1,
+                test_nft.contract_address,
+                *to_uint(3),
+                *to_uint(1)
+            ]
+        ),
+        (
+            guild_proxy.contract_address,
+            "deposit",
+            [
+                1,
+                test_nft_2.contract_address,
+                *to_uint(1),
+                *to_uint(1)
+            ]
+        ),
+    ]
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=test_nft.contract_address,
-#         selector_name="mint",
-#         calldata=[account1.contract_address, *to_uint(2)],
-#     )
+    sender = TransactionSender(account1)
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=test_nft.contract_address,
-#         selector_name="mint",
-#         calldata=[account1.contract_address, *to_uint(3)],
-#     )
+    await sender.send_transaction(
+        calls,
+        [signer1]
+    )
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=test_nft_2.contract_address,
-#         selector_name="mint",
-#         calldata=[account1.contract_address, *to_uint(1)],
-#     )
+    execution_info = await sender.send_transaction(
+        [
+            (
+                guild_certificate_proxy.contract_address,
+                "get_certificate_id",
+                [
+                    account1.contract_address,
+                    guild_proxy.contract_address
+                ]
+            )
+        ],
+        [signer1]
+    )
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=test_nft.contract_address,
-#         selector_name="approve",
-#         calldata=[guild_proxy.contract_address, *to_uint(2)],
-#     )
+    certificate_id = execution_info.call_info.retdata[1]
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=test_nft.contract_address,
-#         selector_name="approve",
-#         calldata=[guild_proxy.contract_address, *to_uint(3)],
-#     )
+    execution_info = await sender.send_transaction(
+        [
+            (
+                guild_certificate_proxy.contract_address,
+                "get_token_amount",
+                [
+                    *to_uint(certificate_id),
+                    1,
+                    test_nft.contract_address,
+                    *to_uint(2)
+                ]
+            )
+        ],
+        [signer1]
+    )
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=test_nft_2.contract_address,
-#         selector_name="approve",
-#         calldata=[guild_proxy.contract_address, *to_uint(1)],
-#     )
+    amount = execution_info.call_info.retdata[1]
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=guild_proxy.contract_address,
-#         selector_name="deposit",
-#         calldata=[
-#             1,
-#             test_nft.contract_address,
-#             *to_uint(2),
-#             *to_uint(1)
-#         ],
-#     )
+    assert to_uint(amount) == to_uint(1)
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=guild_proxy.contract_address,
-#         selector_name="deposit",
-#         calldata=[
-#             1,
-#             test_nft.contract_address,
-#             *to_uint(3),
-#             *to_uint(1)
-#         ],
-#     )
+    execution_info = await sender.send_transaction(
+        [
+            (
+                guild_certificate_proxy.contract_address,
+                "get_tokens",
+                [
+                    *to_uint(certificate_id),
+                ]
+            )
+        ],
+        [signer1]
+    )
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=guild_proxy.contract_address,
-#         selector_name="deposit",
-#         calldata=[
-#             1,
-#             test_nft_2.contract_address,
-#             *to_uint(1),
-#             *to_uint(1)
-#         ],
-#     )
+    amount = execution_info.call_info.retdata[4]
 
-#     execution_info = await signer1.send_transaction(
-#         account=account1,
-#         to=guild_certificate.contract_address,
-#         selector_name="get_certificate_id",
-#         calldata=[
-#             account1.contract_address,
-#             guild_proxy.contract_address
-#         ]
-#     )
+    assert to_uint(amount) == to_uint(1)
 
-#     certificate_id = execution_info.result.response
+    calls = [
+        (
+            guild_proxy.contract_address,
+            "withdraw",
+            [
+                1,
+                test_nft.contract_address,
+                *to_uint(2),
+                *to_uint(1)
+            ],
+        ),
+        (
+            guild_proxy.contract_address,
+            "withdraw",
+            [
+                1,
+                test_nft.contract_address,
+                *to_uint(3),
+                *to_uint(1)
+            ],
+        ),
+        (
+            guild_proxy.contract_address,
+            "withdraw",
+            [
+                1,
+                test_nft_2.contract_address,
+                *to_uint(1),
+                *to_uint(1)
+            ],
+        )
+    ]
 
-#     execution_info = await signer1.send_transaction(
-#         account=account1,
-#         to=guild_certificate.contract_address,
-#         selector_name="get_token_amount",
-#         calldata=[
-#             *to_uint(certificate_id[0]),
-#             1,
-#             test_nft.contract_address,
-#             *to_uint(2)
-#         ]
-#     )
+    await sender.send_transaction(
+        calls,
+        [signer1]
+    )
 
-#     amount = execution_info.result.response
+    execution_info = await sender.send_transaction(
+        [
+            (
+                guild_certificate_proxy.contract_address,
+                "get_token_amount",
+                [
+                    *to_uint(certificate_id),
+                    1,
+                    test_nft.contract_address,
+                    *to_uint(2)
+                ]
+            )
+        ],
+        [signer1]
+    )
 
-#     assert to_uint(amount[0]) == to_uint(1)
+    amount = execution_info.call_info.retdata[1]
 
-#     execution_info = await signer1.send_transaction(
-#         account=account1,
-#         to=guild_certificate.contract_address,
-#         selector_name="get_tokens",
-#         calldata=[
-#             *to_uint(certificate_id[0]),
-#         ]
-#     )
-
-#     amount = execution_info.result.response
-
-#     assert to_uint(amount[3]) == to_uint(1)
-
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=guild_proxy.contract_address,
-#         selector_name="withdraw",
-#         calldata=[
-#             1,
-#             test_nft.contract_address,
-#             *to_uint(2),
-#             *to_uint(1)
-#         ],
-#     )
-
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=guild_proxy.contract_address,
-#         selector_name="withdraw",
-#         calldata=[
-#             1,
-#             test_nft.contract_address,
-#             *to_uint(3),
-#             *to_uint(1)
-#         ],
-#     )
-
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=guild_proxy.contract_address,
-#         selector_name="withdraw",
-#         calldata=[
-#             1,
-#             test_nft_2.contract_address,
-#             *to_uint(1),
-#             *to_uint(1)
-#         ],
-#     )
-
-#     execution_info = await signer1.send_transaction(
-#         account=account1,
-#         to=guild_certificate.contract_address,
-#         selector_name="get_token_amount",
-#         calldata=[
-#             *to_uint(certificate_id[0]),
-#             1,
-#             test_nft.contract_address,
-#             *to_uint(2)
-#         ]
-#     )
-
-#     amount = execution_info.result.response
-
-#     assert to_uint(amount[0]) == to_uint(0)
+    assert to_uint(amount) == to_uint(0)
 
 
-# @pytest.mark.asyncio
-# async def test_withdraw_non_held(contract_factory):
-#     """Test whether withdrawing non deposited nft fails."""
-#     (
-#         starknet,
-#         account1,
-#         account2,
-#         account3,
-#         guild_manager,
-#         guild_certificate,
-#         guild_proxy,
-#         test_nft,
-#         test_nft_2,
-#         game_contract
-#     ) = contract_factory
+@pytest.mark.asyncio
+async def test_withdraw_non_held(contract_factory):
+    """Test whether withdrawing non deposited nft fails."""
+    (
+        starknet,
+        account1,
+        account2,
+        account3,
+        guild_manager_proxy,
+        guild_certificate_proxy,
+        guild_proxy,
+        test_nft,
+        test_nft_2,
+        game_contract,
+    ) = contract_factory
 
-#     with pytest.raises(StarkException):
-#         await signer1.send_transaction(
-#             account=account1,
-#             to=guild_proxy.contract_address,
-#             selector_name="withdraw",
-#             calldata=[
-#                 1,
-#                 test_nft.contract_address,
-#                 *to_uint(1),
-#                 *to_uint(1)
-#             ],
-#         )
+    sender = TransactionSender(account1)
 
-# @pytest.mark.asyncio
-# async def test_multicall(contract_factory):
-#     """Test executing a multicall from account."""
-#     (
-#         starknet,
-#         account1,
-#         account2,
-#         account3,
-#         guild_manager,
-#         guild_certificate,
-#         guild_proxy,
-#         test_nft,
-#         test_nft_2,
-#         game_contract
-#     ) = contract_factory
+    with pytest.raises(StarkException):
+        await sender.send_transaction(
+            [
+                (
+                    guild_proxy.contract_address,
+                    "withdraw",
+                    [
+                        1,
+                        test_nft.contract_address,
+                        *to_uint(1),
+                        *to_uint(1)
+                    ],
+                )
+            ],
+            [signer1]
+        )
 
-#     calls = [
-#         (
-#             test_nft.contract_address,
-#             "mint",
-#             [account1.contract_address, *to_uint(4)]
-#         ),
-#         (
-#             test_nft.contract_address,
-#             "approve",
-#             [guild_proxy.contract_address, *to_uint(4)]
-#         )
-#     ]
+@pytest.mark.asyncio
+async def test_multicall(contract_factory):
+    """Test executing a multicall from account."""
+    (
+        starknet,
+        account1,
+        account2,
+        account3,
+        guild_manager_proxy,
+        guild_certificate_proxy,
+        guild_proxy,
+        test_nft,
+        test_nft_2,
+        game_contract,
+    ) = contract_factory
 
-#     await signer1.send_transactions(
-#         account=account1,
-#         calls=calls,
-#     )
+    sender = TransactionSender(account1)
 
-#     calls = [
-#         (
-#             game_contract.contract_address,
-#             "kill_goblin",
-#             []
-#         ),
-#         (
-#             test_nft.contract_address,
-#             "symbol",
-#             []
-#         )
-#     ]
+    calls = [
+        (
+            test_nft.contract_address,
+            "mint",
+            [account1.contract_address, *to_uint(4)]
+        ),
+        (
+            test_nft.contract_address,
+            "approve",
+            [guild_proxy.contract_address, *to_uint(4)]
+        )
+    ]
 
-#     (call_array, calldata) = from_call_to_call_array(calls)
+    await sender.send_transaction(
+        calls,
+        [signer1]
+    )
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=guild_proxy.contract_address,
-#         selector_name="execute_transactions",
-#         calldata=[
-#             len(call_array),
-#             *[x for t in call_array for x in t],
-#             len(calldata),
-#             *calldata,
-#             1
-#         ],
-#     )
+    calls = [
+        (
+            game_contract.contract_address,
+            "kill_goblin",
+            []
+        ),
+        (
+            test_nft.contract_address,
+            "symbol",
+            []
+        )
+    ]
 
-# @pytest.mark.asyncio
-# async def test_remove_with_items(contract_factory):
-#     """Test removing a member who has items in the guild."""
-#     (
-#         starknet,
-#         account1,
-#         account2,
-#         account3,
-#         guild_manager,
-#         guild_certificate,
-#         guild_proxy,
-#         test_nft,
-#         test_nft_2,
-#         game_contract
-#     ) = contract_factory
+    (call_array, calldata) = from_call_to_call_array(calls)
 
-#     await signer3.send_transactions(
-#         account=account3,
-#         calls=[
-#             (
-#                 test_nft.contract_address,
-#                 "mint",
-#                 [account3.contract_address, *to_uint(5)]
-#             ),
-#             (
-#                 test_nft.contract_address,
-#                 "approve",
-#                 [guild_proxy.contract_address, *to_uint(5)]
-#             ),
-#             (
-#                 guild_proxy.contract_address,
-#                 "deposit",
-#                 [   1,
-#                     test_nft.contract_address,
-#                     *to_uint(5),
-#                     *to_uint(1)
-#                 ]
-#             ),
-#         ]
-#     )
+    await sender.send_transaction(
+        [
+            (
+                guild_proxy.contract_address,
+                "execute_transactions",
+                [
+                    len(call_array),
+                    *[x for t in call_array for x in t],
+                    len(calldata),
+                    *calldata,
+                    1
+                ],
+            )
+        ],
+        [signer1]
+    )
 
-#     await signer2.send_transaction(
-#         account=account2,
-#         to=guild_proxy.contract_address,
-#         selector_name="remove_member",
-#         calldata=[
-#             account3.contract_address,
-#         ],
-#     )
+@pytest.mark.asyncio
+async def test_remove_with_items(contract_factory):
+    """Test removing a member who has items in the guild."""
+    (
+        starknet,
+        account1,
+        account2,
+        account3,
+        guild_manager_proxy,
+        guild_certificate_proxy,
+        guild_proxy,
+        test_nft,
+        test_nft_2,
+        game_contract,
+    ) = contract_factory
 
-#     execution_info = await signer1.send_transaction(
-#         account=account1,
-#         to=guild_certificate.contract_address,
-#         selector_name="get_certificate_id",
-#         calldata=[
-#             account3.contract_address,
-#             guild_proxy.contract_address
-#         ]
-#     )
+    sender1 = TransactionSender(account1)
+    sender2 = TransactionSender(account2)
+    sender3 = TransactionSender(account3)
 
-#     certificate_id = execution_info.result.response
+    await sender3.send_transaction(
+        [
+            (
+                test_nft.contract_address,
+                "mint",
+                [account3.contract_address, *to_uint(5)]
+            ),
+            (
+                test_nft.contract_address,
+                "approve",
+                [guild_proxy.contract_address, *to_uint(5)]
+            ),
+            (
+                guild_proxy.contract_address,
+                "deposit",
+                [   1,
+                    test_nft.contract_address,
+                    *to_uint(5),
+                    *to_uint(1)
+                ]
+            ),
+        ],
+        [signer3]
+    )
 
-#     execution_info = await signer1.send_transaction(
-#         account=account1,
-#         to=guild_certificate.contract_address,
-#         selector_name="get_token_amount",
-#         calldata=[
-#             *to_uint(certificate_id[0]),
-#             1,
-#             test_nft.contract_address,
-#             *to_uint(5)
-#         ]
-#     )
+    await sender2.send_transaction(
+        [
+            (
+                guild_proxy.contract_address,
+                "remove_member",
+                [
+                    account3.contract_address,
+                ],
+            )
+        ],
+        [signer2]
+    )
 
-#     amount = execution_info.result.response
+    execution_info = await sender1.send_transaction(
+        [
+            (
+                guild_certificate_proxy.contract_address,
+                "get_certificate_id",
+                [
+                    account3.contract_address,
+                    guild_proxy.contract_address
+                ]
+            )
+        ],
+        [signer1]
+    )
 
-#     assert to_uint(amount[0]) == to_uint(0)
+    certificate_id = execution_info.call_info.retdata[1]
 
-# @pytest.mark.asyncio
-# async def add_multiple_ERC721(contract_factory):
-#     """Test adding more than one ERC721 token."""
+    execution_info = await sender1.send_transaction(
+        [
+            (
+                guild_certificate_proxy.contract_address,
+                "get_token_amount",
+                [
+                    *to_uint(certificate_id),
+                    1,
+                    test_nft.contract_address,
+                    *to_uint(5)
+                ]
+            )
+        ],
+        [signer1]
+    )
 
-#     (
-#         starknet,
-#         account1,
-#         account2,
-#         account3,
-#         guild_manager,
-#         guild_certificate,
-#         guild_proxy,
-#         test_nft,
-#         test_nft_2,
-#         game_contract
-#     ) = contract_factory
+    amount = execution_info.call_info.retdata[1]
 
-#     with pytest.raises(StarkException):
-#         await signer3.send_transactions(
-#             account=account3,
-#             calls=[
-#                 (
-#                     test_nft.contract_address,
-#                     "mint",
-#                     [account3.contract_address, *to_uint(6)]
-#                 ),
-#                 (
-#                     test_nft.contract_address,
-#                     "approve",
-#                     [guild_proxy.contract_address, *to_uint(6)]
-#                 ),
-#                 (
-#                     guild_proxy.contract_address,
-#                     "deposit",
-#                     [   1,
-#                         test_nft.contract_address,
-#                         *to_uint(6),
-#                         *to_uint(2)
-#                     ]
-#                 ),
-#             ]
-#         )
+    assert to_uint(amount) == to_uint(0)
 
-# @pytest.mark.asyncio
-# async def test_withdraw_out_of_many(contract_factory):
-#     """Test withdrawing a token out of many tokens that have been deposited."""
+@pytest.mark.asyncio
+async def add_multiple_ERC721(contract_factory):
+    """Test adding more than one ERC721 token."""
 
-#     (
-#         starknet,
-#         account1,
-#         account2,
-#         account3,
-#         guild_manager,
-#         guild_certificate,
-#         guild_proxy,
-#         test_nft,
-#         test_nft_2,
-#         game_contract
-#     ) = contract_factory
+    (
+        starknet,
+        account1,
+        account2,
+        account3,
+        guild_manager_proxy,
+        guild_certificate_proxy,
+        guild_proxy,
+        test_nft,
+        test_nft_2,
+        game_contract,
+    ) = contract_factory
 
-#     calls = [
-#         (
-#             test_nft.contract_address,
-#             "mint",
-#             [account1.contract_address, *to_uint(7)]
-#         ),
-#         (
-#             test_nft.contract_address,
-#             "mint",
-#             [account1.contract_address, *to_uint(8)]
-#         ),
-#         (
-#             test_nft.contract_address,
-#             "mint",
-#             [account1.contract_address, *to_uint(9)]
-#         ),
-#         (
-#             test_nft.contract_address,
-#             "approve",
-#             [guild_proxy.contract_address, *to_uint(7)]
-#         ),
-#         (
-#             test_nft.contract_address,
-#             "approve",
-#             [guild_proxy.contract_address, *to_uint(8)]
-#         ),
-#         (
-#             test_nft.contract_address,
-#             "approve",
-#             [guild_proxy.contract_address, *to_uint(9)]
-#         ),
-#         (
-#             guild_proxy.contract_address,
-#             "deposit",
-#             [
-#                 1,
-#                 test_nft.contract_address,
-#                 *to_uint(7),
-#                 *to_uint(1)
-#             ]
-#         ),
-#         (
-#             guild_proxy.contract_address,
-#             "deposit",
-#             [
-#                 1,
-#                 test_nft.contract_address,
-#                 *to_uint(8),
-#                 *to_uint(1)
-#             ]
-#         ),
-#         (
-#             guild_proxy.contract_address,
-#             "deposit",
-#             [
-#                 1,
-#                 test_nft.contract_address,
-#                 *to_uint(9),
-#                 *to_uint(1)
-#             ]
-#         )
-#     ]
+    sender = TransactionSender(account3)
 
-#     await signer1.send_transactions(
-#         account=account1,
-#         calls=calls
-#     )
+    with pytest.raises(StarkException):
+        await sender.send_transaction(
+            [
+                (
+                    test_nft.contract_address,
+                    "mint",
+                    [account3.contract_address, *to_uint(6)]
+                ),
+                (
+                    test_nft.contract_address,
+                    "approve",
+                    [guild_proxy.contract_address, *to_uint(6)]
+                ),
+                (
+                    guild_proxy.contract_address,
+                    "deposit",
+                    [   1,
+                        test_nft.contract_address,
+                        *to_uint(6),
+                        *to_uint(2)
+                    ]
+                ),
+            ],
+            [signer3]
+        )
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=guild_proxy.contract_address,
-#         selector_name="withdraw",
-#         calldata=[
-#             1,
-#             test_nft.contract_address,
-#             *to_uint(8),
-#             *to_uint(1)
-#         ],
-#     )
+@pytest.mark.asyncio
+async def test_withdraw_out_of_many(contract_factory):
+    """Test withdrawing a token out of many tokens that have been deposited."""
 
-# @pytest.mark.asyncio
-# async def test_update_role(contract_factory):
-#     """Test updating role of whitelisted member."""
-#     (
-#         starknet,
-#         account1,
-#         account2,
-#         account3,
-#         guild_manager,
-#         guild_certificate,
-#         guild_proxy,
-#         test_nft,
-#         test_nft_2,
-#         game_contract
-#     ) = contract_factory
+    (
+        starknet,
+        account1,
+        account2,
+        account3,
+        guild_manager_proxy,
+        guild_certificate_proxy,
+        guild_proxy,
+        test_nft,
+        test_nft_2,
+        game_contract,
+    ) = contract_factory
 
-#     await signer1.send_transaction(
-#         account=account1,
-#         to=guild_proxy.contract_address,
-#         selector_name="update_role",
-#         calldata=[account3.contract_address, 1],
-#     )
+    calls = [
+        (
+            test_nft.contract_address,
+            "mint",
+            [account1.contract_address, *to_uint(7)]
+        ),
+        (
+            test_nft.contract_address,
+            "mint",
+            [account1.contract_address, *to_uint(8)]
+        ),
+        (
+            test_nft.contract_address,
+            "mint",
+            [account1.contract_address, *to_uint(9)]
+        ),
+        (
+            test_nft.contract_address,
+            "approve",
+            [guild_proxy.contract_address, *to_uint(7)]
+        ),
+        (
+            test_nft.contract_address,
+            "approve",
+            [guild_proxy.contract_address, *to_uint(8)]
+        ),
+        (
+            test_nft.contract_address,
+            "approve",
+            [guild_proxy.contract_address, *to_uint(9)]
+        ),
+        (
+            guild_proxy.contract_address,
+            "deposit",
+            [
+                1,
+                test_nft.contract_address,
+                *to_uint(7),
+                *to_uint(1)
+            ]
+        ),
+        (
+            guild_proxy.contract_address,
+            "deposit",
+            [
+                1,
+                test_nft.contract_address,
+                *to_uint(8),
+                *to_uint(1)
+            ]
+        ),
+        (
+            guild_proxy.contract_address,
+            "deposit",
+            [
+                1,
+                test_nft.contract_address,
+                *to_uint(9),
+                *to_uint(1)
+            ]
+        )
+    ]
 
-#     await signer3.send_transaction(
-#         account=account3,
-#         to=test_nft.contract_address,
-#         selector_name="mint",
-#         calldata=[account3.contract_address, *to_uint(10)],
-#     )
+    sender = TransactionSender(account1)
 
-#     await signer3.send_transaction(
-#         account=account3,
-#         to=test_nft.contract_address,
-#         selector_name="approve",
-#         calldata=[guild_proxy.contract_address, *to_uint(10)],
-#     )
+    await sender.send_transaction(
+        calls,
+        [signer1]
+    )
 
-#     with pytest.raises(StarkException):
-#         await signer3.send_transaction(
-#             account=account3,
-#             to=guild_proxy.contract_address,
-#             selector_name="deposit",
-#             calldata=[
-#                 1,
-#                 test_nft.contract_address,
-#                 *to_uint(10),
-#                 *to_uint(1)
-#             ],
-#         )
+    await sender.send_transaction(
+        [
+            (
+                guild_proxy.contract_address,
+                "withdraw",
+                [
+                    1,
+                    test_nft.contract_address,
+                    *to_uint(8),
+                    *to_uint(1)
+                ],
+            )
+        ],
+        [signer1]
+    )
+
+@pytest.mark.asyncio
+async def test_update_role(contract_factory):
+    """Test updating role of whitelisted member."""
+    (
+        starknet,
+        account1,
+        account2,
+        account3,
+        guild_manager_proxy,
+        guild_certificate_proxy,
+        guild_proxy,
+        test_nft,
+        test_nft_2,
+        game_contract,
+    ) = contract_factory
+    
+    sender1 = TransactionSender(account1)
+    sender3 = TransactionSender(account3)
+
+    await sender1.send_transaction(
+        [
+            (
+                guild_proxy.contract_address,
+                "update_role",
+                [account3.contract_address, 1],
+            )
+        ],
+        [signer1]
+    )
+
+    await sender3.send_transaction(
+        [
+            (
+                test_nft.contract_address,
+                "mint",
+                [account3.contract_address, *to_uint(10)],
+            )
+        ],
+        [signer3]
+    )
+
+    await sender3.send_transaction(
+        [
+            (
+                test_nft.contract_address,
+                "approve",
+                [guild_proxy.contract_address, *to_uint(10)],
+            )
+        ],
+        [signer3]
+    )
+
+    with pytest.raises(StarkException):
+        await sender3.send_transaction(
+            [
+                (
+                    guild_proxy.contract_address,
+                    "deposit",
+                    [
+                        1,
+                        test_nft.contract_address,
+                        *to_uint(10),
+                        *to_uint(1)
+                    ],
+                )
+            ],
+            [signer3]
+        )
