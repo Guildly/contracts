@@ -5,63 +5,63 @@ from starkware.starknet.common.syscalls import library_call, library_call_l1_han
 
 from openzeppelin.upgrades.library import Proxy
 
-####################
-# CONSTRUCTOR
-####################
+//###################
+// CONSTRUCTOR
+//###################
 
 @constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    implementation : felt
-):
-    Proxy._set_implementation_hash(implementation)
-    return ()
-end
+func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    implementation: felt
+) {
+    Proxy._set_implementation_hash(implementation);
+    return ();
+}
 
-####################
-# EXTERNAL FUNCTIONS
-####################
+//###################
+// EXTERNAL FUNCTIONS
+//###################
 
 @external
 @raw_input
 @raw_output
-func __default__{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    selector : felt, calldata_size : felt, calldata : felt*
-) -> (retdata_size : felt, retdata : felt*):
-    let (implementation) = Proxy.get_implementation_hash()
+func __default__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    selector: felt, calldata_size: felt, calldata: felt*
+) -> (retdata_size: felt, retdata: felt*) {
+    let (implementation) = Proxy.get_implementation_hash();
 
-    let (retdata_size : felt, retdata : felt*) = library_call(
+    let (retdata_size: felt, retdata: felt*) = library_call(
         class_hash=implementation,
         function_selector=selector,
         calldata_size=calldata_size,
         calldata=calldata,
-    )
-    return (retdata_size=retdata_size, retdata=retdata)
-end
+    );
+    return (retdata_size=retdata_size, retdata=retdata);
+}
 
 @l1_handler
 @raw_input
-func __l1_default__{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    selector : felt, calldata_size : felt, calldata : felt*
-):
-    let (implementation) = Proxy.get_implementation_hash()
+func __l1_default__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    selector: felt, calldata_size: felt, calldata: felt*
+) {
+    let (implementation) = Proxy.get_implementation_hash();
 
     library_call_l1_handler(
         class_hash=implementation,
         function_selector=selector,
         calldata_size=calldata_size,
         calldata=calldata,
-    )
-    return ()
-end
+    );
+    return ();
+}
 
-####################
-# VIEW FUNCTIONS
-####################
+//###################
+// VIEW FUNCTIONS
+//###################
 
 @view
-func get_implementation{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-    implementation : felt
-):
-    let (implementation) = Proxy.get_implementation_hash()
-    return (implementation=implementation)
-end
+func get_implementation{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    implementation: felt
+) {
+    let (implementation) = Proxy.get_implementation_hash();
+    return (implementation=implementation);
+}
