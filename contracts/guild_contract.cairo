@@ -30,6 +30,13 @@ from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_add, uin
 
 from openzeppelin.upgrades.library import Proxy
 
+from contracts.token.constants import (
+    IERC721_RECEIVER_ID,
+    IERC1155_RECEIVER_ID,
+    ON_ERC1155_RECEIVED_SELECTOR,
+    IACCOUNT_ID
+)
+
 //
 // Structs
 //
@@ -289,6 +296,8 @@ func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     );
 
     Proxy.initializer(proxy_admin);
+
+    ERC165.register_interface(IACCOUNT_ID);
     return ();
 }
 
@@ -995,4 +1004,23 @@ func _force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range
     );
 
     return ();
+}
+
+//
+// Receivers
+//
+
+@external
+func onERC721Received{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    operator : felt, _from : felt, id : Uint256, data_len : felt, data : felt*
+) -> (value : felt) {
+    return (value=IERC1155_RECEIVER_ID);
+}
+
+@external
+func onERC1155Received{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    operator : felt, _from : felt, id : Uint256, value : Uint256, data_len : felt, data : felt*
+) -> (value : felt) {
+    let (tx_info) = get_tx_info();
+    return (value=ON_ERC1155_RECEIVED_SELECTOR);
 }

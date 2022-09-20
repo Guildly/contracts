@@ -15,7 +15,9 @@ namespace IERC1155 {
     func ownerOf(tokenId: Uint256) -> (owner: felt) {
     }
 
-    func safeTransferFrom(from_: felt, to: felt, tokenId: Uint256, amount: Uint256) {
+    func safeTransferFrom(
+        from_: felt, to: felt, tokenId: Uint256, amount: Uint256, data_len: felt, data: felt*
+    ) {
     }
 
     func safeBatchTransferFrom(
