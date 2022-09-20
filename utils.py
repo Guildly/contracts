@@ -27,13 +27,13 @@ def str_to_felt(text):
     b_text = bytes(text, "ascii")
     return int.from_bytes(b_text, "big")
 
-def sign_transaction(sender, calls, nonce, max_fee=0):
+def sign_transaction(sender, calls, max_fee=0):
     """Sign a transaction for an Account."""
     (call_array, calldata) = from_call_to_call_array(calls)
     print("callarray:", call_array)
     print("calldata:", calldata)
     message_hash = get_transaction_hash(
-        int(sender, 16), call_array, calldata, nonce, max_fee
+        int(sender, 16), call_array, calldata, max_fee
     )
     print("message_hash:", message_hash)
     print("public key:", private_to_stark_key(1234))
@@ -67,25 +67,22 @@ class Signer:
         return sign(msg_hash=message_hash, priv_key=self.private_key)
 
     async def send_transaction(
-        self, account, to, selector_name, calldata, nonce=None, max_fee=0
+        self, account, to, selector_name, calldata, max_fee=0
     ):
         return await self.send_transactions(
-            account, [(to, selector_name, calldata)], nonce, max_fee
+            account, [(to, selector_name, calldata)], max_fee
         )
 
-    async def send_transactions(self, account, calls, nonce=None, max_fee=0):
-        if nonce is None:
-            execution_info = await account.get_nonce().call()
-            (nonce,) = execution_info.result
+    async def send_transactions(self, account, calls, max_fee=0):
 
         (call_array, calldata) = from_call_to_call_array(calls)
 
         message_hash = get_transaction_hash(
-            account.contract_address, call_array, calldata, nonce, max_fee
+            account.contract_address, call_array, calldata, max_fee
         )
         sig_r, sig_s = self.sign(message_hash)
 
-        return await account.__execute__(call_array, calldata, nonce).invoke(
+        return await account.__execute__(call_array, calldata).execute(
             signature=[sig_r, sig_s]
         )
 
@@ -111,13 +108,12 @@ def from_role_to_role_array(roles):
     return (role_array, selectors)
 
 
-def get_transaction_hash(account, call_array, calldata, nonce, max_fee):
+def get_transaction_hash(account, call_array, calldata, max_fee):
     execute_calldata = [
         len(call_array),
         *[x for t in call_array for x in t],
         len(calldata),
         *calldata,
-        nonce,
     ]
 
     return calculate_transaction_hash_common(

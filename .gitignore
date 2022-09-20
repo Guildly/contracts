@@ -1,6 +1,7 @@
 node_modules
 .env
 .env.nile
+.vscode
 
 #Nile files
 accounts.json
@@ -44,6 +45,7 @@ contracts/guild_contract_new.cairo
 contracts/guild_certificate_new.cairo
 contracts/token
 contracts/reward_system
-tests/test_proxy_upgrade.py
-tests/test_reward_system.py
-tests/test_proxy_new.py
+tests/pytest/test_reward_system.py
+
+# virtualenv
+venv
