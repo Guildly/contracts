@@ -188,7 +188,7 @@ func require_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_p
     return ();
 }
 
-func require_owner_or_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+func require_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     alloc_locals;
     let (caller_address) = get_caller_address();
     let (contract_address) = get_contract_address();
@@ -744,7 +744,7 @@ func execute_transactions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
     call_array_len: felt, call_array: CallArray*, calldata_len: felt, calldata: felt*, nonce: felt
 ) -> (retdata_len: felt, retdata: felt*) {
     alloc_locals;
-    require_owner_or_member();
+    require_member();
     let (caller) = get_caller_address();
 
     let (calls: Call*) = alloc();
