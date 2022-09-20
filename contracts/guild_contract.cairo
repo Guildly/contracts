@@ -587,13 +587,17 @@ func deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     let (new_amount, _) = uint256_add(initial_amount, amount);
 
     if (token_standard == TokenStandard.ERC1155) {
-        // let (data: felt*) = alloc()
+        let (data: felt*) = alloc();
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        assert data[0] = 0;
         IERC1155.safeTransferFrom(
             contract_address=token,
             from_=caller_address,
             to=contract_address,
             tokenId=token_id,
             amount=amount,
+            data_len=1,
+            data=data
         );
         tempvar syscall_ptr: felt* = syscall_ptr;
         tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
@@ -711,13 +715,17 @@ func withdraw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     let (new_amount) = uint256_sub(initial_amount, amount);
 
     if (token_standard == TokenStandard.ERC1155) {
-        // let (data: felt*) = alloc()
+        let (data: felt*) = alloc();
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        assert data[0] = 0;
         IERC1155.safeTransferFrom(
             contract_address=token,
             from_=contract_address,
             to=caller_address,
             tokenId=token_id,
             amount=amount,
+            data_len=1,
+            data=data
         );
         IGuildCertificate.change_token_data(
             contract_address=guild_certificate,
@@ -969,13 +977,19 @@ func _force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range
         }
 
         if (token.token_standard == TokenStandard.ERC1155) {
-            // let (data: felt*) = alloc()
+            let (data: felt*) = alloc();
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar guild_certificate = guild_certificate;
+            tempvar certificate_id: Uint256 = certificate_id;
+            assert data[0] = 0;
             IERC1155.safeTransferFrom(
                 contract_address=token.token,
                 from_=contract_address,
                 to=account,
                 tokenId=token.token_id,
                 amount=token.amount,
+                data_len=1,
+                data=data
             );
             IGuildCertificate.change_token_data(
                 contract_address=guild_certificate,
@@ -1021,6 +1035,5 @@ func onERC721Received{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_ch
 func onERC1155Received{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     operator : felt, _from : felt, id : Uint256, value : Uint256, data_len : felt, data : felt*
 ) -> (value : felt) {
-    let (tx_info) = get_tx_info();
     return (value=ON_ERC1155_RECEIVED_SELECTOR);
 }
