@@ -1,4 +1,4 @@
-# Game Guilds
+# Guildly Contracts
 
 An implementation for having guilds for on-chain games on Starknet.
 
@@ -8,31 +8,35 @@ _Disclaimer: This code is not intended for production use and has not been audit
 
 The purpose of this project is to create a multi owner guild where players can share the game assets between eachother. The guild is token gated, a certificate is minted to identify roles, tokens you own etc.
 
-This project provides the following:
+## Instructions
 
-- Contract deployed by a guild master.
-- Function callable by master to set permissions on transactions allowed.
-- Master can add some original owners.
-- Owners can deposit tokens. These are stored in the certificate.
-- Owners can withdraw the tokens they have deposited.
-- Members can only make transactions from the guild that are permitted.
+In order to create a guild follow these steps:
+
+- Deploy a guild contract from the Guild Manager (Factory contract).
+- Initialize permissions of the guild, this is setting some contracts addresses and selectors which the guild can interact with.
+- Whitelist members to your guild, choosing their acess roles (after which they can then opt to join).
+- Deposit some tokens into the guild.
+- Members of the guild can interact with functions permitted, while also using tokens withiin it.
+
+## Browser Extension
+
+There is a browser extension in development to allow easy use and access to guild contracts. The browser extension code and instructions are in this [Repo](https://github.com/Guildly/guildly-extension).
 
 ## Testing
 
 - Starknet client in pytest used for unit tests (tests)
-- Nile scripts used for testnet deployment (nile)
-- Ape used for integration testing (ape - pending library updates)
+- Nile scripts used for testnet deployment (under guildly_cli)
 
 ## TODO
 
-- [ ] Add proxy testing
+- [x] Add proxy testing
 - [ ] Dynamic roles
 - [ ] Reward distribution
 
 ## Setup
 
 ```
-python3.7 -m venv venv
+python3.9 -m venv venv
 source venv/bin/activate
 python -m pip install cairo-nile
 nile install
