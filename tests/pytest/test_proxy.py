@@ -616,6 +616,25 @@ async def test_deposit_and_withdraw(contract_factory):
 
     assert to_uint(amount) == to_uint(0)
 
+    execution_info = await sender.send_transaction(
+        [
+            (
+                guild_certificate_proxy.contract_address,
+                "get_tokens",
+                [
+                    *to_uint(certificate_id),
+                ]
+            )
+        ],
+        [signer1]
+    )
+
+    # Check amount on token_id 2 is 0 in the array
+
+    amount = execution_info.call_info.retdata[12]
+
+    assert to_uint(amount) == to_uint(0)
+
 
 @pytest.mark.asyncio
 async def test_withdraw_non_held(contract_factory):
@@ -644,7 +663,7 @@ async def test_withdraw_non_held(contract_factory):
                     [
                         1,
                         test_nft.contract_address,
-                        *to_uint(1),
+                        *to_uint(2),
                         *to_uint(1)
                     ],
                 )

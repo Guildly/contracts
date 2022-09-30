@@ -10,6 +10,7 @@ from utils import (
 )
 
 MATH_UTILS = os.path.join("contracts/tests", "math_utils_test.cairo")
+HELPERS = os.path.join("contracts/utils", "helpers.cairo")
 
 @pytest.fixture(scope="module")
 def event_loop():
@@ -22,13 +23,17 @@ async def contract_factory():
         source=MATH_UTILS,
         constructor_calldata=[]
     )
+    helpers = await starknet.deploy(
+        source=HELPERS,
+        constructor_calldata=[]
+    )
 
-    return math_utils
+    return math_utils, helpers
 
 @pytest.mark.asyncio
 async def test_felt_sum(contract_factory):
     """Tests utils sum of felts."""
-    math_utils = contract_factory
+    math_utils, helpers = contract_factory
 
     execution_info = await math_utils.test_array_sum(
         [
@@ -41,7 +46,7 @@ async def test_felt_sum(contract_factory):
 @pytest.mark.asyncio
 async def test_felt_product(contract_factory):
     """Tests utils product of felts."""
-    math_utils = contract_factory
+    math_utils, helpers = contract_factory
 
     execution_info = await math_utils.test_array_product(
         [
@@ -55,7 +60,7 @@ async def test_felt_product(contract_factory):
 async def test_uint256_sum(contract_factory):
     """Tests utils sum of uint256's."""
 
-    math_utils = contract_factory
+    math_utils, helpers = contract_factory
 
     execution_info = await math_utils.test_uint256_array_sum(
         [
@@ -69,7 +74,7 @@ async def test_uint256_sum(contract_factory):
 async def test_uint256_product(contract_factory):
     """Tests utils product of uint256's."""
 
-    math_utils = contract_factory
+    math_utils, helpers = contract_factory
     
 
     execution_info = await math_utils.test_uint256_array_product(
@@ -79,3 +84,27 @@ async def test_uint256_product(contract_factory):
     ).call()
 
     assert execution_info.result == (to_uint(7340520),)
+
+@pytest.mark.asyncio
+async def test_find_value(contract_factory):
+    """Test find index of felt in array."""
+
+    math_utils, helpers = contract_factory
+    
+    execution_info = await helpers.find_value(
+        0, [1,2,3], 2
+    ).call()
+
+    assert execution_info.result == (1,)
+
+@pytest.mark.asyncio
+async def test_find_uint256_value(contract_factory):
+    """Test find index of Uint256 in array."""
+
+    math_utils, helpers = contract_factory
+    
+    execution_info = await helpers.find_uint256_value(
+        0, [to_uint(1),to_uint(2),to_uint(3)], to_uint(3)
+    ).call()
+
+    assert execution_info.result == (2,)

@@ -17,7 +17,7 @@ func find_value{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
         return (index=arr_index);
     }
 
-    find_value(arr_index + 1, arr_len, arr, value);
+    let (arr_index) = find_value(arr_index + 1, arr_len, arr, value);
 
     return (index=arr_index);
 }
@@ -36,7 +36,7 @@ func find_uint256_value{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_ch
         return (index=arr_index);
     }
 
-    find_uint256_value(arr_index + 1, arr_len, arr, value);
+    let (arr_index) = find_uint256_value(arr_index + 1, arr_len, arr, value);
 
     return (index=arr_index);
 }
