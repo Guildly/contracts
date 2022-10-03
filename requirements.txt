@@ -71,7 +71,7 @@ pipdeptree==2.2.1
 pluggy==0.13.1
 prometheus-client==0.14.1
 prompt-toolkit==3.0.29
-protobuf==3.20.1
+protobuf==3.20.2
 ptyprocess==0.7.0
 pure-eval==0.2.2
 py==1.11.0
