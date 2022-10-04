@@ -3,14 +3,14 @@ from starkware.starknet.core.os.transaction_hash.transaction_hash import (
     TransactionHashPrefix,
     calculate_transaction_hash_common,
 )
+from starkware.starknet.compiler.compile import compile_starknet_files
 
 from starkware.crypto.signature.signature import private_to_stark_key
 from starkware.starknet.definitions.general_config import StarknetChainId
 from starkware.starknet.public.abi import get_selector_from_name
 
-from nile.core.call_or_invoke import call_or_invoke
 from nile.core.account import Account
-from nile.core.declare import declare
+
 import os
 import subprocess
 import time
@@ -18,6 +18,7 @@ import time
 import sys
 
 from guildly_cli.scripts.caller_invoke import wrapped_send
+from guildly_cli.scripts.utils import wrapped_declare
 
 # deploy account, dummy contract, owner contract
 # sign transaction to set value to 1
@@ -100,12 +101,17 @@ def sign_transaction(sender, calls, nonce, max_fee=0):
 
 
 def run(nre):
-    proxy_class_hash = declare("proxy", nre.network, "proxy")
-    guild_contract_class_hash = declare("guild_contract", nre.network, "guild_contract")
-    guild_manager_class_hash = declare("guild_manager", nre.network, "guild_manager")
-    guild_certificate_class_hash = declare("guild_certificate", nre.network, "guild_certificate")
-
     account = Account("STARKNET_PRIVATE_KEY", nre.network)
+
+    # proxy_class_hash = account.declare("proxy", "0", alias="proxy")
+    # guild_contract_class_hash = account.declare("guild_contract", "0", alias="guild_contract")
+    # guild_manager_class_hash = account.declare("guild_manager", "0", alias="guild_manager")
+    # guild_certificate_class_hash = account.declare("guild_certificate", "0", alias="guild_certificate")
+
+    proxy_class_hash = wrapped_declare(account, "proxy", nre.network, alias="proxy")
+    guild_contract_class_hash = wrapped_declare(account, "guild_contract", nre.network, alias="guild_contract")
+    guild_manager_class_hash = wrapped_declare(account, "guild_manager", nre.network, alias="guild_manager")
+    guild_certificate_class_hash = wrapped_declare(account, "guild_certificate", nre.network, alias="guild_certificate")
 
     guild_proxy_manager_address, guild_proxy_manager_abi = nre.deploy(
         "proxy",
