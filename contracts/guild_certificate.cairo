@@ -36,7 +36,7 @@ struct Token {
 //
 
 @event
-func MintCertificate(account: felt, guild: felt, id: Uint256) {
+func MintCertificate(account: felt, role: felt, guild: felt, id: Uint256) {
 }
 
 @event
@@ -267,7 +267,7 @@ func get_tokens{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
         tokens_index=0, tokens_len=tokens_len, tokens=tokens, certificate_id=certificate_id
     );
 
-    return (tokens_len=tokens_len, tokens=tokens);
+    return (tokens_len, tokens);
 }
 
 @view
@@ -338,7 +338,7 @@ func mint{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
 
     ERC721._mint(to, new_certificate_id);
 
-    MintCertificate.emit(to, guild, new_certificate_id);
+    MintCertificate.emit(to, role, guild, new_certificate_id);
 
     return ();
 }
@@ -466,14 +466,12 @@ func _get_tokens{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 
     assert tokens[tokens_index] = token;
 
-    _get_tokens(
+    return _get_tokens(
         tokens_index=tokens_index + 1,
         tokens_len=tokens_len,
         tokens=tokens,
         certificate_id=certificate_id,
     );
-
-    return ();
 }
 
 func _check_tokens_exist{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
@@ -507,7 +505,7 @@ func get_tokens_data_index{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range
 
     let (index) = find_value(arr_index=0, arr_len=tokens_data_len, arr=checks, value=0);
 
-    return (index=index);
+    return (index,);
 }
 
 func _get_tokens_data_index{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
@@ -535,7 +533,7 @@ func _get_tokens_data_index{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, rang
 
     assert checks[tokens_data_index] = check_token_data;
 
-    _get_tokens_data_index(
+    return _get_tokens_data_index(
         tokens_data_index=tokens_data_index + 1,
         tokens_data_len=tokens_data_len,
         certificate_id=certificate_id,
@@ -544,6 +542,4 @@ func _get_tokens_data_index{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, rang
         token_id=token_id,
         checks=checks,
     );
-
-    return ();
 }

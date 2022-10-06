@@ -34,7 +34,7 @@ from contracts.token.constants import (
     IERC721_RECEIVER_ID,
     IERC1155_RECEIVER_ID,
     ON_ERC1155_RECEIVED_SELECTOR,
-    IACCOUNT_ID
+    IACCOUNT_ID,
 )
 
 //
@@ -244,7 +244,6 @@ func require_admin_or_owner{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, rang
     }
 
     let check_owner_or_admin = check_owner + check_admin;
-
 
     with_attr error_message("Guild Contract: Caller is not admin or owner") {
         assert_lt(0, check_owner_or_admin);
@@ -597,7 +596,7 @@ func deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
             tokenId=token_id,
             amount=amount,
             data_len=1,
-            data=data
+            data=data,
         );
         tempvar syscall_ptr: felt* = syscall_ptr;
         tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
@@ -725,7 +724,7 @@ func withdraw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
             tokenId=token_id,
             amount=amount,
             data_len=1,
-            data=data
+            data=data,
         );
         IGuildCertificate.change_token_data(
             contract_address=guild_certificate,
@@ -864,22 +863,18 @@ func _set_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 
     _is_permission.write(permissions[permissions_index], TRUE);
 
-    _set_permissions(
+    return _set_permissions(
         permissions_index=permissions_index + 1,
         permissions_len=permissions_len,
         permissions=permissions,
     );
-    return ();
 }
 
 func check_permitted_call{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     to: felt, selector: felt
 ) {
     alloc_locals;
-    let execute_call = Permission(
-        to,
-        selector
-    );
+    let execute_call = Permission(to, selector);
 
     let (is_permitted) = _is_permission.read(execute_call);
 
@@ -906,10 +901,9 @@ func from_call_array_to_call{syscall_ptr: felt*}(
         );
 
     // parse the remaining calls recursively
-    from_call_array_to_call(
+    return from_call_array_to_call(
         call_array_len - 1, call_array + CallArray.SIZE, calldata, calls + Call.SIZE
     );
-    return ();
 }
 
 func force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -921,9 +915,9 @@ func force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
         contract_address=guild_certificate, certificate_id=certificate_id
     );
 
-    _force_transfer_items(tokens_index=0, tokens_len=tokens_len, tokens=tokens, account=account);
-
-    return ();
+    return _force_transfer_items(
+        tokens_index=0, tokens_len=tokens_len, tokens=tokens, account=account
+    );
 }
 
 func _force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -989,7 +983,7 @@ func _force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range
                 tokenId=token.token_id,
                 amount=token.amount,
                 data_len=1,
-                data=data
+                data=data,
             );
             IGuildCertificate.change_token_data(
                 contract_address=guild_certificate,
@@ -1013,11 +1007,9 @@ func _force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range
         tempvar range_check_ptr = range_check_ptr;
     }
 
-    _force_transfer_items(
+    return _force_transfer_items(
         tokens_index=tokens_index + 1, tokens_len=tokens_len, tokens=tokens, account=account
     );
-
-    return ();
 }
 
 //
@@ -1025,15 +1017,15 @@ func _force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range
 //
 
 @external
-func onERC721Received{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    operator : felt, _from : felt, id : Uint256, data_len : felt, data : felt*
-) -> (value : felt) {
+func onERC721Received{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    operator: felt, _from: felt, id: Uint256, data_len: felt, data: felt*
+) -> (value: felt) {
     return (value=IERC1155_RECEIVER_ID);
 }
 
 @external
-func onERC1155Received{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    operator : felt, _from : felt, id : Uint256, value : Uint256, data_len : felt, data : felt*
-) -> (value : felt) {
+func onERC1155Received{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    operator: felt, _from: felt, id: Uint256, value: Uint256, data_len: felt, data: felt*
+) -> (value: felt) {
     return (value=ON_ERC1155_RECEIVED_SELECTOR);
 }

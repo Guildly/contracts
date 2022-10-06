@@ -134,31 +134,31 @@ def run(nre):
     print(guild_proxy_certificate_abi, guild_proxy_certificate_address)
 
     # wait 120s - this will reduce on mainnet
-    print('🕒 Waiting for deploy before invoking')
-    time.sleep(120)
+    # print('🕒 Waiting for deploy before invoking')
+    # time.sleep(120)
 
-    wrapped_send(
-        account,
-        guild_proxy_manager_address,
-        "initializer", 
-        calldata=[
-            strhex_as_strfelt(proxy_class_hash),
-            strhex_as_strfelt(guild_contract_class_hash),
-            strhex_as_strfelt(account.address)
-        ]
-    )
+    # wrapped_send(
+    #     account,
+    #     guild_proxy_manager_address,
+    #     "initializer", 
+    #     calldata=[
+    #         strhex_as_strfelt(proxy_class_hash),
+    #         strhex_as_strfelt(guild_contract_class_hash),
+    #         strhex_as_strfelt(account.address)
+    #     ]
+    # )
 
-    wrapped_send(
-        account,
-        guild_proxy_certificate_address,
-        "initializer", 
-        calldata=[
-            str(str_to_felt("Guild Certificate")),
-            str(str_to_felt("GC")),
-            strhex_as_strfelt(guild_proxy_manager_address),
-            strhex_as_strfelt(account.address)
-        ],
-    )
+    # wrapped_send(
+    #     account,
+    #     guild_proxy_certificate_address,
+    #     "initializer", 
+    #     calldata=[
+    #         str(str_to_felt("Guild Certificate")),
+    #         str(str_to_felt("GC")),
+    #         strhex_as_strfelt(guild_proxy_manager_address),
+    #         strhex_as_strfelt(account.address)
+    #     ],
+    # )
 
     test_nft_address, test_nft_abi = nre.deploy(
         "test_nft",
