@@ -40,7 +40,7 @@ func MintCertificate(account: felt, role: felt, guild: felt, id: Uint256) {
 }
 
 @event
-func BurnCertificate(account: felt, guild: felt, id: Uint256) {
+func BurnCertificate(account: felt, role: felt, guild: felt, id: Uint256) {
 }
 
 //
@@ -359,9 +359,12 @@ func burn{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
 ) {
     alloc_locals;
     let (certificate_id: Uint256) = _certificate_id.read(account, guild);
+    let (role) = _role.read(certificate_id);
     ERC721.assert_only_token_owner(certificate_id);
+    _role.write(certificate_id, 0);
+    _guild.write(certificate_id, 0);
     ERC721._burn(certificate_id);
-    BurnCertificate.emit(account, guild, certificate_id);
+    BurnCertificate.emit(account, role, guild, certificate_id);
     return ();
 }
 
@@ -372,8 +375,11 @@ func guild_burn{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}
     alloc_locals;
     assert_only_guild();
     let (certificate_id: Uint256) = _certificate_id.read(account, guild);
+    let (role) = _role.read(certificate_id);
+    _role.write(certificate_id, 0);
+    _guild.write(certificate_id, 0);
     ERC721._burn(certificate_id);
-    BurnCertificate.emit(account, guild, certificate_id);
+    BurnCertificate.emit(account, role, guild, certificate_id);
     return ();
 }
 

@@ -106,6 +106,8 @@ func deploy_guild_proxy_contract{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*,
 
     is_guild.write(contract_address, TRUE);
 
+    GuildContractDeployed.emit(name=name, master=caller_address, contract_address=contract_address);
+
     let (initialize_calldata: felt*) = alloc();
     assert initialize_calldata[0] = name;
     assert initialize_calldata[1] = caller_address;
@@ -118,8 +120,6 @@ func deploy_guild_proxy_contract{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*,
         calldata_size=4,
         calldata=initialize_calldata,
     );
-
-    GuildContractDeployed.emit(name=name, master=caller_address, contract_address=contract_address);
 
     return (contract_address,);
 }

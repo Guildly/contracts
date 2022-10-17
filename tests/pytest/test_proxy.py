@@ -1,4 +1,4 @@
-"""GuildManager.cairo test file."""
+"""Guilds test file."""
 import pytest
 import asyncio
 import os
