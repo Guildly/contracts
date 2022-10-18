@@ -48,17 +48,17 @@ def event_loop():
 async def contract_factory():
     starknet = await Starknet.empty()
     account1 = await starknet.deploy(
-        "contracts/tests/Account.cairo",
+        "openzeppelin/account/presets/Account.cairo",
         cairo_path=CAIRO_PATH,
         constructor_calldata=[signer1.public_key],
     )
     account2 = await starknet.deploy(
-        "contracts/tests/Account.cairo",
+        "openzeppelin/account/presets/Account.cairo",
         cairo_path=CAIRO_PATH,
         constructor_calldata=[signer2.public_key],
     )
     account3 = await starknet.deploy(
-        "contracts/tests/Account.cairo",
+        "openzeppelin/account/presets/Account.cairo",
         cairo_path=CAIRO_PATH,
         constructor_calldata=[signer3.public_key],
     )
@@ -210,7 +210,6 @@ async def contract_factory():
         test_nft_2,
         game_contract,
     )
-
 
 @pytest.mark.asyncio
 async def test_adding_members(contract_factory):
