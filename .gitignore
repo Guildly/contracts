@@ -1,3 +1,4 @@
+.DS_Store
 node_modules
 .env
 .env.nile
@@ -26,26 +27,8 @@ openzeppelin
 #Pytest
 pytest.ini
 
-# Unused folders + files
-test_account_abstraction.py.txt
-old_integration_tests
-scripts/pinata.py
-old_front_end
-contracts/Upgradable.cairo
-protostar.toml
-contracts/AccessControl.cairo
-ape
-contracts/access_control
-contracts/interfaces/IGuildCertificateAccess.cairo
-contracts/interfaces/IGuildContractAccess.cairo
-tests/test_access_control.py
-contracts/on_received
-contracts/permission_update
-contracts/guild_contract_new.cairo
-contracts/guild_certificate_new.cairo
-contracts/token
-contracts/reward_system
-tests/pytest/test_reward_system.py
-
 # virtualenv
 venv
+
+# helper scripts
+scripts
