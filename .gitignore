@@ -31,4 +31,4 @@ pytest.ini
 venv
 
 # helper scripts
-scripts
+/scripts
