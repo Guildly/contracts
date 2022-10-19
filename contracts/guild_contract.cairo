@@ -5,6 +5,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.cairo_keccak.keccak import keccak_felts
 from starkware.cairo.common.math import assert_le, assert_lt
+from starkware.cairo.common.math_cmp import is_not_zero
 from starkware.cairo.common.memcpy import memcpy
 
 from starkware.starknet.common.syscalls import (
@@ -20,6 +21,7 @@ from openzeppelin.introspection.erc165.library import ERC165
 from openzeppelin.token.erc721.IERC721 import IERC721
 from contracts.interfaces.IERC1155 import IERC1155
 from contracts.interfaces.IGuildCertificate import IGuildCertificate
+from contracts.interfaces.IFeePolicyManager import IFeePolicyManager
 
 from contracts.lib.role import GuildRoles
 from contracts.lib.token_standard import TokenStandard
@@ -800,7 +802,19 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     // Check the tranasction is permitted
     check_permitted_call(this_call.to, this_call.selector);
 
-    // Get balance using fee system
+    // Check if fee policy exists
+    let (fee_policy) = IFeePolicyManager.get_fee_policy(this_call.to, this_call.selector);
+
+    let (check_policy) = is_not_zero(fee_policy);
+
+    if (check_policy == TRUE) {
+        let res = IFeePolicyManager.execute_with_policy(
+            address=this_call.to,
+            selector=this_call.selector,
+            calldata_size=this_call.calldata_len,
+            calldata=this_call.calldata
+        );
+    }
 
     // Actually execute it
     let res = call_contract(
@@ -809,9 +823,6 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
         calldata_size=this_call.calldata_len,
         calldata=this_call.calldata,
     );
-
-    // Check fee structure
-    let (token_len: felt, tokens: felt*) = 
 
     // copy the result in response
     memcpy(response, res.retdata, res.retdata_size);

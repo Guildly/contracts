@@ -68,6 +68,11 @@ func _guild(certificate_id: Uint256) -> (res: felt) {
 }
 
 @storage_var
+func token_owner(token_standard: felt, token: felt, token_id: Uint256) -> (res: felt) {
+}
+
+
+@storage_var
 func _certificate_token_amount(
     certificate_id: Uint256, token_standard: felt, token: felt, token_id: Uint256
 ) -> (res: Uint256) {
