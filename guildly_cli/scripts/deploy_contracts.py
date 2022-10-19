@@ -26,34 +26,34 @@ def run(nre):
 
     config = Config(nre.network)
 
-    # proxy_class_hash = wrapped_declare("STARKNET_PRIVATE_KEY", "proxy", nre.network, alias="proxy")
-    # guild_contract_class_hash = wrapped_declare("STARKNET_PRIVATE_KEY", "guild_contract", nre.network, alias="guild_contract")
-    # guild_manager_class_hash = wrapped_declare("STARKNET_PRIVATE_KEY", "guild_manager", nre.network, alias="guild_manager")
-    # guild_certificate_class_hash = wrapped_declare("STARKNET_PRIVATE_KEY", "guild_certificate", nre.network, alias="guild_certificate")
+    proxy_class_hash = wrapped_declare("STARKNET_PRIVATE_KEY", "proxy", nre.network, alias="proxy")
+    guild_contract_class_hash = wrapped_declare("STARKNET_PRIVATE_KEY", "guild_contract", nre.network, alias="guild_contract")
+    guild_manager_class_hash = wrapped_declare("STARKNET_PRIVATE_KEY", "guild_manager", nre.network, alias="guild_manager")
+    guild_certificate_class_hash = wrapped_declare("STARKNET_PRIVATE_KEY", "guild_certificate", nre.network, alias="guild_certificate")
 
-    # guild_proxy_manager_address, guild_proxy_manager_abi = nre.deploy(
-    #     "proxy",
-    #     arguments=[
-    #         guild_manager_class_hash,
-    #     ],
-    #     alias="proxy_GuildManager"
-    # )
+    guild_proxy_manager_address, guild_proxy_manager_abi = nre.deploy(
+        "proxy",
+        arguments=[
+            guild_manager_class_hash,
+        ],
+        alias="proxy_GuildManager"
+    )
 
-    # print(guild_proxy_manager_abi, guild_proxy_manager_address)
+    print(guild_proxy_manager_abi, guild_proxy_manager_address)
 
-    # guild_proxy_certificate_address, guild_proxy_certificate_abi = nre.deploy(
-    #     "proxy",
-    #     arguments=[
-    #         guild_certificate_class_hash,
-    #     ],
-    #     alias="proxy_Certificate",
-    # )
+    guild_proxy_certificate_address, guild_proxy_certificate_abi = nre.deploy(
+        "proxy",
+        arguments=[
+            guild_certificate_class_hash,
+        ],
+        alias="proxy_Certificate",
+    )
 
-    # print(guild_proxy_certificate_abi, guild_proxy_certificate_address)
+    print(guild_proxy_certificate_abi, guild_proxy_certificate_address)
 
-    # # wait 120s - this will reduce on mainnet
-    # print('🕒 Waiting for deploy before invoking')
-    # time.sleep(120)
+    # wait 120s - this will reduce on mainnet
+    print('🕒 Waiting for deploy before invoking')
+    time.sleep(120)
 
     wrapped_send(
         network=config.nile_network,
@@ -80,36 +80,36 @@ def run(nre):
         ],
     )
 
-    # test_nft_address, test_nft_abi = nre.deploy(
-    #     "test_nft",
-    #     arguments=[
-    #         str(str_to_felt("Test NFT")),
-    #         str(str_to_felt("TNFT")),
-    #         config.USER_ADDRESS,
-    #     ],
-    #     alias="test_nft"
-    # )
-    # print(test_nft_abi, test_nft_address)
-    # points_contract_address, points_abi = nre.deploy(
-    #     "experience_points",
-    #     arguments=[
-    #         str(str_to_felt("Experience Points")),
-    #         str(str_to_felt("EP")),
-    #         "18",
-    #         str(0),
-    #         str(0),
-    #         config.USER_ADDRESS,
-    #         config.USER_ADDRESS,
-    #     ],
-    #     alias="points_contract"
-    # )
-    # print(points_abi, points_contract_address)
-    # test_game_contract_address, test_game_abi = nre.deploy(
-    #     "game_contract", 
-    #     arguments=[
-    #         test_nft_address, 
-    #         points_contract_address
-    #     ],
-    #     alias="game_contract"
-    # )
-    # print(test_game_abi, test_game_contract_address)
+    test_nft_address, test_nft_abi = nre.deploy(
+        "test_nft",
+        arguments=[
+            str(str_to_felt("Test NFT")),
+            str(str_to_felt("TNFT")),
+            config.USER_ADDRESS,
+        ],
+        alias="test_nft"
+    )
+    print(test_nft_abi, test_nft_address)
+    points_contract_address, points_abi = nre.deploy(
+        "experience_points",
+        arguments=[
+            str(str_to_felt("Experience Points")),
+            str(str_to_felt("EP")),
+            "18",
+            str(0),
+            str(0),
+            config.USER_ADDRESS,
+            config.USER_ADDRESS,
+        ],
+        alias="points_contract"
+    )
+    print(points_abi, points_contract_address)
+    test_game_contract_address, test_game_abi = nre.deploy(
+        "game_contract", 
+        arguments=[
+            test_nft_address, 
+            points_contract_address
+        ],
+        alias="game_contract"
+    )
+    print(test_game_abi, test_game_contract_address)
