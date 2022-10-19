@@ -17,8 +17,7 @@ import time
 
 import sys
 
-from guildly_cli.scripts.caller_invoke import wrapped_send
-from guildly_cli.scripts.utils import wrapped_declare
+from guildly_cli.scripts.caller_invoke import wrapped_send, wrapped_declare
 
 # deploy account, dummy contract, owner contract
 # sign transaction to set value to 1

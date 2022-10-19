@@ -800,6 +800,8 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     // Check the tranasction is permitted
     check_permitted_call(this_call.to, this_call.selector);
 
+    // Get balance using fee system
+
     // Actually execute it
     let res = call_contract(
         contract_address=this_call.to,
@@ -807,6 +809,9 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
         calldata_size=this_call.calldata_len,
         calldata=this_call.calldata,
     );
+
+    // Check fee structure
+    let (token_len: felt, tokens: felt*) = 
 
     // copy the result in response
     memcpy(response, res.retdata, res.retdata_size);
