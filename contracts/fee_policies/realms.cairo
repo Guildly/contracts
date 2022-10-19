@@ -38,7 +38,7 @@ from src.openzeppelin.security.safemath.library import SafeUint256
 @external
 func harvest{
     syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
-}(token_id: Uint256, food_building_id: felt) {
+}(calldata_len: felt, food_building_id: felt) {
     alloc_locals;
     Ownable.assert_only_owner();
     Modifier.assert_part_of_empire(realm_id=token_id.low);

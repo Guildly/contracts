@@ -284,8 +284,9 @@ func require_not_blacklisted{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, ran
 
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    name: felt, master: felt, guild_certificate: felt, proxy_admin: felt
+    name: felt, master: felt, guild_certificate: felt, controller: felt, proxy_admin: felt
 ) {
+    Module.initializer(controller);
     _name.write(name);
     _guild_master.write(master);
     _guild_certificate.write(guild_certificate);
@@ -802,17 +803,41 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     // Check the tranasction is permitted
     check_permitted_call(this_call.to, this_call.selector);
 
+    let (fee_policy_manager) = IModuleController.get_module_address(
+        controller, ModuleIds.FeePolicyManager
+    );
+
     // Check if fee policy exists
-    let (fee_policy) = IFeePolicyManager.get_fee_policy(this_call.to, this_call.selector);
+    let (fee_policy) = IFeePolicyManager.get_fee_policy(
+        fee_policy_manager, this_call.to, this_call.selector
+    );
 
     let check_policy = is_not_zero(fee_policy);
 
     if (check_policy == TRUE) {
-        let res = IFeePolicyManager.execute_with_policy(
+        IFeePolicyManager.initialize_fee_policy(
+            fee_policy_manager,
+            fee_policy,
+            this_call.to,
+            this_call.selector,
+            this_call.calldata_len,
+            this_call.calldata,
+        );
+
+        let res = call_contract(
             address=this_call.to,
             selector=this_call.selector,
             calldata_size=this_call.calldata_len,
-            calldata=this_call.calldata
+            calldata=this_call.calldata,
+        );
+
+        IFeePolicyManager.finalize_fee_policy(
+            fee_policy_manager,
+            fee_policy,
+            this_call.to,
+            this_call.selector,
+            this_call.calldata_len,
+            this_call.calldata,
         );
     }
 

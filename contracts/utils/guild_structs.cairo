@@ -1,3 +1,3 @@
 namespace ModuleIds {
-    const Empires = 1;
+    const FeePolicyManager = 1;
 }

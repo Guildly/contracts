@@ -23,9 +23,9 @@ func get_fee_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 
 @external
 func set_fee_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    contract_address: felt, selector: felt, caller_split: felt, owner_split: felt, guild_split: felt
+    contract_address: felt, selector: felt, caller_split: felt, owner_split: felt, guild_split: felt, policy_address: felt
 ) {
-
+    
 }
 
 func execute_with_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
