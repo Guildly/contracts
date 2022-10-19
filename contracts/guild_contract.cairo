@@ -805,7 +805,7 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     // Check if fee policy exists
     let (fee_policy) = IFeePolicyManager.get_fee_policy(this_call.to, this_call.selector);
 
-    let (check_policy) = is_not_zero(fee_policy);
+    let check_policy = is_not_zero(fee_policy);
 
     if (check_policy == TRUE) {
         let res = IFeePolicyManager.execute_with_policy(
