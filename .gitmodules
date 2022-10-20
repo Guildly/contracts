@@ -2,3 +2,6 @@
 	url = https://github.com/OpenZeppelin/cairo-contracts
 	path = lib/cairo_contracts
 	branch = refs/heads/v0.4.0b
+[submodule "realms_contracts_git"]
+	path = lib/realms_contracts_git
+	url = https://github.com/BibliothecaForAdventurers/realms-contracts.git
