@@ -71,7 +71,6 @@ func _guild(certificate_id: Uint256) -> (res: felt) {
 func token_owner(token_standard: felt, token: felt, token_id: Uint256) -> (res: felt) {
 }
 
-
 @storage_var
 func _certificate_token_amount(
     certificate_id: Uint256, token_standard: felt, token: felt, token_id: Uint256
@@ -281,6 +280,14 @@ func get_token_amount{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 ) -> (amount: Uint256) {
     let (amount) = _certificate_token_amount.read(certificate_id, token_standard, token, token_id);
     return (amount,);
+}
+
+@view
+func get_token_owner{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    token_standard: felt, token: felt, token_id: Uint256
+) -> (owner: felt) {
+    let (owner) = token_owner.read(token_standard, token, token_id);
+    return (owner,);
 }
 
 //

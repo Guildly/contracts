@@ -22,10 +22,14 @@ from openzeppelin.token.erc721.IERC721 import IERC721
 from contracts.interfaces.IERC1155 import IERC1155
 from contracts.interfaces.IGuildCertificate import IGuildCertificate
 from contracts.interfaces.IFeePolicyManager import IFeePolicyManager
+from contracts.interfaces.IFeePolicy import IFeePolicy
+from contracts.interfaces.imodules import IModuleController
 
+from contracts.lib.module import Module
 from contracts.lib.role import GuildRoles
 from contracts.lib.token_standard import TokenStandard
 from contracts.lib.math_utils import MathUtils
+from contracts.utils.guild_structs import ModuleIds
 from contracts.utils.helpers import find_value
 
 from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_add, uint256_eq, uint256_sub
@@ -803,6 +807,8 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     // Check the tranasction is permitted
     check_permitted_call(this_call.to, this_call.selector);
 
+    let (controller) = Module.controller_address();
+
     let (fee_policy_manager) = IModuleController.get_module_address(
         controller, ModuleIds.FeePolicyManager
     );
@@ -815,30 +821,40 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     let check_policy = is_not_zero(fee_policy);
 
     if (check_policy == TRUE) {
-        IFeePolicyManager.initialize_fee_policy(
-            fee_policy_manager,
+        let (pre_balance_len, pre_balance) = IFeePolicy.initial_balance(
             fee_policy,
             this_call.to,
             this_call.selector,
-            this_call.calldata_len,
-            this_call.calldata,
         );
 
         let res = call_contract(
-            address=this_call.to,
-            selector=this_call.selector,
+            contract_address=this_call.to,
+            function_selector=this_call.selector,
             calldata_size=this_call.calldata_len,
             calldata=this_call.calldata,
         );
 
-        IFeePolicyManager.finalize_fee_policy(
-            fee_policy_manager,
+        let (owner, post_balance_len, post_balance) = IFeePolicy.final_balance(
             fee_policy,
             this_call.to,
             this_call.selector,
             this_call.calldata_len,
             this_call.calldata,
         );
+
+        IFeePolicyManager.distribute_fee(
+            fee_policy_manager,
+            this_call.to,
+            this_call
+        );
+
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     }
 
     // Actually execute it
@@ -848,6 +864,10 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
         calldata_size=this_call.calldata_len,
         calldata=this_call.calldata,
     );
+
+    tempvar syscall_ptr: felt* = syscall_ptr;
+    tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+    tempvar range_check_ptr = range_check_ptr;
 
     // copy the result in response
     memcpy(response, res.retdata, res.retdata_size);
