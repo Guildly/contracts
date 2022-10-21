@@ -3,6 +3,7 @@ import pytest
 import asyncio
 import os
 
+from starkware.starknet.business_logic.state.state import BlockInfo
 from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.compiler.compile import compile_starknet_files
 from starkware.starknet.testing.starknet import Starknet
@@ -38,6 +39,21 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 CAIRO_PATH = [CONTRACTS_PATH, OZ_CONTRACTS_PATH, here]
 
+def set_block_number(self, starknet, block_number):
+    starknet.state.state.block_info = BlockInfo(
+        block_number,
+        self.block_info.block_timestamp,
+        self.block_info.gas_price,
+        self.block_info.sequencer_address,
+    )
+
+def set_block_timestamp(self, starknet, block_timestamp):
+    starknet.state.state.block_info = BlockInfo(
+        self.block_info.block_number,
+        block_timestamp,
+        self.block_info.gas_price,
+        self.block_info.sequencer_address,
+    )
 
 @pytest.fixture(scope="module")
 def event_loop():

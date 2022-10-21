@@ -4,14 +4,12 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.math import assert_not_zero, unsigned_div_rem
 from starkware.cairo.common.alloc import alloc
-from starkware.starknet.common.syscalls import (
-    get_caller_address
-)
+from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.uint256 import Uint256
 
 from contracts.interfaces.IGuildCertificate import IGuildCertificate
-from contracts.empires.helpers import get_resources, get_owners
-from contracts.settling_game.interfaces.IERC1155 import IERC1155
+from contracts.fee_policies.realms.library import get_resources, get_owners
+from contracts.interfaces.IERC1155 import IERC1155
 from contracts.lib.token_standard import TokenStandard
 
 from openzeppelin.access.ownable.library import Ownable
@@ -28,7 +26,6 @@ func resources_contract() -> (address: felt) {
 func realms_contract() -> (res: felt) {
 }
 
-
 @storage_var
 func guild_certificate() -> (res: felt) {
 }
@@ -37,16 +34,20 @@ func guild_certificate() -> (res: felt) {
 func fee_policy_manager() -> (res: felt) {
 }
 
-
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    resources_address: felt, realms_address: felt, certificate_address: felt, fee_policy_manager: felt, proxy_admin: felt
+    resources_address: felt,
+    realms_address: felt,
+    certificate_address: felt,
+    policy_manager: felt,
+    proxy_admin: felt,
 ) {
     resources_contract.write(resources_address);
     realms_contract.write(realms_address);
     guild_certificate.write(certificate_address);
-    fee_policy_manager.write(fee_policy_manager);
+    fee_policy_manager.write(policy_manager);
     Proxy.initializer(proxy_admin);
+    return ();
 }
 
 // RESOURCES
@@ -57,7 +58,9 @@ func initial_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check
 ) -> (pre_balance_len: felt, pre_balance: felt*) {
     alloc_locals;
     let (guild_address) = get_caller_address();
-    let (resources_address) = erc1155_contract.read();
+    let (resources_address) = resources_contract.read();
+    let (token_ids) = get_resources();
+    let (owners) = get_owners(guild_address);
     let (pre_balance_len, pre_balance) = IERC1155.balanceOfBatch(
         contract_address=resources_address,
         owners_len=RESOURCES_LENGTH,
@@ -69,14 +72,40 @@ func initial_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check
 }
 
 @external
-func distribute_fee{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    to: felt, selector: felt, calldata_len: felt, calldata: felt*, caller: felt
-) -> (post_balance_len: felt, post_balance: felt*) {
+func fee_distributions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    to: felt,
+    selector: felt,
+    calldata_len: felt,
+    calldata: felt*,
+    pre_balances_len: felt,
+    pre_balances: Uint256*,
+    caller_split: felt,
+    owner_split: felt
+) -> (
+    owner_felt: felt,
+    caller_splits_len: felt,
+    caller_splits: Uint256*,
+    owner_splits_len: felt,
+    owner_splits: Uint256*,
+    token_address: felt,
+    token_ids_len: felt,
+    token_ids: Uint256*,
+    token_standard: felt,
+) {
     alloc_locals;
     let (guild_address) = get_caller_address();
-    let realm_id = calldata[0];
-    let (resources_address) = erc1155_contract.read();
-    let (post_balance_len, post_balance) = IERC1155.balanceOfBatch(
+    let realm_id_low = calldata[0];
+    let realm_id_high = calldata[1];
+    let realm_id = Uint256(
+        realm_id_low,
+        realm_id_high
+    );
+    let (token_ids) = get_resources();
+    let (owners) = get_owners(guild_address);
+    let (resources_address) = resources_contract.read();
+    let (certificate) = guild_certificate.read();
+
+    let (post_balances_len, post_balances) = IERC1155.balanceOfBatch(
         contract_address=resources_address,
         owners_len=RESOURCES_LENGTH,
         owners=owners,
@@ -84,53 +113,67 @@ func distribute_fee{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
         tokens_id=token_ids,
     );
 
-    let (diff_resources: Uint256*) = alloc();
-
-    calculate_diff(post_resources, pre_resources, diff_resources);
-
     let (certificate) = guild_certificate.read();
 
     let (realms) = realms_contract.read();
 
     let (owner) = IGuildCertificate.get_token_owner(
-        guild_certificate, TokenStandard.ERC721, realms, realm_id
+        certificate, TokenStandard.ERC721, realms, realm_id
     );
 
     let (policy_manager) = fee_policy_manager.read();
 
-    let (caller_split, owner_split) = IFeePolicyManager.get_policy_distributions(
-        policy_manager, fee_policy
+    let (caller_resources: Uint256*) = alloc();
+    let (owner_resources: Uint256*) = alloc();
+
+    calculate_splits(
+        RESOURCES_LENGTH,
+        post_balances,
+        pre_balances,
+        caller_split,
+        owner_split,
+        caller_resources,
+        owner_resources,
     );
 
-    IERC1155.safeBatchTransferFrom(
-        contract_address=resources_address,
-        _from=empire_address,
-        to=realm.lord,
-        ids_len=FOOD_LENGTH,
-        ids=token_ids,
-        amounts_len=FOOD_LENGTH,
-        amounts=amounts,
-        data_len=1,
-        data=data,
+    return (
+        owner,
+        RESOURCES_LENGTH,
+        caller_resources,
+        RESOURCES_LENGTH,
+        owner_resources,
+        resources_address,
+        RESOURCES_LENGTH,
+        token_ids,
+        2,
     );
-
-
-    return (owner, RESOURCES_LENGTH, diff_balance);
 }
 
-func calculate_diff{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    post_resources: Uint256*, pre_resources: Uint256*, diff_resources: Uint256*
+func calculate_splits{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    len: felt,
+    post_resources: Uint256*,
+    pre_resources: Uint256*,
+    caller_split: felt,
+    owner_split: felt,
+    caller_resources: Uint256*,
+    owner_resources: Uint256*,
 ) {
     if (len == 0) {
         return ();
     }
     let (diff: Uint256) = SafeUint256.sub_le([post_resources], [pre_resources]);
-    assert [diff_resources] = diff;
-    return calculate_diff(
-        len=len - 1,
-        post_resources=post_resources + Uint256.SIZE,
-        pre_resources=pre_resources + Uint256.SIZE,
-        diff_resources=diff_resources + Uint256.SIZE,
+    let (caller_resource, _) = unsigned_div_rem(caller_split * diff.low, 100);
+    let (owner_resource, _) = unsigned_div_rem(owner_split * diff.low, 100);
+    assert [caller_resources] = Uint256(caller_resource,0);
+    assert [owner_resources] = Uint256(owner_resource,0);
+    return calculate_splits(
+        len,
+        post_resources + Uint256.SIZE,
+        pre_resources + Uint256.SIZE,
+        caller_split,
+        owner_split,
+        caller_resources + Uint256.SIZE,
+        owner_resources + Uint256.SIZE,
     );
 }
 
@@ -144,12 +187,12 @@ func calculate_diff{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 //     Ownable.assert_only_owner();
 //     Modifier.assert_part_of_empire(realm_id=token_id.low);
 
-//     // prepare the call to balanceOfBatch
+// // prepare the call to balanceOfBatch
 //     let (resources_address) = erc1155_contract.read();
 //     let (owners: felt*) = get_owners();
 //     let (token_ids: Uint256*) = get_resources();
 
-//     let (local pre_balance_len, local pre_balance) = IERC1155.balanceOfBatch(
+// let (local pre_balance_len, local pre_balance) = IERC1155.balanceOfBatch(
 //         contract_address=resources_address,
 //         owners_len=RESOURCES_LENGTH,
 //         owners=owners,
@@ -160,11 +203,11 @@ func calculate_diff{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 //         assert pre_balance_len = RESOURCES_LENGTH;
 //     }
 
-//     // claim the resources
+// // claim the resources
 //     let (resource_module_) = resource_module.read();
 //     IResources.claim_resources(contract_address=resource_module_, token_id=token_id);
 
-//     // recall balanceOfBatch to retrieve increase in resources
+// // recall balanceOfBatch to retrieve increase in resources
 //     let (post_balance_len, post_balance) = IERC1155.balanceOfBatch(
 //         contract_address=resources_address,
 //         owners_len=RESOURCES_LENGTH,
@@ -176,7 +219,7 @@ func calculate_diff{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 //         assert pre_balance_len = RESOURCES_LENGTH;
 //     }
 
-//     // calculate the taxable amount of resources
+// // calculate the taxable amount of resources
 //     let (local refund_resources: Uint256*) = alloc();
 //     let (producer_taxes_) = producer_taxes.read();
 //     get_resources_refund(
@@ -187,22 +230,22 @@ func calculate_diff{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 //         tax=producer_taxes_,
 //     );
 
-//     // send excess resources back to user
+// // send excess resources back to user
 //     let (empire_address) = get_contract_address();
 //     let (realm: Realm) = realms.read(token_id.low);
 //     let (data: felt*) = alloc();
 //     assert data[0] = 0;
-//     IERC1155.safeBatchTransferFrom(
-//         contract_address=resources_address,
-//         _from=empire_address,
-//         to=realm.lord,
-//         ids_len=RESOURCES_LENGTH,
-//         ids=token_ids,
-//         amounts_len=RESOURCES_LENGTH,
-//         amounts=refund_resources,
-//         data_len=1,
-//         data=data,
-//     );
+// IERC1155.safeBatchTransferFrom(
+//     contract_address=resources_address,
+//     _from=empire_address,
+//     to=realm.lord,
+//     ids_len=RESOURCES_LENGTH,
+//     ids=token_ids,
+//     amounts_len=RESOURCES_LENGTH,
+//     amounts=refund_resources,
+//     data_len=1,
+//     data=data,
+// );
 //     return ();
 // }
 
@@ -229,12 +272,12 @@ func calculate_diff{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 //         assert defending.annexation_date = 0;
 //     }
 
-//     // prepare the call to balanceOfBatch
+// // prepare the call to balanceOfBatch
 //     let (resources_address) = erc1155_contract.read();
 //     let (owners: felt*) = get_owners();
 //     let (token_ids: Uint256*) = get_resources();
 
-//     let (local pre_balance_len, local pre_balance) = IERC1155.balanceOfBatch(
+// let (local pre_balance_len, local pre_balance) = IERC1155.balanceOfBatch(
 //         contract_address=resources_address,
 //         owners_len=RESOURCES_LENGTH,
 //         owners=owners,
@@ -245,7 +288,7 @@ func calculate_diff{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 //         assert pre_balance_len = RESOURCES_LENGTH;
 //     }
 
-//     let (combat_module_) = combat_module.read();
+// let (combat_module_) = combat_module.read();
 //     let (combat_outcome) = ICombat.initiate_combat(
 //         contract_address=combat_module_,
 //         attacking_army_id=attacking_army_id,
@@ -266,7 +309,7 @@ func calculate_diff{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 //             assert pre_balance_len = RESOURCES_LENGTH;
 //         }
 
-//         // calculate the taxable amount of resources
+// // calculate the taxable amount of resources
 //         let (local refund_resources: Uint256*) = alloc();
 //         let (attacker_taxes_) = attacker_taxes.read();
 //         get_resources_refund(
@@ -277,7 +320,7 @@ func calculate_diff{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 //             tax=attacker_taxes_,
 //         );
 
-//         // send excess resources back to user
+// // send excess resources back to user
 //         let (empire_address) = get_contract_address();
 //         let (realm: Realm) = realms.read(attacking_realm_id.low);
 //         let (data: felt*) = alloc();
@@ -296,4 +339,4 @@ func calculate_diff{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 //         return (combat_outcome=combat_outcome);
 //     }
 //     return (combat_outcome=combat_outcome);
-}
+// }

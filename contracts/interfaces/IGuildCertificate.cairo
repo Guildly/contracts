@@ -57,6 +57,15 @@ namespace IGuildCertificate {
     ){
     }
 
+    func get_token_owner(
+        token_standard: felt, 
+        token: felt, 
+        token_id: Uint256
+    ) -> (
+        owner: felt
+    ){
+    }
+
     func check_token_exists(
             certificate_id: Uint256,
             token_standard: felt,

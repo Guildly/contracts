@@ -797,6 +797,9 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
 ) -> (response_len: felt) {
     alloc_locals;
 
+    let (contract_address) = get_contract_address();
+    let (caller) = get_caller_address();
+
     // if no more calls
     if (calls_len == 0) {
         return (0,);
@@ -813,18 +816,15 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
         controller, ModuleIds.FeePolicyManager
     );
 
-    // Check if fee policy exists
     let (fee_policy) = IFeePolicyManager.get_fee_policy(
-        fee_policy_manager, this_call.to, this_call.selector
+        fee_policy_manager, contract_address, this_call.to, this_call.selector
     );
 
-    let check_policy = is_not_zero(fee_policy);
+    let check_not_zero = is_not_zero(fee_policy);
 
-    if (check_policy == TRUE) {
-        let (pre_balance_len, pre_balance) = IFeePolicy.initial_balance(
-            fee_policy,
-            this_call.to,
-            this_call.selector,
+    if (check_not_zero == TRUE) {
+        let (pre_balances_len, pre_balances) = IFeePolicy.initial_balance(
+            fee_policy, this_call.to, this_call.selector
         );
 
         let res = call_contract(
@@ -834,19 +834,59 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             calldata=this_call.calldata,
         );
 
-        let (owner, post_balance_len, post_balance) = IFeePolicy.final_balance(
+        let (caller_split, owner_split) = IFeePolicyManager.get_policy_distribution(
+            fee_policy_manager, contract_address, fee_policy
+        );
+
+        let (
+            owner, _, caller_amounts, _, owner_amounts, token_address, _, token_ids, token_standard
+        ) = IFeePolicy.fee_distributions(
             fee_policy,
             this_call.to,
             this_call.selector,
             this_call.calldata_len,
             this_call.calldata,
+            pre_balances_len,
+            pre_balances,
+            caller_split,
+            owner_split,
         );
 
-        IFeePolicyManager.distribute_fee(
-            fee_policy_manager,
-            this_call.to,
-            this_call
-        );
+        let (data: felt*) = alloc();
+
+        if (token_standard == 2) {
+            IERC1155.safeBatchTransferFrom(
+                contract_address=token_address,
+                from_=contract_address,
+                to=caller,
+                ids_len=pre_balances_len,
+                ids=token_ids,
+                amounts_len=pre_balances_len,
+                amounts=caller_amounts,
+                data_len=1,
+                data=data,
+            );
+
+            IERC1155.safeBatchTransferFrom(
+                contract_address=token_address,
+                from_=contract_address,
+                to=owner,
+                ids_len=pre_balances_len,
+                ids=token_ids,
+                amounts_len=pre_balances_len,
+                amounts=owner_amounts,
+                data_len=1,
+                data=data,
+            );
+
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        } else {
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        }
 
         tempvar syscall_ptr: felt* = syscall_ptr;
         tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
@@ -912,6 +952,22 @@ func set_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check
     let (caller) = get_caller_address();
 
     PermissionsSet.emit(account=caller, permissions_len=permissions_len, permissions=permissions);
+    return ();
+}
+
+@external
+func set_fee_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    fee_policy: felt, caller_split: felt, owner_split: felt
+) {
+    alloc_locals;
+    let (controller) = Module.controller_address();
+
+    let (fee_policy_manager) = IModuleController.get_module_address(
+        controller, ModuleIds.FeePolicyManager
+    );
+
+    IFeePolicyManager.set_fee_policy(fee_policy_manager, fee_policy, caller_split, owner_split);
+
     return ();
 }
 

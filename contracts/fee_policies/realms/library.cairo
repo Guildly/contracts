@@ -1,9 +1,65 @@
 %lang starknet
 
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.registers import get_label_location
+from starkware.cairo.common.uint256 import Uint256
 
-func get_owners{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
-    address: felt, owners: felt*
+func get_resources{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    resources: Uint256*
+) {
+    let (RESOURCES_ARR) = get_label_location(resource_start);
+    return (resources=cast(RESOURCES_ARR, Uint256*));
+
+    resource_start:
+    dw 1;
+    dw 0;
+    dw 2;
+    dw 0;
+    dw 3;
+    dw 0;
+    dw 4;
+    dw 0;
+    dw 5;
+    dw 0;
+    dw 6;
+    dw 0;
+    dw 7;
+    dw 0;
+    dw 8;
+    dw 0;
+    dw 9;
+    dw 0;
+    dw 10;
+    dw 0;
+    dw 11;
+    dw 0;
+    dw 12;
+    dw 0;
+    dw 13;
+    dw 0;
+    dw 14;
+    dw 0;
+    dw 15;
+    dw 0;
+    dw 16;
+    dw 0;
+    dw 17;
+    dw 0;
+    dw 18;
+    dw 0;
+    dw 19;
+    dw 0;
+    dw 20;
+    dw 0;
+    dw 21;
+    dw 0;
+    dw 22;
+    dw 0;
+}
+
+func get_owners{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(address: felt) -> (
+    owners: felt*
 ) {
     let (owners: felt*) = alloc();
     assert [owners] = address;

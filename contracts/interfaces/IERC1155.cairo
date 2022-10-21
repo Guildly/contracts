@@ -12,6 +12,11 @@ namespace IERC1155 {
     func balanceOf(owner: felt) -> (balance: Uint256) {
     }
 
+    func balanceOfBatch(
+        owners_len: felt, owners: felt*, tokens_id_len: felt, tokens_id: Uint256*
+    ) -> (balance_len: felt, balance: Uint256*) {
+    }
+
     func ownerOf(tokenId: Uint256) -> (owner: felt) {
     }
 

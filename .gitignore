@@ -32,3 +32,4 @@ venv
 
 # helper scripts
 /scripts
+contracts/settling_game

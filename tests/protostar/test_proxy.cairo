@@ -6,5 +6,5 @@ from starkware.starknet.common.syscalls import get_caller_address
 
 @external
 func __setup__{syscall_ptr: felt*, range_check_ptr}() {
-
+    
 }
