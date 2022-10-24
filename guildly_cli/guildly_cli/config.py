@@ -58,11 +58,9 @@ class Config:
         self.CERTIFICATE_PROXY, _ = safe_load_deployment(
             "proxy_Certificate", self.nile_network
         )
-
         self.PROXY_CLASS_HASH = safe_load_declarations(
             "proxy", self.nile_network
         )
-
         self.GUILD_CLASS_HASH = safe_load_declarations(
             "guild_contract", self.nile_network
         )

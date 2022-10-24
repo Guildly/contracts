@@ -61,8 +61,8 @@ def run(nre):
         contract_alias="proxy_GuildManager",
         function="initializer", 
         arguments=[
-            config.PROXY_CLASS_HASH,
-            config.GUILD_CLASS_HASH,
+            proxy_class_hash,
+            guild_contract_class_hash,
             config.USER_ADDRESS
         ]
     )
@@ -75,7 +75,7 @@ def run(nre):
         arguments=[
             str(str_to_felt("Guild Certificate")),
             str(str_to_felt("GC")),
-            config.GUILD_MANAGER_PROXY,
+            guild_proxy_manager_address,
             config.USER_ADDRESS
         ],
     )

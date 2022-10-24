@@ -212,7 +212,7 @@ def wrapped_declare(account, contract_name, network, alias):
         max_fee=80999285161067,
     )
 
-    class_hash = declare(sender='0x066140dAA17d1A0112390b87276d143e4851bbF9E92c43A84Dc507637EFD7b62', contract_name=alias, signature=[
+    class_hash = declare(sender='0x0663e6fc400fbea93ff4fa2600467439a062eead9bce37833fdfe8df6b7b2825', contract_name=alias, signature=[
                          sig_r, sig_s], alias=alias, network=network, max_fee=80999285161067)
     return class_hash
 
