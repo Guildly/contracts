@@ -247,31 +247,6 @@ async def contract_factory():
         [signer1],
     )
 
-    resources_policy_proxy = await starknet.deploy(
-        source=PROXY,
-        cairo_path=CAIRO_PATH,
-        constructor_calldata=[
-            resources_policy_class_hash.class_hash
-        ]
-    )
-
-    await sender.send_transaction(
-        [
-            (
-                resources_policy_proxy.contract_address,
-                "initializer",
-                [
-                    1, # resources address
-                    1, # realms_address
-                    guild_certificate_proxy.contract_address,
-                    fee_policy_manager_proxy.contract_address,
-                    account1.contract_address,
-                ],
-            )
-        ],
-        [signer1],
-    )
-
     execution_info = await sender.send_transaction(
         [
             (
@@ -730,6 +705,31 @@ async def contract_factory():
         [signer1],
     )
 
+    resources_policy_proxy = await starknet.deploy(
+        source=PROXY,
+        cairo_path=CAIRO_PATH,
+        constructor_calldata=[
+            resources_policy_class_hash.class_hash
+        ]
+    )
+
+    await sender.send_transaction(
+        [
+            (
+                resources_policy_proxy.contract_address,
+                "initializer",
+                [
+                    resources_token_proxy.contract_address, # resources address
+                    realms_proxy.contract_address, # realms_address
+                    guild_certificate_proxy.contract_address,
+                    fee_policy_manager_proxy.contract_address,
+                    account1.contract_address,
+                ],
+            )
+        ],
+        [signer1],
+    )
+
     return (
         starknet,
         account1,
@@ -935,9 +935,11 @@ async def test_claim_resources(contract_factory):
 
     owners_1 = []
     owners_2 = []
+    owners_guild = []
     for _ in range(22):
         owners_1.append(account1.contract_address)
         owners_2.append(account2.contract_address)
+        owners_guild.append(guild_proxy.contract_address)
 
     execution_info = await sender1.send_transaction(
         [
@@ -1017,6 +1019,47 @@ async def test_claim_resources(contract_factory):
             )
         ],
         [signer2]
+    )
+
+    print(execution_info.call_info.retdata)
+
+    execution_info = await sender1.send_transaction(
+        [
+            (
+                resources_token_proxy.contract_address,
+                "balanceOfBatch",
+                [
+                    22,
+                    *owners_guild,
+                    22,
+                    *[
+                        *to_uint(1),
+                        *to_uint(2),
+                        *to_uint(3),
+                        *to_uint(4),
+                        *to_uint(5),
+                        *to_uint(6),
+                        *to_uint(7),
+                        *to_uint(8),
+                        *to_uint(9),
+                        *to_uint(10),
+                        *to_uint(11),
+                        *to_uint(12),
+                        *to_uint(13),
+                        *to_uint(14),
+                        *to_uint(15),
+                        *to_uint(16),
+                        *to_uint(17),
+                        *to_uint(18),
+                        *to_uint(19),
+                        *to_uint(20),
+                        *to_uint(21),
+                        *to_uint(22),
+                    ],
+                ],
+            )
+        ],
+        [signer1]
     )
 
     print(execution_info.call_info.retdata)

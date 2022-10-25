@@ -71,7 +71,7 @@ func initial_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check
     return (pre_balance_len, pre_balance);
 }
 
-@external
+@view
 func fee_distributions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     to: felt,
     selector: felt,
