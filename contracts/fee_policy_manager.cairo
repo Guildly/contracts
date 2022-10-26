@@ -77,6 +77,11 @@ func add_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
 ) {
     // TODO: check only arbiter/ module controller
     // Module.only_approved();
+    // TODO: check policy already added
+    // let (stored_policy) = 
+    // with_attr error_message("Fee Policy Manager: Policy already added.") {
+    //     assert_not_equal(policy
+    // }
     let policy_target = PolicyTarget(to, selector);
     fee_policy.write(policy, policy_target);
     return ();

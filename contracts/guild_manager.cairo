@@ -90,7 +90,7 @@ func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 //
 
 @external
-func deploy_guild_proxy_contract{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+func deploy_guild{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     name: felt, guild_certificate: felt
 ) -> (contract_address: felt) {
     let (current_salt) = salt.read();

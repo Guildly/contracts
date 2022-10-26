@@ -14,7 +14,7 @@ namespace IFeePolicy {
         calldata_len: felt,
         calldata: felt*,
         pre_balances_len: felt,
-        pre_balances: felt*,
+        pre_balances: Uint256*,
         caller_split: felt,
         owner_split: felt
     ) -> (

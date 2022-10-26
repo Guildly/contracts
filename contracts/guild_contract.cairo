@@ -823,7 +823,7 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     let check_not_zero = is_not_zero(fee_policy);
 
     if (check_not_zero == TRUE) {
-        let (pre_balances_len, pre_balances) = IFeePolicy.initial_balance(
+        let (pre_balances_len, pre_balances: Uint256*) = IFeePolicy.initial_balance(
             fee_policy, this_call.to, this_call.selector
         );
 
@@ -839,7 +839,15 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
         );
 
         let (
-            owner, _, caller_amounts, _, owner_amounts, token_address, _, token_ids, token_standard
+            owner,
+            _,
+            caller_amounts: Uint256*,
+            _,
+            owner_amounts: Uint256*,
+            token_address,
+            _,
+            token_ids: Uint256*,
+            token_standard,
         ) = IFeePolicy.fee_distributions(
             fee_policy,
             this_call.to,

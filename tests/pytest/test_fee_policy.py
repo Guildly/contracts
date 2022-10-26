@@ -251,7 +251,7 @@ async def contract_factory():
         [
             (
                 guild_manager_proxy.contract_address,
-                "deploy_guild_proxy_contract",
+                "deploy_guild",
                 [str_to_felt("Test Guild"), guild_certificate_proxy.contract_address],
             )
         ],
@@ -826,7 +826,7 @@ async def test_fee_policy(contract_factory):
             (
                 fee_policy_manager_proxy.contract_address,
                 "add_policy",
-                [1, 1, get_selector_from_name("claim_resources")],
+                [resources_policy_proxy.contract_address, resources_proxy.contract_address, get_selector_from_name("claim_resources")],
             )
         ],
         [signer1]
@@ -837,7 +837,7 @@ async def test_fee_policy(contract_factory):
             (
                 guild_proxy.contract_address,
                 "set_fee_policy",
-                [1, 50, 50]
+                [resources_policy_proxy.contract_address, 50, 50]
             )
         ],
         [signer1]
