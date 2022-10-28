@@ -52,11 +52,11 @@ class Config:
             "account-0", self.nile_network)
 
         self.GUILD_MANAGER_PROXY, _ = safe_load_deployment(
-            "proxy_GuildManager", self.nile_network
+            self.Guild_alias, self.nile_network
         )
 
         self.CERTIFICATE_PROXY, _ = safe_load_deployment(
-            "proxy_Certificate", self.nile_network
+            self.Certificate_alias, self.nile_network
         )
         self.PROXY_CLASS_HASH = safe_load_declarations(
             "proxy", self.nile_network
