@@ -28,7 +28,7 @@ namespace GuildManager {
         guild_proxy_class_hash_: felt, guild_class_hash_: felt, controller: felt, proxy_admin: felt
     ) {
     }
-    func deploy_guild_proxy_contract(name: felt, certificate_address: felt) {
+    func deploy_guild(name: felt, certificate_address: felt) -> (contract_address: felt) {
     }
 }
 

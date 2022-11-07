@@ -29,6 +29,7 @@ from contracts.lib.module import Module
 from contracts.lib.role import GuildRoles
 from contracts.lib.token_standard import TokenStandard
 from contracts.lib.math_utils import MathUtils
+from contracts.lib.policy_calculator import PolicyCalculator
 from contracts.utils.guild_structs import ModuleIds
 from contracts.utils.helpers import find_value
 
@@ -799,6 +800,7 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
 
     let (contract_address) = get_contract_address();
     let (caller) = get_caller_address();
+    let (guild_certificate) = _guild_certificate.read();
 
     // if no more calls
     if (calls_len == 0) {
@@ -823,8 +825,20 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     let check_not_zero = is_not_zero(fee_policy);
 
     if (check_not_zero == TRUE) {
-        let (pre_balances_len, pre_balances: Uint256*) = IFeePolicy.initial_balance(
-            fee_policy, this_call.to, this_call.selector
+        let (
+            used_token: felt,
+            used_token_id: Uint256,
+            used_token_standard: felt,
+            accrued_token: felt,
+            accrued_token_ids_len: felt,
+            accrued_token_ids: Uint256*,
+            accrued_token_standard: felt,
+        ) = IFeePolicy.get_tokens(
+            fee_policy, this_call.to, this_call.selector, this_call.calldata_len, this_call.calldata
+        );
+
+        let (pre_balances_len, pre_balances: Uint256*) = PolicyCalculator.get_balances(
+            accrued_token, accrued_token_ids_len, accrued_token_ids
         );
 
         let res = call_contract(
@@ -838,51 +852,72 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             fee_policy_manager, contract_address, fee_policy
         );
 
-        let (
-            owner,
-            _,
-            caller_amounts: Uint256*,
-            _,
-            owner_amounts: Uint256*,
-            token_address,
-            _,
-            token_ids: Uint256*,
-            token_standard,
-        ) = IFeePolicy.fee_distributions(
-            fee_policy,
-            this_call.to,
-            this_call.selector,
-            this_call.calldata_len,
-            this_call.calldata,
+        let (post_balances_len, post_balances: Uint256*) = PolicyCalculator.get_balances(
+            accrued_token, accrued_token_ids_len, accrued_token_ids
+        );
+
+        with_attr error_message("Guild Contract: Policy balances do not match") {
+            assert pre_balances_len = post_balances_len;
+        }
+
+        let (owner) = IGuildCertificate.get_token_owner(
+            guild_certificate, used_token_standard, used_token, used_token_id
+        );
+
+        let (caller_balances: Uint256*) = alloc();
+        let (owner_balances: Uint256*) = alloc();
+        let (admin_balances: Uint256*) = alloc();
+
+        let admin_split = 0;
+
+        PolicyCalculator.calculate_splits(
             pre_balances_len,
             pre_balances,
+            post_balances,
             caller_split,
             owner_split,
+            admin_split,
+            caller_balances,
+            owner_balances,
+            admin_balances,
         );
 
         let (data: felt*) = alloc();
+        assert data[0] = 1;
 
-        if (token_standard == 2) {
+        if (accrued_token_standard == 2) {
             IERC1155.safeBatchTransferFrom(
-                contract_address=token_address,
+                contract_address=accrued_token,
                 from_=contract_address,
                 to=caller,
                 ids_len=pre_balances_len,
-                ids=token_ids,
+                ids=accrued_token_ids,
                 amounts_len=pre_balances_len,
-                amounts=caller_amounts,
+                amounts=caller_balances,
                 data_len=1,
                 data=data,
             );
 
             IERC1155.safeBatchTransferFrom(
-                contract_address=token_address,
+                contract_address=accrued_token,
                 from_=contract_address,
                 to=owner,
                 ids_len=pre_balances_len,
-                ids=token_ids,
+                ids=accrued_token_ids,
                 amounts_len=pre_balances_len,
-                amounts=owner_amounts,
+                amounts=owner_balances,
+                data_len=1,
+                data=data,
+            );
+
+            IERC1155.safeBatchTransferFrom(
+                contract_address=accrued_token,
+                from_=contract_address,
+                to=caller,
+                ids_len=pre_balances_len,
+                ids=accrued_token_ids,
+                amounts_len=pre_balances_len,
+                amounts=admin_balances,
                 data_len=1,
                 data=data,
             );

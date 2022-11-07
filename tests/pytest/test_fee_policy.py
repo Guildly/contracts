@@ -67,17 +67,17 @@ def event_loop():
 async def contract_factory():
     starknet = await Starknet.empty()
     account1 = await starknet.deploy(
-        "openzeppelin/account/presets/Account.cairo",
+        "contracts/safe_account.cairo",
         cairo_path=CAIRO_PATH,
         constructor_calldata=[signer1.public_key],
     )
     account2 = await starknet.deploy(
-        "openzeppelin/account/presets/Account.cairo",
+        "contracts/safe_account.cairo",
         cairo_path=CAIRO_PATH,
         constructor_calldata=[signer2.public_key],
     )
     account3 = await starknet.deploy(
-        "openzeppelin/account/presets/Account.cairo",
+        "contracts/safe_account.cairo",
         cairo_path=CAIRO_PATH,
         constructor_calldata=[signer3.public_key],
     )
@@ -103,10 +103,6 @@ async def contract_factory():
     )
     fee_policy_manager_class_hash = await starknet.declare(
         source=FEE_POLICY_MANAGER,
-        cairo_path=CAIRO_PATH
-    )
-    resources_policy_class_hash = await starknet.declare(
-        source=RESOURCES_FEE_POLICY,
         cairo_path=CAIRO_PATH
     )
 
@@ -705,29 +701,13 @@ async def contract_factory():
         [signer1],
     )
 
-    resources_policy_proxy = await starknet.deploy(
-        source=PROXY,
+    resources_policy = await starknet.deploy(
+        source=RESOURCES_FEE_POLICY,
         cairo_path=CAIRO_PATH,
         constructor_calldata=[
-            resources_policy_class_hash.class_hash
+            resources_token_proxy.contract_address,
+            realms_proxy.contract_address
         ]
-    )
-
-    await sender.send_transaction(
-        [
-            (
-                resources_policy_proxy.contract_address,
-                "initializer",
-                [
-                    resources_token_proxy.contract_address, # resources address
-                    realms_proxy.contract_address, # realms_address
-                    guild_certificate_proxy.contract_address,
-                    fee_policy_manager_proxy.contract_address,
-                    account1.contract_address,
-                ],
-            )
-        ],
-        [signer1],
     )
 
     return (
@@ -740,7 +720,7 @@ async def contract_factory():
         guild_proxy,
         module_controller_proxy,
         fee_policy_manager_proxy,
-        resources_policy_proxy,
+        resources_policy,
         realms_proxy,
         s_realms_proxy,
         resources_token_proxy,
@@ -762,7 +742,7 @@ async def test_adding_members(contract_factory):
         guild_proxy,
         module_controller_proxy,
         fee_policy_manager_proxy,
-        resources_policy_proxy,
+        resources_policy,
         realms_proxy,
         s_realms_proxy,
         resources_token_proxy,
@@ -810,7 +790,7 @@ async def test_fee_policy(contract_factory):
         guild_proxy,
         module_controller_proxy,
         fee_policy_manager_proxy,
-        resources_policy_proxy,
+        resources_policy,
         realms_proxy,
         s_realms_proxy,
         resources_token_proxy,
@@ -826,7 +806,7 @@ async def test_fee_policy(contract_factory):
             (
                 fee_policy_manager_proxy.contract_address,
                 "add_policy",
-                [resources_policy_proxy.contract_address, resources_proxy.contract_address, get_selector_from_name("claim_resources")],
+                [resources_policy.contract_address, resources_proxy.contract_address, get_selector_from_name("claim_resources")],
             )
         ],
         [signer1]
@@ -837,7 +817,7 @@ async def test_fee_policy(contract_factory):
             (
                 guild_proxy.contract_address,
                 "set_fee_policy",
-                [resources_policy_proxy.contract_address, 50, 50]
+                [resources_policy.contract_address, 50, 50]
             )
         ],
         [signer1]
@@ -856,7 +836,7 @@ async def test_claim_resources(contract_factory):
         guild_proxy,
         module_controller_proxy,
         fee_policy_manager_proxy,
-        resources_policy_proxy,
+        resources_policy,
         realms_proxy,
         s_realms_proxy,
         resources_token_proxy,

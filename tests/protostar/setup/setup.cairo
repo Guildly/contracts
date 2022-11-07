@@ -4,6 +4,15 @@ from tests.protostar.setup.interfaces import Controller, GuildManager, Certifica
 
 from contracts.utils.guild_structs import ModuleIds
 
+from contracts.token.constants import (
+    IERC1155_ID,
+    IERC1155_METADATA_ID,
+    IERC1155_RECEIVER_ID,
+    IACCOUNT_ID,
+    ON_ERC1155_RECEIVED_SELECTOR,
+    ON_ERC1155_BATCH_RECEIVED_SELECTOR,
+)
+
 struct Contracts {
     account1: felt,
     account2: felt,
@@ -13,7 +22,6 @@ struct Contracts {
     guild_manager: felt,
     certificate: felt,
     policy_manager: felt,
-    guild: felt,
 }
 
 const PK1 = 11111;
@@ -25,35 +33,40 @@ const CERTIFICATE_SYMBOL = 'GC';
 
 const GUILD_NAME = 'Test Guild';
 
-@external
 func deploy_all{syscall_ptr: felt*, range_check_ptr}() -> Contracts {
+    alloc_locals;
     tempvar contracts: Contracts;
+    local proxy_class_hash;
+    local guild_class_hash;
     %{
         ids.contracts.account1 = deploy_contract("./lib/cairo_contracts/src/openzeppelin/account/presets/Account.cairo", 
             [ids.PK1]
         ).contract_address
-        mock_start = mock_call(ids.account_address, 'supportsInterface', [1])
-        mock_start = mock_call(ids.account_address, 'onERC1155BatchReceived', [ids.ON_ERC1155_BATCH_RECEIVED_SELECTOR])
+        mock_start = mock_call(ids.contracts.account1, 'supportsInterface', [1])
+        mock_start = mock_call(ids.contracts.account1, 'onERC1155BatchReceived', [ids.ON_ERC1155_BATCH_RECEIVED_SELECTOR])
 
         ids.contracts.account2 = deploy_contract("./lib/cairo_contracts/src/openzeppelin/account/presets/Account.cairo", 
             [ids.PK2]
         ).contract_address
-        mock_start = mock_call(ids.account_address, 'supportsInterface', [1])
-        mock_start = mock_call(ids.account_address, 'onERC1155BatchReceived', [ids.ON_ERC1155_BATCH_RECEIVED_SELECTOR])
+        mock_start = mock_call(contracts.account1, 'supportsInterface', [1])
+        mock_start = mock_call(contracts.account1, 'onERC1155BatchReceived', [ids.ON_ERC1155_BATCH_RECEIVED_SELECTOR])
 
         ids.contracts.account3 = deploy_contract("./lib/cairo_contracts/src/openzeppelin/account/presets/Account.cairo", 
             [ids.PK3]
         ).contract_address
-        mock_start = mock_call(ids.account_address, 'supportsInterface', [1])
-        mock_start = mock_call(ids.account_address, 'onERC1155BatchReceived', [ids.ON_ERC1155_BATCH_RECEIVED_SELECTOR])
+        mock_start = mock_call(contracts.account1, 'supportsInterface', [1])
+        mock_start = mock_call(contracts.account1, 'onERC1155BatchReceived', [ids.ON_ERC1155_BATCH_RECEIVED_SELECTOR])
 
         declared = declare("./contracts/ModuleController.cairo")
         ids.contracts.controller = deploy_contract("./contracts/proxy.cairo", 
             [declared.class_hash]
         ).contract_address
 
-        ids.guild_contract = declare("./contracts/guild_contract.cairo")
-        ids.proxy_contract = declare("./contracts/proxy.cairo")
+        declared = declare("./contracts/guild_contract.cairo")
+        ids.guild_class_hash = declared.class_hash
+
+        declared = declare("./contracts/proxy.cairo")
+        ids.proxy_class_hash = declared.class_hash
 
         declared = declare("./contracts/guild_manager.cairo")
         ids.contracts.guild_manager = deploy_contract("./contracts/proxy.cairo", 
@@ -71,16 +84,16 @@ func deploy_all{syscall_ptr: felt*, range_check_ptr}() -> Contracts {
         ).contract_address
     %}
     Controller.initializer(contracts.controller, contracts.account1, contracts.account1);
-    GuildManager.initializer(contracts.guild_manager, proxy_contract.class_hash, guild_contract.class_hash, contracts.controller, contracts.account1);
+    GuildManager.initializer(contracts.guild_manager, proxy_class_hash, guild_class_hash, contracts.controller, contracts.account1);
     Certificate.initializer(contracts.certificate, CERTIFICATE_NAME, CERTIFICATE_SYMBOL, contracts.guild_manager, contracts.account1);
     PolicyManager.initializer(contracts.policy_manager, contracts.controller, contracts.account1);
     Controller.set_address_for_module_id(contracts.controller, ModuleIds.FeePolicyManager, contracts.policy_manager);
     %{
         stop_prank = start_prank(ids.contracts.account1, ids.contracts.guild_manager)
     %}
-    let (guild_address) = GuildManager.deploy_guild(contracts.guild_manager, GUILD_NAME, contracts.certificate);
-    contracts.guild = guild_address;
+    let (local guild_address) = GuildManager.deploy_guild(contracts.guild_manager, GUILD_NAME, contracts.certificate);
     %{
+        ids.contracts.guild = ids.guild_address
         stop_prank()
     %}
     return contracts;

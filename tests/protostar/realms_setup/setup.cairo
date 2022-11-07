@@ -16,71 +16,21 @@ from contracts.token.constants import (
     ON_ERC1155_BATCH_RECEIVED_SELECTOR,
 )
 
-@contract_interface
-namespace Controller {
-    func initializer(arbiter: felt, proxy_admin: felt) {
-    }
-}
-
-@contract_interface
-namespace Module {
-    func initializer(controller_address: felt, proxy_admin: felt) {
-    }
-}
-
-@contract_interface
-namespace Crypts {
-    func initializer(name: felt, symbol: felt, proxy_admin: felt) {
-    }
-}
-
-@contract_interface
-namespace Lords {
-    func initializer(
-        name: felt,
-        symbol: felt,
-        decimals: felt,
-        initial_supply: Uint256,
-        recipient: felt,
-        proxy_admin: felt,
-    ) {
-    }
-}
-
-@contract_interface
-namespace Realms {
-    func initializer(name: felt, symbol: felt, proxy_admin: felt) {
-    }
-}
-
-@contract_interface
-namespace ResourcesToken {
-    func initializer(uri: felt, proxy_admin: felt, controller_address: felt) {
-    }
-}
-
-@contract_interface
-namespace S_Crypts {
-    func initializer(name: felt, symbol: felt, proxy_admin: felt) {
-    }
-}
-
-@contract_interface
-namespace S_Realms {
-    func initializer(name: felt, symbol: felt, proxy_admin: felt, controller_address: felt) {
-    }
-}
+from tests.protostar.realms_setup.interfaces import (
+    Controller,
+    Module,
+    Lords,
+    Realms,
+    S_Realms,
+    Crypts,
+    S_Crypts,
+    ResourcesToken
+)
 
 const E18 = 10 ** 18;
 
 const ERC721_NAME = 0x4e6f47616d6520;
 const ERC721_SYMBOL = 0x4f474d302e31;
-
-const URI_LEN = 1;
-const URI = 10101010;
-
-const PK = 11111;
-const PK2 = 22222;
 
 struct Contracts {
     Settling: felt,
@@ -90,7 +40,7 @@ struct Contracts {
     L06_Combat: felt,
     L07_Crypts: felt,
     L08_Crypts_Resources: felt,
-    L09_Relics: felt,
+    Relics: felt,
     L10_Food: felt,
     GoblinTown: felt,
     Travel: felt,
@@ -102,6 +52,9 @@ struct Contracts {
     S_Realms_Token: felt,
 }
 
+// @notice Deploy account
+// @param public_key: Public key of the account calling
+// @return account_address: Address of the deployed account
 func deploy_account{syscall_ptr: felt*, range_check_ptr}(private_key: felt) -> (account_address: felt) {
     alloc_locals;
     local account_address;
@@ -115,6 +68,10 @@ func deploy_account{syscall_ptr: felt*, range_check_ptr}(private_key: felt) -> (
     return (account_address,);
 }
 
+// @notice Deploy module controller
+// @param arbiter: Account mainatining controller
+// @param proxy_admin: Account maintaining upgrades
+// @return controller_address: Address of the deployed module controller
 func deploy_controller{syscall_ptr: felt*, range_check_ptr}(arbiter: felt, proxy_admin: felt) -> (controller_address: felt) {
     alloc_locals;
 
@@ -122,9 +79,9 @@ func deploy_controller{syscall_ptr: felt*, range_check_ptr}(arbiter: felt, proxy
     local controller_address;
 
     %{
-        declared = declare("./lib/realms_contracts_git/contracts/settling_game/ModuleController.cairo")
+        declared = declare("./contracts/settling_game/ModuleController.cairo")
         ids.controller_class_hash = declared.class_hash
-        ids.controller_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+        ids.controller_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
             [ids.controller_class_hash]
         ).contract_address
     %}
@@ -132,6 +89,11 @@ func deploy_controller{syscall_ptr: felt*, range_check_ptr}(arbiter: felt, proxy
     return (controller_address,);
 }
 
+// @notice Deploy module
+// @param module_id: Id of the module to deploy
+// @param controller_address: Address of the deployed module controller
+// @param proxy_admin: Account maintaining module upgrades
+// @return module_address: Address of the deployed module
 func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     module_id: felt, controller_address: felt, proxy_admin: felt
 ) -> (module_address: felt) {
@@ -142,9 +104,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
 
     if (module_id == ModuleIds.Settling) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/settling/Settling.cairo")
+            declared = declare("./contracts/settling_game/modules/settling/Settling.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -162,9 +124,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.Resources) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/resources/Resources.cairo")
+            declared = declare("./contracts/settling_game/modules/resources/Resources.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -184,9 +146,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.Buildings) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/buildings/Buildings.cairo")
+            declared = declare("./contracts/settling_game/modules/buildings/Buildings.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -195,6 +157,7 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
         IModuleController.set_address_for_module_id(controller_address, ModuleIds.Buildings, proxy_address);
         IModuleController.set_write_access(controller_address, ModuleIds.Buildings, ModuleIds.Realms_Token);
         IModuleController.set_write_access(controller_address, ModuleIds.Buildings, ModuleIds.L10_Food);
+        IModuleController.set_write_access(controller_address, ModuleIds.Buildings, ModuleIds.Resources_Token);
         %{
             stop_prank()
         %}
@@ -202,9 +165,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.Calculator) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/calculator/Calculator.cairo")
+            declared = declare("./contracts/settling_game/modules/calculator/Calculator.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -221,9 +184,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.L06_Combat) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/combat/Combat.cairo")
+            declared = declare("./contracts/settling_game/modules/combat/Combat.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -232,7 +195,7 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
         IModuleController.set_address_for_module_id(controller_address, ModuleIds.L06_Combat, proxy_address);
         IModuleController.set_write_access(controller_address, ModuleIds.L06_Combat, ModuleIds.GoblinTown);
         IModuleController.set_write_access(controller_address, ModuleIds.L06_Combat, ModuleIds.L10_Food);
-        IModuleController.set_write_access(controller_address, ModuleIds.L06_Combat, ModuleIds.L09_Relics);
+        IModuleController.set_write_access(controller_address, ModuleIds.L06_Combat, ModuleIds.Relics);
         IModuleController.set_write_access(controller_address, ModuleIds.L06_Combat, ModuleIds.Travel);
         IModuleController.set_write_access(controller_address, ModuleIds.L06_Combat, ModuleIds.Resources);
         IModuleController.set_write_access(controller_address, ModuleIds.L06_Combat, ModuleIds.Buildings);
@@ -244,9 +207,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.L07_Crypts) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/crypts/L07_Crypts.cairo")
+            declared = declare("./contracts/settling_game/modules/crypts/L07_Crypts.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -261,9 +224,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.L08_Crypts_Resources) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/crypts/L08_Crypts_Resources.cairo")
+            declared = declare("./contracts/settling_game/modules/crypts/L08_Crypts_Resources.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -276,18 +239,18 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
         %}
         return (proxy_address,);
     }
-    if (module_id == ModuleIds.L09_Relics) {
+    if (module_id == ModuleIds.Relics) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/relics/Relics.cairo")
+            declared = declare("./contracts/settling_game/modules/relics/Relics.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
         %}
         Module.initializer(proxy_address, controller_address, proxy_admin);
-        IModuleController.set_address_for_module_id(controller_address, ModuleIds.L09_Relics, proxy_address);
-        IModuleController.set_write_access(controller_address, ModuleIds.L09_Relics, ModuleIds.Realms_Token);
+        IModuleController.set_address_for_module_id(controller_address, ModuleIds.Relics, proxy_address);
+        IModuleController.set_write_access(controller_address, ModuleIds.Relics, ModuleIds.Realms_Token);
         %{
             stop_prank()
         %}
@@ -295,9 +258,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.L10_Food) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/food/Food.cairo")
+            declared = declare("./contracts/settling_game/modules/food/Food.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -316,9 +279,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.GoblinTown) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/goblintown/GoblinTown.cairo")
+            declared = declare("./contracts/settling_game/modules/goblintown/GoblinTown.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -333,9 +296,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.Travel) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/modules/travel/Travel.cairo")
+            declared = declare("./contracts/settling_game/modules/travel/Travel.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -349,9 +312,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.Crypts_Token) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/tokens/Crypts_ERC721_Mintable.cairo")
+            declared = declare("./contracts/settling_game/tokens/Crypts_ERC721_Mintable.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -366,9 +329,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.Lords_Token) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/tokens/Lords_ERC20_Mintable.cairo")
+            declared = declare("./contracts/settling_game/tokens/Lords_ERC20_Mintable.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -383,9 +346,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.Realms_Token) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/tokens/Realms_ERC721_Mintable.cairo")
+            declared = declare("./contracts/settling_game/tokens/Realms_ERC721_Mintable.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -400,9 +363,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.Resources_Token) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/tokens/Resources_ERC1155_Mintable_Burnable.cairo")
+            declared = declare("./contracts/settling_game/tokens/Resources_ERC1155_Mintable_Burnable.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -417,9 +380,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.S_Crypts_Token) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/tokens/S_Crypts_ERC721_Mintable.cairo")
+            declared = declare("./contracts/settling_game/tokens/S_Crypts_ERC721_Mintable.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -434,9 +397,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     }
     if (module_id == ModuleIds.S_Realms_Token) {
         %{
-            declared = declare("./lib/realms_contracts_git/contracts/settling_game/tokens/S_Realms_ERC721_Mintable.cairo")
+            declared = declare("./contracts/settling_game/tokens/S_Realms_ERC721_Mintable.cairo")
             ids.module_class_hash = declared.class_hash
-            ids.proxy_address = deploy_contract("./lib/realms_contracts_git/contracts/settling_game/proxy/PROXY_logic.cairo", 
+            ids.proxy_address = deploy_contract("./contracts/settling_game/proxy/PROXY_logic.cairo", 
                 [ids.module_class_hash]
             ).contract_address
             stop_prank = start_prank(ids.proxy_admin, ids.controller_address)
@@ -453,6 +416,9 @@ func deploy_module{syscall_ptr: felt*, range_check_ptr}(
     return (proxy_address,);
 }
 
+// @notice Change block timestamp of contract
+// @param new_timestamp: Block timestamp to change contract to
+// @param target: Address of contract for which the timestamp is updated
 func time_warp{syscall_ptr: felt*, range_check_ptr}(new_timestamp: felt, target: felt) {
     %{ stop_warp = warp(ids.new_timestamp, target_contract_address=ids.target) %}
     return ();
