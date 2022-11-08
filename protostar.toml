@@ -1,14 +1,15 @@
 ["protostar.config"]
-protostar_version = "0.3.2"
+protostar_version = "0.6.0"
 
 ["protostar.project"]
 libs_path = "./lib"
 
-["protostar.contracts"]
-eykar = ["./contracts/eykar.cairo"]
-
 ["protostar.shared_command_configs"]
-cairo_path = ["./lib/cairo_contracts/src"]
+cairo-path = ["./lib/cairo_contracts/src"]
+stdout-on-success = true
 
 ["protostar.build"]
 cairo-path = ["./lib/cairo_contracts/src"]
+
+["protostar.test"]
+disable-hint-validation = true

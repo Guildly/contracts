@@ -11,7 +11,7 @@ from nile.core.declare import declare
 from nile.core.account import Account, get_nonce
 from nile import deployments
 from nile.core.call_or_invoke import call_or_invoke
-from realms_cli.config import Config
+from guildly_cli.guildly_cli.config import Config
 from starkware.starknet.compiler.compile import compile_starknet_files
 
 
@@ -197,27 +197,12 @@ def compile(contract_alias) -> str:
     return subprocess.check_output(command).strip().decode("utf-8")
 
 
-# def declare(contract_name, alias) -> str:
-#     """Nile declare function."""
-#     command = [
-#         "nile",
-#         "declare",
-#         account,
-#         contract_name,
-#         "--alias",
-#         alias,
-#     ]
-#     return subprocess.check_output(command).strip().decode("utf-8")
-
-
 def wrapped_declare(account, contract_name, network, alias):
 
     account = Account(account, network)
 
-    config = Config(nile_network=network)
-
     contract_class = compile_starknet_files(
-        files=[f"{'contracts'}/{contract_name}.cairo"], debug_info=True, cairo_path=["/workspaces/realms-contracts/lib/cairo_contracts/src"]
+        files=[f"{'contracts'}/{contract_name}.cairo"], debug_info=True, cairo_path=["/Users/supsam/Documents/cairo/game_guilds/lib/cairo_contracts/src"]
     )
     nonce = get_nonce(account.address, network)
     sig_r, sig_s = account.signer.sign_declare(
@@ -227,7 +212,7 @@ def wrapped_declare(account, contract_name, network, alias):
         max_fee=80999285161067,
     )
 
-    class_hash = declare(sender='0x074a5205599626344ffa5d155cc6dfabe9de747cdc71965bba9447d091800e87', contract_name=alias, signature=[
+    class_hash = declare(sender=account.address, contract_name=alias, signature=[
                          sig_r, sig_s], alias=alias, network=network, max_fee=80999285161067)
     return class_hash
 

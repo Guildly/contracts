@@ -15,17 +15,9 @@ struct CallArray {
 }
 
 @contract_interface
-namespace Controller {
-    func initializer(arbiter_address: felt, proxy_admin: felt) {
-    }
-    func set_address_for_module_id(module_id: felt, module_address: felt) {
-    }
-}
-
-@contract_interface
 namespace GuildManager {
     func initializer(
-        guild_proxy_class_hash_: felt, guild_class_hash_: felt, controller: felt, proxy_admin: felt
+        guild_proxy_class_hash_: felt, guild_class_hash_: felt, proxy_admin: felt
     ) {
     }
     func deploy_guild(name: felt, certificate_address: felt) -> (contract_address: felt) {
@@ -55,16 +47,26 @@ namespace Guild {
 }
 
 @contract_interface
-namespace Certificate {
-    func initializer(name: felt, symbol: felt, guild_manager: felt, proxy_admin: felt) {
+namespace Game {
+    func initializer(
+        guild_proxy_class_hash_: felt, guild_class_hash_: felt, proxy_admin: felt
+    ) {
+    }
+    func deploy_guild(name: felt, certificate_address: felt) -> (contract_address: felt) {
     }
 }
 
 @contract_interface
-namespace PolicyManager {
-    func initializer(module_controller: felt, proxy_admin: felt) {
+namespace TestNft {
+    func mint(to: felt, amount: Uint256) {
     }
-    func add_policy(policy_id: felt, to: felt, selector: felt) {
+    func approve(spender: felt, amount: Uint256) {
+    }
+}
+
+@contract_interface
+namespace Certificate {
+    func initializer(name: felt, symbol: felt, guild_manager: felt, proxy_admin: felt) {
     }
 }
 

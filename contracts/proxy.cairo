@@ -1,25 +1,29 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts for Cairo v0.x.0 (upgrades/Proxy.cairo)
+
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import library_call, library_call_l1_handler
 
-from openzeppelin.upgrades.library import Proxy
+// temporary solution
+from contracts.settling_game.proxy.library import Proxy
 
-//###################
-// CONSTRUCTOR
-//###################
+//
+// Constructor
+//
 
 @constructor
 func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    implementation: felt
+    implementation_hash: felt
 ) {
-    Proxy._set_implementation_hash(implementation);
+    Proxy._set_implementation_hash(implementation_hash);
     return ();
 }
 
-//###################
-// EXTERNAL FUNCTIONS
-//###################
+//
+// Fallback functions
+//
 
 @external
 @raw_input
@@ -27,10 +31,10 @@ func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 func __default__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     selector: felt, calldata_size: felt, calldata: felt*
 ) -> (retdata_size: felt, retdata: felt*) {
-    let (implementation) = Proxy.get_implementation_hash();
+    let (class_hash) = Proxy.get_implementation_hash();
 
     let (retdata_size: felt, retdata: felt*) = library_call(
-        class_hash=implementation,
+        class_hash=class_hash,
         function_selector=selector,
         calldata_size=calldata_size,
         calldata=calldata,
@@ -43,10 +47,10 @@ func __default__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 func __l1_default__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     selector: felt, calldata_size: felt, calldata: felt*
 ) {
-    let (implementation) = Proxy.get_implementation_hash();
+    let (class_hash) = Proxy.get_implementation_hash();
 
     library_call_l1_handler(
-        class_hash=implementation,
+        class_hash=class_hash,
         function_selector=selector,
         calldata_size=calldata_size,
         calldata=calldata,
@@ -54,14 +58,10 @@ func __l1_default__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
     return ();
 }
 
-//###################
-// VIEW FUNCTIONS
-//###################
-
-@view
-func get_implementation{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+@external
+func get_implementation_hash{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
     implementation: felt
 ) {
     let (implementation) = Proxy.get_implementation_hash();
-    return (implementation=implementation);
+    return (implementation,);
 }
