@@ -67,17 +67,17 @@ def event_loop():
 async def contract_factory():
     starknet = await Starknet.empty()
     account1 = await starknet.deploy(
-        "contracts/safe_account.cairo",
+        "openzeppelin/account/presets/Account.cairo",
         cairo_path=CAIRO_PATH,
         constructor_calldata=[signer1.public_key],
     )
     account2 = await starknet.deploy(
-        "contracts/safe_account.cairo",
+        "openzeppelin/account/presets/Account.cairo",
         cairo_path=CAIRO_PATH,
         constructor_calldata=[signer2.public_key],
     )
     account3 = await starknet.deploy(
-        "contracts/safe_account.cairo",
+        "openzeppelin/account/presets/Account.cairo",
         cairo_path=CAIRO_PATH,
         constructor_calldata=[signer3.public_key],
     )
