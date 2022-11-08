@@ -7,6 +7,13 @@ struct Permission {
     selector: felt,
 }
 
+struct Call {
+    to: felt,
+    selector: felt,
+    calldata_len: felt,
+    calldata: felt*,
+}
+
 struct CallArray {
     to: felt,
     selector: felt,
