@@ -860,8 +860,12 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             assert pre_balances_len = post_balances_len;
         }
 
-        let (owner) = IGuildCertificate.get_token_owner(
+        let (owner_certificate: Uint256) = IGuildCertificate.get_token_owner(
             guild_certificate, used_token_standard, used_token, used_token_id
+        );
+
+        let (owner) = IGuildCertificate.get_certificate_owner(
+            guild_certificate, owner_certificate
         );
 
         let (caller_balances: Uint256*) = alloc();

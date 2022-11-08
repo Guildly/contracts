@@ -57,12 +57,15 @@ namespace IGuildCertificate {
     ){
     }
 
+    func get_certificate_owner(certificate_id: Uint256) -> (owner: felt) {
+    }
+
     func get_token_owner(
         token_standard: felt, 
         token: felt, 
         token_id: Uint256
     ) -> (
-        owner: felt
+        certificate_id: Uint256
     ){
     }
 

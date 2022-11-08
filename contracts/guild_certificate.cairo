@@ -60,6 +60,10 @@ func _certificate_id(owner: felt, guild: felt) -> (res: Uint256) {
 }
 
 @storage_var
+func _certificate_owner(certificate_id: Uint256) -> (res: felt) {
+}
+
+@storage_var
 func _role(certificate_id: Uint256) -> (res: felt) {
 }
 
@@ -68,7 +72,7 @@ func _guild(certificate_id: Uint256) -> (res: felt) {
 }
 
 @storage_var
-func token_owner(token_standard: felt, token: felt, token_id: Uint256) -> (res: felt) {
+func _token_owner(token_standard: felt, token: felt, token_id: Uint256) -> (certificate_id: Uint256) {
 }
 
 @storage_var
@@ -259,6 +263,14 @@ func get_guild{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 }
 
 @view
+func get_certificate_owner{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    certificate_id: Uint256
+) -> (owner: felt) {
+    let (owner) = _certificate_owner.read(certificate_id);
+    return (owner,);
+}
+
+@view
 func get_tokens{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     certificate_id: Uint256
 ) -> (tokens_len: felt, tokens: Token*) {
@@ -285,8 +297,8 @@ func get_token_amount{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 @view
 func get_token_owner{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     token_standard: felt, token: felt, token_id: Uint256
-) -> (owner: felt) {
-    let (owner) = token_owner.read(token_standard, token, token_id);
+) -> (owner: Uint256) {
+    let (owner: Uint256) = _token_owner.read(token_standard, token, token_id);
     return (owner,);
 }
 
@@ -345,6 +357,7 @@ func mint{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
     _certificate_id_count.write(new_certificate_id);
 
     _certificate_id.write(to, guild, new_certificate_id);
+    _certificate_owner.write(new_certificate_id, to);
     _role.write(new_certificate_id, role);
     _guild.write(new_certificate_id, guild);
 
@@ -407,6 +420,7 @@ func add_token_data{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_
 
     let data = Token(token_standard, token, token_id, amount);
     _certificate_tokens_data.write(certificate_id, tokens_len, data);
+    _token_owner.write(token_standard, token, token_id, certificate_id);
 
     _certificate_tokens_data_len.write(certificate_id, tokens_len + 1);
 
