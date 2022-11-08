@@ -1,6 +1,6 @@
 %lang starknet
 
-from tests.protostar.setup.interfaces import Controller, GuildManager, Certificate, PolicyManager
+from tests.protostar.setup.interfaces import GuildManager, Certificate
 
 from contracts.utils.guild_structs import ModuleIds
 
@@ -17,11 +17,9 @@ struct Contracts {
     account1: felt,
     account2: felt,
     account3: felt,
-    controller: felt,
     guild: felt,
     guild_manager: felt,
     certificate: felt,
-    policy_manager: felt,
     test_nft: felt,
     points_contract: felt,
     game_contract: felt,
@@ -51,19 +49,14 @@ func deploy_all{syscall_ptr: felt*, range_check_ptr}() -> Contracts {
         ids.contracts.account2 = deploy_contract("./lib/cairo_contracts/src/openzeppelin/account/presets/Account.cairo", 
             [ids.PK2]
         ).contract_address
-        mock_start = mock_call(contracts.account1, 'supportsInterface', [1])
-        mock_start = mock_call(contracts.account1, 'onERC1155BatchReceived', [ids.ON_ERC1155_BATCH_RECEIVED_SELECTOR])
+        mock_start = mock_call(ids.contracts.account2, 'supportsInterface', [1])
+        mock_start = mock_call(ids.contracts.account2, 'onERC1155BatchReceived', [ids.ON_ERC1155_BATCH_RECEIVED_SELECTOR])
 
         ids.contracts.account3 = deploy_contract("./lib/cairo_contracts/src/openzeppelin/account/presets/Account.cairo", 
             [ids.PK3]
         ).contract_address
-        mock_start = mock_call(contracts.account1, 'supportsInterface', [1])
-        mock_start = mock_call(contracts.account1, 'onERC1155BatchReceived', [ids.ON_ERC1155_BATCH_RECEIVED_SELECTOR])
-
-        declared = declare("./contracts/ModuleController.cairo")
-        ids.contracts.controller = deploy_contract("./contracts/proxy.cairo", 
-            [declared.class_hash]
-        ).contract_address
+        mock_start = mock_call(ids.contracts.account3, 'supportsInterface', [1])
+        mock_start = mock_call(ids.contracts.account3, 'onERC1155BatchReceived', [ids.ON_ERC1155_BATCH_RECEIVED_SELECTOR])
 
         declared = declare("./contracts/guild_contract.cairo")
         ids.guild_class_hash = declared.class_hash
@@ -81,36 +74,29 @@ func deploy_all{syscall_ptr: felt*, range_check_ptr}() -> Contracts {
             [declared.class_hash]
         ).contract_address
 
-        declared = declare("./contracts/fee_policy_manager.cairo")
-        ids.contracts.policy_manager = deploy_contract("./contracts/proxy.cairo", 
-            [declared.class_hash]
-        ).contract_address
-
-        ids.contracts.test_nft = deploy("./contracts/test_nft.cairo", [
-            'Test NFT',
-            'TNFT',
-            contracts.account1
+        ids.contracts.test_nft = deploy_contract("./contracts/test_nft.cairo", [
+            1,
+            1,
+            ids.contracts.account1
         ]).contract_address
 
-        ids.contracts.points_contract = deploy("./contracts/experience_points.cairo", [
-            'Experience Points',
-            'EP',
+        ids.contracts.points_contract = deploy_contract("./contracts/experience_points.cairo", [
+            1,
+            1,
             18,
-            Uint256(0, 0),
-            contracts.account1,
-            contracts.account1
+            0,
+            0,
+            ids.contracts.account1,
+            ids.contracts.account1
         ]).contract_address
 
-        ids.contracts.game_contract = deploy("./contracts/game_contract.cairo", [
+        ids.contracts.game_contract = deploy_contract("./contracts/game_contract.cairo", [
             ids.contracts.test_nft,
             ids.contracts.points_contract
         ]).contract_address
     %}
-    Controller.initializer(contracts.controller, contracts.account1, contracts.account1);
-    GuildManager.initializer(contracts.guild_manager, proxy_class_hash, guild_class_hash, contracts.controller, contracts.account1);
+    GuildManager.initializer(contracts.guild_manager, proxy_class_hash, guild_class_hash, contracts.account1);
     Certificate.initializer(contracts.certificate, CERTIFICATE_NAME, CERTIFICATE_SYMBOL, contracts.guild_manager, contracts.account1);
-    PolicyManager.initializer(contracts.policy_manager, contracts.controller, contracts.account1);
-    Controller.set_address_for_module_id(contracts.controller, ModuleIds.FeePolicyManager, contracts.policy_manager);
     %{
         stop_prank = start_prank(ids.contracts.account1, ids.contracts.guild_manager)
     %}
