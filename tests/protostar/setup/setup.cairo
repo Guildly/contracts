@@ -1,6 +1,6 @@
 %lang starknet
 
-from tests.protostar.setup.interfaces import GuildManager, Certificate
+from tests.protostar.setup.interfaces import GuildManager, Certificate, PolicyManager
 
 from contracts.utils.guild_structs import ModuleIds
 
@@ -23,6 +23,7 @@ struct Contracts {
     test_nft: felt,
     points_contract: felt,
     game_contract: felt,
+    policy_manager: felt,
 }
 
 const PK1 = 11111;
@@ -94,9 +95,15 @@ func deploy_all{syscall_ptr: felt*, range_check_ptr}() -> Contracts {
             ids.contracts.test_nft,
             ids.contracts.points_contract
         ]).contract_address
+
+        declared = declare("./contracts/fee_policy_manager.cairo")
+        ids.contracts.policy_manager = deploy_contract("./contracts/proxy.cairo", 
+            [declared.class_hash]
+        ).contract_address
     %}
     GuildManager.initializer(contracts.guild_manager, proxy_class_hash, guild_class_hash, contracts.account1);
     Certificate.initializer(contracts.certificate, CERTIFICATE_NAME, CERTIFICATE_SYMBOL, contracts.guild_manager, contracts.account1);
+    PolicyManager.initializer(contracts.policy_manager, contracts.account1);
     %{
         stop_prank = start_prank(ids.contracts.account1, ids.contracts.guild_manager)
     %}

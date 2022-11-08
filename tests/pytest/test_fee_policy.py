@@ -882,19 +882,6 @@ async def test_claim_resources(contract_factory):
 
     print(execution_info.call_info.retdata)
 
-    execution_info = await sender1.send_transaction(
-        [
-            (
-                guild_certificate_proxy.contract_address,
-                "get_certificate_owner",
-                [*to_uint(1)]
-            ),
-        ],
-        [signer1]
-    )
-
-    print(execution_info.call_info.retdata)
-
     await sender1.send_transaction(
         [
             (

@@ -71,6 +71,15 @@ namespace Certificate {
 }
 
 @contract_interface
+namespace PolicyManager {
+    func initializer(proxy_admin: felt) {
+    }
+    func add_policy(policy: felt, to: felt, selector: felt) {
+    }
+}
+
+
+@contract_interface
 namespace ResourcesPolicy {
     func initializer(
         resources_address: felt,

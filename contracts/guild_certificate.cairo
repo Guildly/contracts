@@ -297,8 +297,9 @@ func get_token_amount{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 @view
 func get_token_owner{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     token_standard: felt, token: felt, token_id: Uint256
-) -> (owner: Uint256) {
-    let (owner: Uint256) = _token_owner.read(token_standard, token, token_id);
+) -> (owner: felt) {
+    let (owner_certificate: Uint256) = _token_owner.read(token_standard, token, token_id);
+    let (owner) = _certificate_owner.read(owner_certificate);
     return (owner,);
 }
 

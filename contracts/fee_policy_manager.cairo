@@ -40,9 +40,9 @@ func guild_policy(guild_address: felt, to: felt, selector: felt) -> (fee_policy:
 
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    module_controller: felt, proxy_admin: felt
+    proxy_admin: felt
 ) {
-    Module.initializer(module_controller);
+    // Module.initializer(controller_address);
     Proxy.initializer(proxy_admin);
     return ();
 }

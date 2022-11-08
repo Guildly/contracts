@@ -65,7 +65,7 @@ namespace IGuildCertificate {
         token: felt, 
         token_id: Uint256
     ) -> (
-        certificate_id: Uint256
+        owner: felt
     ){
     }
 

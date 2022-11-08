@@ -860,12 +860,8 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             assert pre_balances_len = post_balances_len;
         }
 
-        let (owner_certificate: Uint256) = IGuildCertificate.get_token_owner(
+        let (local owner) = IGuildCertificate.get_token_owner(
             guild_certificate, used_token_standard, used_token, used_token_id
-        );
-
-        let (owner) = IGuildCertificate.get_certificate_owner(
-            guild_certificate, owner_certificate
         );
 
         let (caller_balances: Uint256*) = alloc();
@@ -889,18 +885,18 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
         let (data: felt*) = alloc();
         assert data[0] = 1;
 
-        if (accrued_token_standard == 2) {
-            IERC1155.safeBatchTransferFrom(
-                contract_address=accrued_token,
-                from_=contract_address,
-                to=caller,
-                ids_len=pre_balances_len,
-                ids=accrued_token_ids,
-                amounts_len=pre_balances_len,
-                amounts=caller_balances,
-                data_len=1,
-                data=data,
-            );
+        if (accrued_token_standard == TokenStandard.ERC1155) {
+            // IERC1155.safeBatchTransferFrom(
+            //     contract_address=accrued_token,
+            //     from_=contract_address,
+            //     to=caller,
+            //     ids_len=pre_balances_len,
+            //     ids=accrued_token_ids,
+            //     amounts_len=pre_balances_len,
+            //     amounts=caller_balances,
+            //     data_len=1,
+            //     data=data,
+            // );
 
             IERC1155.safeBatchTransferFrom(
                 contract_address=accrued_token,
@@ -914,17 +910,17 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
                 data=data,
             );
 
-            IERC1155.safeBatchTransferFrom(
-                contract_address=accrued_token,
-                from_=contract_address,
-                to=caller,
-                ids_len=pre_balances_len,
-                ids=accrued_token_ids,
-                amounts_len=pre_balances_len,
-                amounts=admin_balances,
-                data_len=1,
-                data=data,
-            );
+            // IERC1155.safeBatchTransferFrom(
+            //     contract_address=accrued_token,
+            //     from_=contract_address,
+            //     to=caller,
+            //     ids_len=pre_balances_len,
+            //     ids=accrued_token_ids,
+            //     amounts_len=pre_balances_len,
+            //     amounts=admin_balances,
+            //     data_len=1,
+            //     data=data,
+            // );
 
             tempvar syscall_ptr: felt* = syscall_ptr;
             tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;

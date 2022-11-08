@@ -67,11 +67,11 @@ func GuildContractDeployed(name: felt, master: felt, contract_address: felt) {
 
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    guild_proxy_class_hash_: felt, guild_class_hash_: felt, controller: felt, proxy_admin: felt
+    guild_proxy_class_hash_: felt, guild_class_hash_: felt, proxy_admin: felt
 ) {
     guild_proxy_class_hash.write(guild_proxy_class_hash_);
     guild_class_hash.write(guild_class_hash_);
-    module_controller.write(controller);
+    // module_controller.write(controller);
     Proxy.initializer(proxy_admin);
     return ();
 }
