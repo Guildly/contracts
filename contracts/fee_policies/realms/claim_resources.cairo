@@ -4,7 +4,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.uint256 import Uint256
 
-from contracts.fee_policies.realms.library import get_resources, get_owners
+from contracts.fee_policies.realms.library import get_resources
 from contracts.interfaces.IERC1155 import IERC1155
 
 const RESOURCES_LENGTH = 22;
@@ -61,6 +61,3 @@ func get_tokens{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
         2
     );
 }
-
-// @view
-// func calculate_
