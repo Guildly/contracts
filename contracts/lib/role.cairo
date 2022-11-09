@@ -1,5 +1,5 @@
 namespace GuildRoles {
-    const MEMBER = 1;
-    const OWNER = 2;
-    const ADMIN = 3;
+    const MEMBER = 2 ** 0;
+    const OWNER = 2 ** 1;
+    const ADMIN = 2 ** 2;
 }
