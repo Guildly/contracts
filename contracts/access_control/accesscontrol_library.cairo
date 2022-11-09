@@ -4,6 +4,7 @@ from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
 from starkware.cairo.common.bitwise import bitwise_and, bitwise_not, bitwise_or
 from starkware.cairo.common.bool import TRUE
+from starkware.cairo.common.math import assert_not_equal
 from starkware.cairo.common.math_cmp import is_not_zero
 
 from contracts.access_control.aliases import address, bool, ufelt
@@ -116,7 +117,12 @@ namespace AccessControl {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(role: ufelt, account: address) {
-        assert_admin();
+        // Change from AccessControl Admin to guild ADMIN
+        // assert_admin();
+        let (admin) = accesscontrol_admin.read();
+        with_attr error_message("AccessControl: cannot change master role") {
+            assert_not_equal(account, admin);
+        }
         _grant_role(role, account);
         return ();
     }
@@ -127,7 +133,12 @@ namespace AccessControl {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(role, account) {
-        assert_admin();
+        // Change from AccessControl Admin to guild ADMIN
+        // assert_admin();
+        let (admin) = accesscontrol_admin.read();
+        with_attr error_message("AccessControl: cannot change master role") {
+            assert_not_equal(account, admin);
+        }
         _revoke_role(role, account);
         return ();
     }

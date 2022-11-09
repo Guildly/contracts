@@ -232,6 +232,14 @@ func get_nonce{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     return (res=res);
 }
 
+@view
+func has_role{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+}(role: felt, account: felt) -> (has_role: felt) {
+    let has_role = AccessControl.has_role(role, account);
+    return (has_role,);
+}
+
 //
 // Externals
 //

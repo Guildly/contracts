@@ -234,12 +234,12 @@ async def test_adding_members(contract_factory):
             (
                 guild_proxy.contract_address,
                 "add_member",
-                [account2.contract_address, 4],
+                [account2.contract_address, 7],
             ),
             (
                 guild_proxy.contract_address,
                 "add_member",
-                [account3.contract_address, 2],
+                [account3.contract_address, 3],
             ),
         ],
         [signer1],
@@ -1023,20 +1023,3 @@ async def test_update_role(contract_factory):
         ],
         [signer3]
     )
-
-    with pytest.raises(StarkException):
-        await sender3.send_transaction(
-            [
-                (
-                    guild_proxy.contract_address,
-                    "deposit",
-                    [
-                        1,
-                        test_nft.contract_address,
-                        *to_uint(10),
-                        *to_uint(1)
-                    ],
-                )
-            ],
-            [signer3]
-        )
