@@ -36,11 +36,11 @@ struct Token {
 //
 
 @event
-func MintCertificate(account: felt, role: felt, guild: felt, id: Uint256) {
+func MintCertificate(account: felt, guild: felt, id: Uint256) {
 }
 
 @event
-func BurnCertificate(account: felt, role: felt, guild: felt, id: Uint256) {
+func BurnCertificate(account: felt, guild: felt, id: Uint256) {
 }
 
 //
@@ -57,10 +57,6 @@ func _certificate_id_count() -> (res: Uint256) {
 
 @storage_var
 func _certificate_id(owner: felt, guild: felt) -> (res: Uint256) {
-}
-
-@storage_var
-func _role(certificate_id: Uint256) -> (res: felt) {
 }
 
 @storage_var
@@ -239,14 +235,6 @@ func get_certificate_id{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_ch
 }
 
 @view
-func get_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    certificate_id: Uint256
-) -> (role: felt) {
-    let (value) = _role.read(certificate_id);
-    return (value,);
-}
-
-@view
 func get_guild{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     certificate_id: Uint256
 ) -> (guild: felt) {
@@ -324,7 +312,7 @@ func transfer_ownership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_ch
 
 @external
 func mint{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
-    to: felt, guild: felt, role: felt
+    to: felt, guild: felt
 ) {
     assert_only_guild();
 
@@ -333,23 +321,12 @@ func mint{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
     _certificate_id_count.write(new_certificate_id);
 
     _certificate_id.write(to, guild, new_certificate_id);
-    _role.write(new_certificate_id, role);
     _guild.write(new_certificate_id, guild);
 
     ERC721._mint(to, new_certificate_id);
 
-    MintCertificate.emit(to, role, guild, new_certificate_id);
+    MintCertificate.emit(to, guild, new_certificate_id);
 
-    return ();
-}
-
-@external
-func update_role{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
-    certificate_id: Uint256, role: felt
-) {
-    assert_only_guild();
-
-    _role.write(certificate_id, role);
     return ();
 }
 
@@ -359,12 +336,10 @@ func burn{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
 ) {
     alloc_locals;
     let (certificate_id: Uint256) = _certificate_id.read(account, guild);
-    let (role) = _role.read(certificate_id);
     ERC721.assert_only_token_owner(certificate_id);
-    _role.write(certificate_id, 0);
     _guild.write(certificate_id, 0);
     ERC721._burn(certificate_id);
-    BurnCertificate.emit(account, role, guild, certificate_id);
+    BurnCertificate.emit(account, guild, certificate_id);
     return ();
 }
 
@@ -375,11 +350,9 @@ func guild_burn{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}
     alloc_locals;
     assert_only_guild();
     let (certificate_id: Uint256) = _certificate_id.read(account, guild);
-    let (role) = _role.read(certificate_id);
-    _role.write(certificate_id, 0);
     _guild.write(certificate_id, 0);
     ERC721._burn(certificate_id);
-    BurnCertificate.emit(account, role, guild, certificate_id);
+    BurnCertificate.emit(account, guild, certificate_id);
     return ();
 }
 
