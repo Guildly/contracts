@@ -45,3 +45,5 @@ nile install
 ## Acknowledgements
 
 [udayj](https://twitter.com/udayj) for their implementation of a [token gated account](https://github.com/udayj/token_gated_account)
+
+[Lindy Labs](https://twitter.com/Lindy_Labs) for their [access control library](https://github.com/lindy-labs/cairo-accesscontrol)
