@@ -8,7 +8,7 @@ from contracts.lib.role import GuildRoles
 from contracts.lib.token_standard import TokenStandard
 
 from tests.protostar.setup.setup import Contracts, deploy_all
-from tests.protostar.setup.interfaces import Guild
+from tests.protostar.setup.interfaces import Guild, TestNft, Game, Call, CallArray
 
 @external
 func __setup__{
@@ -89,33 +89,45 @@ func test_permissions{
     %}
 
     TestNft.mint(test_nft_address, account1, Uint256(1, 0));
-    TestNft.approve(test_nft_address, guild_address, Uint256(1, 0);
+    TestNft.approve(test_nft_address, guild_address, Uint256(1, 0));
     Guild.deposit(guild_address, TokenStandard.ERC721, test_nft_address, Uint256(1, 0), Uint256(1, 0));
-    Guild.initialize_permissions(
-        guild_address, 
-        2, 
-        game_address, 
-        get_selector_from_name("kill_goblin"), 
-        test_nft_address, 
-        get_selector_from_name("symbol")
-    );
-    let (calls: Call*) = alloc();
-    assert calls[0] = Call(
-        game_contract.contract_address,
-        "kill_goblin",
-        []
-    )
-    (call_array: CallArray, calldata: felt*) = from_call_to_call_array(calls)
+    // local calls: Call*;
+    // assert calls[0] = Call(
+    //     game_address,
+    //     'kill_goblin',
+    //     1,
+    //     0
+    // );
+    // local call_array: CallArray*;
+    // local calldata: felt*;
+    // %{
+    //     from tests.pytest.utils.TransactionSender import from_call_to_call_array
+    //     (ids.call_array, ids.calldata) = from_call_to_call_array(ids.calls)
+    // %}
+    // Guild.initialize_permissions(
+    //     guild_address, 
+    //     2, 
+    //     game_address, 
+    //     get_selector_from_name("kill_goblin"), 
+    //     test_nft_address, 
+    //     get_selector_from_name("symbol")
+    // );
+    // let (calls: Call*) = alloc();
+    // assert calls[0] = Call(
+    //     game_contract.contract_address,
+    //     "kill_goblin",
+    //     []
+    // )
 
-    Guild.execute_transactions(
-        guild_address,
-        call_array_len,
-        call_array,
-        calldata_len,
-        calldata
-    );
+    // Guild.execute_transactions(
+    //     guild_address,
+    //     call_array_len,
+    //     call_array,
+    //     calldata_len,
+    //     calldata
+    // );
 
-    let (kill_count) = Game.get_goblin_kill_count(game_address);
-    assert kill_count = 1;
+    // let (kill_count) = Game.get_goblin_kill_count(game_address);
+    // assert kill_count = 1;
     return();
 }

@@ -148,7 +148,7 @@ async def contract_factory():
         [
             (
                 guild_manager_proxy.contract_address,
-                "deploy_guild_proxy_contract",
+                "deploy_guild",
                 [str_to_felt("Test Guild"), guild_certificate_proxy.contract_address],
             )
         ],
@@ -249,24 +249,16 @@ async def test_adding_members(contract_factory):
         [
             (
                 guild_proxy.contract_address,
-                "whitelist_member",
-                [account2.contract_address, 3],
+                "add_member",
+                [account2.contract_address, 7],
             ),
             (
                 guild_proxy.contract_address,
-                "whitelist_member",
-                [account3.contract_address, 2],
+                "add_member",
+                [account3.contract_address, 3],
             ),
         ],
         [signer1],
-    )
-
-    await TransactionSender(account2).send_transaction(
-        [(guild_proxy.contract_address, "join", [])], [signer2]
-    )
-
-    await TransactionSender(account3).send_transaction(
-        [(guild_proxy.contract_address, "join", [])], [signer3]
     )
 
 
@@ -1019,7 +1011,7 @@ async def test_update_role(contract_factory):
         [
             (
                 guild_proxy.contract_address,
-                "update_role",
+                "update_roles",
                 [account3.contract_address, 1],
             )
         ],
@@ -1047,20 +1039,3 @@ async def test_update_role(contract_factory):
         ],
         [signer3]
     )
-
-    with pytest.raises(StarkException):
-        await sender3.send_transaction(
-            [
-                (
-                    guild_proxy.contract_address,
-                    "deposit",
-                    [
-                        1,
-                        test_nft.contract_address,
-                        *to_uint(10),
-                        *to_uint(1)
-                    ],
-                )
-            ],
-            [signer3]
-        )

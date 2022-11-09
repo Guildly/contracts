@@ -32,13 +32,6 @@ namespace IGuildCertificate {
         ){
     }
 
-    func get_role(
-        certificate_id: Uint256
-    ) -> (
-        role: felt
-    ){
-    }
-
     func get_tokens(
         certificate_id: Uint256
     ) -> (
@@ -88,14 +81,7 @@ namespace IGuildCertificate {
 
     func mint(
             to: felt,
-            guild: felt,
-            role: felt
-        ){
-    }
-
-    func update_role(
-            certificate_id: Uint256,
-            role: felt
+            guild: felt
         ){
     }
 
