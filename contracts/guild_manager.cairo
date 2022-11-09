@@ -38,16 +38,21 @@ func salt() -> (value: felt) {
 }
 
 @storage_var
-func guild_proxy_class_hash() -> (value: felt) {
+func _proxy_class_hash() -> (value: felt) {
 }
 
 @storage_var
-func guild_class_hash() -> (value: felt) {
+func _guild_class_hash() -> (value: felt) {
 }
 
 @storage_var
-func module_controller() -> (res: felt) {
+func _module_controller() -> (res: felt) {
 }
+
+@storage_var
+func _fee_policy_manager() -> (res: felt) {
+}
+
 
 @storage_var
 func is_guild(address: felt) -> (res: felt) {
@@ -67,10 +72,14 @@ func GuildContractDeployed(name: felt, master: felt, contract_address: felt) {
 
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    guild_proxy_class_hash_: felt, guild_class_hash_: felt, proxy_admin: felt
+    proxy_class_hash: felt, 
+    guild_class_hash: felt, 
+    fee_policy_manager: felt, 
+    proxy_admin: felt
 ) {
-    guild_proxy_class_hash.write(guild_proxy_class_hash_);
-    guild_class_hash.write(guild_class_hash_);
+    _proxy_class_hash.write(proxy_class_hash);
+    _guild_class_hash.write(guild_class_hash);
+    _fee_policy_manager.write(fee_policy_manager);
     // module_controller.write(controller);
     Proxy.initializer(proxy_admin);
     return ();
@@ -94,15 +103,16 @@ func deploy_guild{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     name: felt, guild_certificate: felt
 ) -> (contract_address: felt) {
     let (current_salt) = salt.read();
-    let (proxy_class_hash) = guild_proxy_class_hash.read();
-    let (class_hash) = guild_class_hash.read();
-    let (controller) = module_controller.read();
+    let (proxy_class_hash) = _proxy_class_hash.read();
+    let (guild_class_hash) = _guild_class_hash.read();
+    let (fee_policy_manager) = _fee_policy_manager.read();
+    // let (controller) = module_controller.read();
     let (caller_address) = get_caller_address();
     let (proxy_admin) = Proxy.get_admin();
 
 
     let (deploy_calldata: felt*) = alloc();
-    assert deploy_calldata[0] = class_hash;
+    assert deploy_calldata[0] = guild_class_hash;
     let (contract_address) = deploy(
         class_hash=proxy_class_hash,
         contract_address_salt=current_salt,
@@ -120,7 +130,7 @@ func deploy_guild{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     assert initialize_calldata[0] = name;
     assert initialize_calldata[1] = caller_address;
     assert initialize_calldata[2] = guild_certificate;
-    assert initialize_calldata[3] = controller;
+    assert initialize_calldata[3] = fee_policy_manager;
     assert initialize_calldata[4] = proxy_admin;
 
     let res = call_contract(

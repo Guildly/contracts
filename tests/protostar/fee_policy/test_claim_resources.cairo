@@ -8,7 +8,9 @@ from contracts.fee_policies.realms.claim_resources import get_tokens
 from contracts.fee_policies.realms.library import get_owners, get_resources
 from lib.realms_contracts_git.contracts.settling_game.interfaces.IERC1155 import IERC1155
 
+from contracts.lib.role import GuildRoles
 from contracts.settling_game.utils.game_structs import ModuleIds
+from contracts.lib.policy_calculator import PolicyCalculator
 
 from tests.protostar.realms_setup.setup import (
     deploy_account,
@@ -104,46 +106,6 @@ func test_get_tokens{
         stop_prank = start_prank(ids.account_address, ids.fee_policy_address)
     %}
 
-    let (local resource_ids: Uint256*) = get_resources();
-
-    let (local resource_amounts: Uint256*) = alloc();
-    assert resource_amounts[0] = Uint256(1000, 0);
-    assert resource_amounts[1] = Uint256(1000, 0);
-    assert resource_amounts[2] = Uint256(1000, 0);
-    assert resource_amounts[3] = Uint256(1000, 0);
-    assert resource_amounts[4] = Uint256(1000, 0);
-    assert resource_amounts[5] = Uint256(1000, 0);
-    assert resource_amounts[6] = Uint256(1000, 0);
-    assert resource_amounts[7] = Uint256(1000, 0);
-    assert resource_amounts[8] = Uint256(1000, 0);
-    assert resource_amounts[9] = Uint256(1000, 0);
-    assert resource_amounts[10] = Uint256(1000, 0);
-    assert resource_amounts[11] = Uint256(1000, 0);
-    assert resource_amounts[12] = Uint256(1000, 0);
-    assert resource_amounts[13] = Uint256(1000, 0);
-    assert resource_amounts[14] = Uint256(1000, 0);
-    assert resource_amounts[15] = Uint256(1000, 0);
-    assert resource_amounts[16] = Uint256(1000, 0);
-    assert resource_amounts[17] = Uint256(1000, 0);
-    assert resource_amounts[18] = Uint256(1000, 0);
-    assert resource_amounts[19] = Uint256(1000, 0);
-    assert resource_amounts[20] = Uint256(1000, 0);
-    assert resource_amounts[21] = Uint256(1000, 0);
-
-    let (data: felt*) = alloc();
-    assert data[0] = 1;
-
-    IERC1155.mintBatch(
-        resources_token_address,
-        account_address,
-        22,
-        resource_ids,
-        22,
-        resource_amounts,
-        1,
-        data
-    );
-
     let to = realms_address;
     let selector = 123;
     let calldata_len = 2;
@@ -178,16 +140,91 @@ func test_get_tokens{
         assert ids.accrued_token_standard == 2
     %}
 
-    // %{
-    //     print(ids.pre_balances_len)
-    //     for i in range(22):
-    //         print(f'id: {i} - {memory[ids.resource_ids._reference_value + 2*i]}')
-    //     for i in range(22):
-    //         print(f'amount: {i} - {memory[ids.resource_amounts._reference_value + 2*i]}') 
-    //     for i in range(22):
-    //         print(f'pre balance: {i} - {memory[ids.pre_balances._reference_value + 2*i]}')
-    //     stop_prank()
-    // %}
+    return ();
+}
 
+@external
+func test_calculate_splits{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
+}() {
+    alloc_locals;
+    // let (local resource_ids: Uint256*) = get_resources();
+
+    let (pre_balances: Uint256*) = alloc();
+    assert pre_balances[0] = Uint256(1000, 0);
+    assert pre_balances[1] = Uint256(1000, 0);
+    assert pre_balances[2] = Uint256(1000, 0);
+    assert pre_balances[3] = Uint256(1000, 0);
+    assert pre_balances[4] = Uint256(1000, 0);
+    assert pre_balances[5] = Uint256(1000, 0);
+    assert pre_balances[6] = Uint256(1000, 0);
+    assert pre_balances[7] = Uint256(1000, 0);
+    assert pre_balances[8] = Uint256(1000, 0);
+    assert pre_balances[9] = Uint256(1000, 0);
+    assert pre_balances[10] = Uint256(1000, 0);
+    assert pre_balances[11] = Uint256(1000, 0);
+    assert pre_balances[12] = Uint256(1000, 0);
+    assert pre_balances[13] = Uint256(1000, 0);
+    assert pre_balances[14] = Uint256(1000, 0);
+    assert pre_balances[15] = Uint256(1000, 0);
+    assert pre_balances[16] = Uint256(1000, 0);
+    assert pre_balances[17] = Uint256(1000, 0);
+    assert pre_balances[18] = Uint256(1000, 0);
+    assert pre_balances[19] = Uint256(1000, 0);
+    assert pre_balances[20] = Uint256(1000, 0);
+    assert pre_balances[21] = Uint256(1000, 0);
+
+    let (post_balances: Uint256*) = alloc();
+    assert post_balances[0] = Uint256(2000, 0);
+    assert post_balances[1] = Uint256(2000, 0);
+    assert post_balances[2] = Uint256(2000, 0);
+    assert post_balances[3] = Uint256(2000, 0);
+    assert post_balances[4] = Uint256(2000, 0);
+    assert post_balances[5] = Uint256(2000, 0);
+    assert post_balances[6] = Uint256(2000, 0);
+    assert post_balances[7] = Uint256(2000, 0);
+    assert post_balances[8] = Uint256(2000, 0);
+    assert post_balances[9] = Uint256(2000, 0);
+    assert post_balances[10] = Uint256(2000, 0);
+    assert post_balances[11] = Uint256(2000, 0);
+    assert post_balances[12] = Uint256(2000, 0);
+    assert post_balances[13] = Uint256(2000, 0);
+    assert post_balances[14] = Uint256(2000, 0);
+    assert post_balances[15] = Uint256(2000, 0);
+    assert post_balances[16] = Uint256(2000, 0);
+    assert post_balances[17] = Uint256(2000, 0);
+    assert post_balances[18] = Uint256(2000, 0);
+    assert post_balances[19] = Uint256(2000, 0);
+    assert post_balances[20] = Uint256(2000, 0);
+    assert post_balances[21] = Uint256(2000, 0);
+
+    let caller_split = 5;
+    let owner_split = 85;
+    let admin_split = 10;
+
+    let (local caller_balances: Uint256*) = alloc();
+    let (local owner_balances: Uint256*) = alloc();
+    let (local admin_balances: Uint256*) = alloc();
+
+    PolicyCalculator.calculate_splits(
+        22,
+        pre_balances,
+        post_balances,
+        caller_split,
+        owner_split,
+        admin_split,
+        caller_balances,
+        owner_balances,
+        admin_balances
+    );
+
+    %{
+        for i in range(22):
+            print(f'caller: {i} - {memory[ids.caller_balances._reference_value + 2*i]}')
+        for i in range(22):
+            print(f'owner: {i} - {memory[ids.owner_balances._reference_value + 2*i]}') 
+        for i in range(22):
+            print(f'admin: {i} - {memory[ids.admin_balances._reference_value + 2*i]}')
+    %}
     return ();
 }

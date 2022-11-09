@@ -23,14 +23,12 @@ from contracts.interfaces.IERC1155 import IERC1155
 from contracts.interfaces.IGuildCertificate import IGuildCertificate
 from contracts.interfaces.IFeePolicyManager import IFeePolicyManager
 from contracts.interfaces.IFeePolicy import IFeePolicy
-from contracts.interfaces.imodules import IModuleController
 
 from contracts.access_control.accesscontrol_library import AccessControl
 from contracts.lib.role import GuildRoles
 from contracts.lib.token_standard import TokenStandard
 from contracts.lib.math_utils import MathUtils
 from contracts.lib.policy_calculator import PolicyCalculator
-from contracts.utils.guild_structs import ModuleIds
 from contracts.utils.helpers import find_value
 
 from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_add, uint256_eq, uint256_sub
@@ -147,6 +145,11 @@ func _guild_certificate() -> (res: felt) {
 }
 
 @storage_var
+func _fee_policy_manager() -> (res: felt) {
+}
+
+
+@storage_var
 func _current_nonce() -> (res: felt) {
 }
 
@@ -172,11 +175,15 @@ func require_not_blacklisted{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, ran
 
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    name: felt, master: felt, guild_certificate: felt, controller: felt, proxy_admin: felt
+    name: felt, 
+    master: felt, 
+    guild_certificate: felt, 
+    fee_policy_manager: felt, 
+    proxy_admin: felt
 ) {
-    Module.initializer(controller);
     _name.write(name);
     _guild_certificate.write(guild_certificate);
+    _fee_policy_manager.write(fee_policy_manager);
 
     let (contract_address) = get_contract_address();
 
@@ -673,6 +680,7 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     let (contract_address) = get_contract_address();
     let (caller) = get_caller_address();
     let (guild_certificate) = _guild_certificate.read();
+    let (fee_policy_manager) = _fee_policy_manager.read();
 
     // if no more calls
     if (calls_len == 0) {
@@ -683,12 +691,6 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
 
     // Check the tranasction is permitted
     check_permitted_call(this_call.to, this_call.selector);
-
-    let (controller) = Module.controller_address();
-
-    let (fee_policy_manager) = IModuleController.get_module_address(
-        controller, ModuleIds.FeePolicyManager
-    );
 
     let (fee_policy) = IFeePolicyManager.get_fee_policy(
         fee_policy_manager, contract_address, this_call.to, this_call.selector
@@ -732,7 +734,7 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             assert pre_balances_len = post_balances_len;
         }
 
-        let (local owner) = IGuildCertificate.get_token_owner(
+        let (owner) = IGuildCertificate.get_token_owner(
             guild_certificate, used_token_standard, used_token, used_token_id
         );
 
@@ -758,17 +760,17 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
         assert data[0] = 1;
 
         if (accrued_token_standard == TokenStandard.ERC1155) {
-            // IERC1155.safeBatchTransferFrom(
-            //     contract_address=accrued_token,
-            //     from_=contract_address,
-            //     to=caller,
-            //     ids_len=pre_balances_len,
-            //     ids=accrued_token_ids,
-            //     amounts_len=pre_balances_len,
-            //     amounts=caller_balances,
-            //     data_len=1,
-            //     data=data,
-            // );
+            IERC1155.safeBatchTransferFrom(
+                contract_address=accrued_token,
+                from_=contract_address,
+                to=caller,
+                ids_len=pre_balances_len,
+                ids=accrued_token_ids,
+                amounts_len=pre_balances_len,
+                amounts=caller_balances,
+                data_len=1,
+                data=data,
+            );
 
             IERC1155.safeBatchTransferFrom(
                 contract_address=accrued_token,
@@ -875,11 +877,8 @@ func set_fee_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
     fee_policy: felt, caller_split: felt, owner_split: felt
 ) {
     alloc_locals;
-    let (controller) = Module.controller_address();
 
-    let (fee_policy_manager) = IModuleController.get_module_address(
-        controller, ModuleIds.FeePolicyManager
-    );
+    let (fee_policy_manager) = _fee_policy_manager.read();
 
     IFeePolicyManager.set_fee_policy(fee_policy_manager, fee_policy, caller_split, owner_split);
 

@@ -97,10 +97,6 @@ async def contract_factory():
         source=PROXY,
         cairo_path=CAIRO_PATH,
     )
-    module_controller_class_hash = await starknet.declare(
-        source=MODULE_CONTROLLER,
-        cairo_path=CAIRO_PATH
-    )
     fee_policy_manager_class_hash = await starknet.declare(
         source=FEE_POLICY_MANAGER,
         cairo_path=CAIRO_PATH
@@ -148,30 +144,7 @@ async def contract_factory():
         cairo_path=CAIRO_PATH
     )
 
-
-    module_controller_proxy = await starknet.deploy(
-        source=PROXY,
-        cairo_path=CAIRO_PATH,
-        constructor_calldata=[
-            module_controller_class_hash.class_hash
-        ]
-    )
-
     sender = TransactionSender(account1)
-
-    await sender.send_transaction(
-        [
-            (
-                module_controller_proxy.contract_address,
-                "initializer",
-                [
-                    account1.contract_address,
-                    account1.contract_address
-                ]
-            )
-        ],
-        [signer1]
-    )
 
     fee_policy_manager_proxy = await starknet.deploy(
         source=PROXY,
@@ -187,7 +160,6 @@ async def contract_factory():
                 fee_policy_manager_proxy.contract_address,
                 "initializer",
                 [
-                    module_controller_proxy.contract_address,
                     account1.contract_address
                 ]
             )
@@ -211,7 +183,7 @@ async def contract_factory():
                 [
                     guild_proxy_class_hash.class_hash,
                     guild_contract_class_hash.class_hash,
-                    module_controller_proxy.contract_address,
+                    fee_policy_manager_proxy.contract_address,
                     account1.contract_address,
                 ],
             )
@@ -269,20 +241,6 @@ async def contract_factory():
         abi=guild_proxy_class_hash.abi,
         contract_address=guild_proxy_address,
         deploy_call_info=guild_contract_proxy.deploy_call_info,
-    )
-
-    await sender.send_transaction(
-        [
-            (
-                module_controller_proxy.contract_address,
-                "set_address_for_module_id",
-                [
-                    1,
-                    fee_policy_manager_proxy.contract_address
-                ],
-            ),
-        ],
-        [signer1],
     )
     
     # deploy realms contracts
@@ -718,7 +676,6 @@ async def contract_factory():
         guild_manager_proxy,
         guild_certificate_proxy,
         guild_proxy,
-        module_controller_proxy,
         fee_policy_manager_proxy,
         resources_policy,
         realms_proxy,
@@ -740,7 +697,6 @@ async def test_adding_members(contract_factory):
         guild_manager_proxy,
         guild_certificate_proxy,
         guild_proxy,
-        module_controller_proxy,
         fee_policy_manager_proxy,
         resources_policy,
         realms_proxy,
@@ -757,24 +713,16 @@ async def test_adding_members(contract_factory):
         [
             (
                 guild_proxy.contract_address,
-                "whitelist_member",
-                [account2.contract_address, 3],
+                "add_member",
+                [account2.contract_address, 7],
             ),
             (
                 guild_proxy.contract_address,
-                "whitelist_member",
-                [account3.contract_address, 2],
+                "add_member",
+                [account3.contract_address, 3],
             ),
         ],
         [signer1],
-    )
-
-    await TransactionSender(account2).send_transaction(
-        [(guild_proxy.contract_address, "join", [])], [signer2]
-    )
-
-    await TransactionSender(account3).send_transaction(
-        [(guild_proxy.contract_address, "join", [])], [signer3]
     )
 
 @pytest.mark.asyncio
@@ -788,7 +736,6 @@ async def test_fee_policy(contract_factory):
         guild_manager_proxy,
         guild_certificate_proxy,
         guild_proxy,
-        module_controller_proxy,
         fee_policy_manager_proxy,
         resources_policy,
         realms_proxy,
@@ -834,7 +781,6 @@ async def test_claim_resources(contract_factory):
         guild_manager_proxy,
         guild_certificate_proxy,
         guild_proxy,
-        module_controller_proxy,
         fee_policy_manager_proxy,
         resources_policy,
         realms_proxy,

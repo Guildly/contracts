@@ -64,10 +64,6 @@ func _certificate_owner(certificate_id: Uint256) -> (res: felt) {
 }
 
 @storage_var
-func _role(certificate_id: Uint256) -> (res: felt) {
-}
-
-@storage_var
 func _guild(certificate_id: Uint256) -> (res: felt) {
 }
 
@@ -247,22 +243,6 @@ func get_certificate_id{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_ch
 }
 
 @view
-func get_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    certificate_id: Uint256
-) -> (role: felt) {
-    let (value) = _role.read(certificate_id);
-    return (value,);
-}
-
-@view
-func get_certificate_owner{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    certificate_id: Uint256
-) -> (owner: felt) {
-    let (owner) = _certificate_owner.read(certificate_id);
-    return (owner,);
-}
-
-@view
 func get_certificate_owner{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     certificate_id: Uint256
 ) -> (owner: felt) {
@@ -359,7 +339,6 @@ func mint{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
 
     _certificate_id.write(to, guild, new_certificate_id);
     _certificate_owner.write(new_certificate_id, to);
-    _role.write(new_certificate_id, role);
     _guild.write(new_certificate_id, guild);
 
     ERC721._mint(to, new_certificate_id);
