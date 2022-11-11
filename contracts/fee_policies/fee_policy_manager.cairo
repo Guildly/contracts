@@ -6,6 +6,7 @@ from starkware.cairo.common.math_cmp import is_not_zero
 from starkware.starknet.common.syscalls import get_caller_address
 
 from contracts.interfaces.IFeePolicy import IFeePolicy
+from contracts.fee_policies.library import FeePolicies
 from contracts.lib.module import Module
 
 from openzeppelin.upgrades.library import Proxy
@@ -13,6 +14,7 @@ from openzeppelin.upgrades.library import Proxy
 struct PolicyDistribution {
     caller_split: felt,
     owner_split: felt,
+    admin_split: felt
 }
 
 struct PolicyTarget {
@@ -26,7 +28,7 @@ func fee_policy(policy: felt) -> (policy_target: PolicyTarget) {
 
 @storage_var
 func policy_distribution(guild_address: felt, fee_policy: felt) -> (
-    distribution: PolicyDistribution
+    distribution: felt
 ) {
 }
 
@@ -66,9 +68,10 @@ func get_policy_target{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_che
 @view
 func get_policy_distribution{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     guild_address: felt, fee_policy: felt
-) -> (caller_split: felt, owner_split: felt) {
-    let (distribution: PolicyDistribution) = policy_distribution.read(guild_address, fee_policy);
-    return (distribution.caller_split, distribution.owner_split);
+) -> (caller_split: felt, owner_split: felt, admin_split: felt) {
+    let (distribution) = policy_distribution.read(guild_address, fee_policy);
+    let (caller_split, owner_split, admin_split) = FeePolicies.unpack_fee_splits(distribution);
+    return (distribution.caller_split, distribution.owner_split, distribution.admin_split);
 }
 
 @external
@@ -89,7 +92,7 @@ func add_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
 
 @external
 func set_fee_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    policy_address: felt, caller_split: felt, owner_split: felt
+    policy_address: felt, caller_split: felt, owner_split: felt, admin_split: felt
 ) {
     alloc_locals;
     // TODO: Check guild calling
@@ -101,9 +104,9 @@ func set_fee_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 
     guild_policy.write(guild_address, policy_target.to, policy_target.selector, policy_address);
 
-    let distribution = PolicyDistribution(caller_split, owner_split);
+    let packed_splits = FeePolicies.pack_splits(caller_split, owner_split, admin_split);
 
-    policy_distribution.write(guild_address, policy_address, distribution);
+    policy_distribution.write(guild_address, policy_address, packed_splits);
     return ();
 }
 

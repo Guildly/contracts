@@ -722,7 +722,7 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             calldata=this_call.calldata,
         );
 
-        let (caller_split, owner_split) = IFeePolicyManager.get_policy_distribution(
+        let (caller_split, owner_split, admin_split) = IFeePolicyManager.get_policy_distribution(
             fee_policy_manager, contract_address, fee_policy
         );
 
@@ -741,8 +741,6 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
         let (caller_balances: Uint256*) = alloc();
         let (owner_balances: Uint256*) = alloc();
         let (admin_balances: Uint256*) = alloc();
-
-        let admin_split = 0;
 
         PolicyCalculator.calculate_splits(
             pre_balances_len,
