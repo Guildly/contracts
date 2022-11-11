@@ -28,7 +28,7 @@ from contracts.access_control.accesscontrol_library import AccessControl
 from contracts.lib.role import GuildRoles
 from contracts.lib.token_standard import TokenStandard
 from contracts.lib.math_utils import MathUtils
-from contracts.lib.policy_calculator import PolicyCalculator
+from contracts.fee_policies.library import FeePolicies
 from contracts.utils.helpers import find_value
 
 from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_add, uint256_eq, uint256_sub
@@ -148,7 +148,6 @@ func _guild_certificate() -> (res: felt) {
 func _fee_policy_manager() -> (res: felt) {
 }
 
-
 @storage_var
 func _current_nonce() -> (res: felt) {
 }
@@ -175,11 +174,7 @@ func require_not_blacklisted{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, ran
 
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    name: felt, 
-    master: felt, 
-    guild_certificate: felt, 
-    fee_policy_manager: felt, 
-    proxy_admin: felt
+    name: felt, master: felt, guild_certificate: felt, fee_policy_manager: felt, proxy_admin: felt
 ) {
     _name.write(name);
     _guild_certificate.write(guild_certificate);
@@ -187,9 +182,7 @@ func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 
     let (contract_address) = get_contract_address();
 
-    IGuildCertificate.mint(
-        contract_address=guild_certificate, to=master, guild=contract_address
-    );
+    IGuildCertificate.mint(contract_address=guild_certificate, to=master, guild=contract_address);
 
     Proxy.initializer(proxy_admin);
     AccessControl._set_admin(master);
@@ -259,20 +252,16 @@ func has_role{
 //
 
 @external
-func add_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
-    account: felt, role: felt
-) {
+func add_member{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr
+}(account: felt, role: felt) {
     let (guild_certificate) = _guild_certificate.read();
     let (contract_address) = get_contract_address();
     let (caller_address) = get_caller_address();
 
     require_not_blacklisted(caller_address);
 
-    IGuildCertificate.mint(
-        contract_address=guild_certificate,
-        to=account,
-        guild=contract_address
-    );
+    IGuildCertificate.mint(contract_address=guild_certificate, to=account, guild=contract_address);
 
     AccessControl.grant_role(role, account);
 
@@ -282,7 +271,9 @@ func add_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: Bit
 }
 
 @external
-func leave{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr}() {
+func leave{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr
+}() {
     let (guild_certificate) = _guild_certificate.read();
     let (contract_address) = get_contract_address();
     let (caller_address) = get_caller_address();
@@ -310,7 +301,9 @@ func leave{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseB
 }
 
 @external
-func remove_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(account: felt) {
+func remove_member{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr
+}(account: felt) {
     alloc_locals;
 
     let (caller_address) = get_caller_address();
@@ -355,9 +348,9 @@ func remove_member{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: 
 }
 
 @external
-func update_roles{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
-    account: felt, new_roles: felt
-) {
+func update_roles{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr
+}(account: felt, new_roles: felt) {
     alloc_locals;
 
     let (caller_address) = get_caller_address();
@@ -380,9 +373,9 @@ func update_roles{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: B
 }
 
 @external
-func deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
-    token_standard: felt, token: felt, token_id: Uint256, amount: Uint256
-) {
+func deposit{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr
+}(token_standard: felt, token: felt, token_id: Uint256, amount: Uint256) {
     alloc_locals;
 
     local syscall_ptr: felt* = syscall_ptr;
@@ -521,9 +514,9 @@ func deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: Bitwis
 }
 
 @external
-func withdraw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
-    token_standard: felt, token: felt, token_id: Uint256, amount: Uint256
-) {
+func withdraw{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr
+}(token_standard: felt, token: felt, token_id: Uint256, amount: Uint256) {
     alloc_locals;
 
     let (caller_address) = get_caller_address();
@@ -641,7 +634,9 @@ func withdraw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: Bitwi
 }
 
 @external
-func execute_transactions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
+func execute_transactions{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr
+}(
     call_array_len: felt, call_array: CallArray*, calldata_len: felt, calldata: felt*, nonce: felt
 ) -> (retdata_len: felt, retdata: felt*) {
     alloc_locals;
@@ -711,7 +706,7 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             fee_policy, this_call.to, this_call.selector, this_call.calldata_len, this_call.calldata
         );
 
-        let (pre_balances_len, pre_balances: Uint256*) = PolicyCalculator.get_balances(
+        let (pre_balances_len, pre_balances: Uint256*) = FeePolicies.get_balances(
             accrued_token, accrued_token_ids_len, accrued_token_ids
         );
 
@@ -726,7 +721,7 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             fee_policy_manager, contract_address, fee_policy
         );
 
-        let (post_balances_len, post_balances: Uint256*) = PolicyCalculator.get_balances(
+        let (post_balances_len, post_balances: Uint256*) = FeePolicies.get_balances(
             accrued_token, accrued_token_ids_len, accrued_token_ids
         );
 
@@ -742,7 +737,7 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
         let (owner_balances: Uint256*) = alloc();
         let (admin_balances: Uint256*) = alloc();
 
-        PolicyCalculator.calculate_splits(
+        FeePolicies.calculate_splits(
             pre_balances_len,
             pre_balances,
             post_balances,
@@ -872,13 +867,15 @@ func set_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check
 
 @external
 func set_fee_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    fee_policy: felt, caller_split: felt, owner_split: felt
+    fee_policy: felt, caller_split: felt, owner_split: felt, admin_split: felt
 ) {
     alloc_locals;
 
     let (fee_policy_manager) = _fee_policy_manager.read();
 
-    IFeePolicyManager.set_fee_policy(fee_policy_manager, fee_policy, caller_split, owner_split);
+    IFeePolicyManager.set_fee_policy(
+        fee_policy_manager, fee_policy, caller_split, owner_split, admin_split
+    );
 
     return ();
 }

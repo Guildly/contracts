@@ -23,7 +23,7 @@ GUILD_CERTIFICATE = os.path.join("contracts", "guild_certificate.cairo")
 TEST_NFT = os.path.join("contracts", "test_nft.cairo")
 PROXY = os.path.join("contracts", "proxy.cairo")
 MODULE_CONTROLLER = os.path.join("contracts", "ModuleController.cairo")
-FEE_POLICY_MANAGER = os.path.join("contracts", "fee_policy_manager.cairo")
+FEE_POLICY_MANAGER = os.path.join("contracts/fee_policies", "fee_policy_manager.cairo")
 RESOURCES_FEE_POLICY = os.path.join("contracts/fee_policies/realms", "claim_resources.cairo")
 
 signer1 = Signer(123456789987654321)
@@ -764,7 +764,7 @@ async def test_fee_policy(contract_factory):
             (
                 guild_proxy.contract_address,
                 "set_fee_policy",
-                [resources_policy.contract_address, 50, 50]
+                [resources_policy.contract_address, 5000, 5000, 0]
             )
         ],
         [signer1]

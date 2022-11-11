@@ -1,7 +1,8 @@
 %lang starknet
 
-from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 from starkware.cairo.common.bool import TRUE, FALSE
+from starkware.cairo.common.math import assert_le
 from starkware.cairo.common.math_cmp import is_not_zero
 from starkware.starknet.common.syscalls import get_caller_address
 
@@ -14,7 +15,7 @@ from openzeppelin.upgrades.library import Proxy
 struct PolicyDistribution {
     caller_split: felt,
     owner_split: felt,
-    admin_split: felt
+    admin_split: felt,
 }
 
 struct PolicyTarget {
@@ -27,9 +28,7 @@ func fee_policy(policy: felt) -> (policy_target: PolicyTarget) {
 }
 
 @storage_var
-func policy_distribution(guild_address: felt, fee_policy: felt) -> (
-    distribution: felt
-) {
+func policy_distribution(guild_address: felt, fee_policy: felt) -> (distribution: felt) {
 }
 
 @storage_var
@@ -66,12 +65,14 @@ func get_policy_target{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_che
 }
 
 @view
-func get_policy_distribution{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    guild_address: felt, fee_policy: felt
-) -> (caller_split: felt, owner_split: felt, admin_split: felt) {
+func get_policy_distribution{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr
+}(guild_address: felt, fee_policy: felt) -> (
+    caller_split: felt, owner_split: felt, admin_split: felt
+) {
     let (distribution) = policy_distribution.read(guild_address, fee_policy);
     let (caller_split, owner_split, admin_split) = FeePolicies.unpack_fee_splits(distribution);
-    return (distribution.caller_split, distribution.owner_split, distribution.admin_split);
+    return (caller_split, owner_split, admin_split);
 }
 
 @external
@@ -81,7 +82,7 @@ func add_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
     // TODO: check only arbiter/ module controller
     // Module.only_approved();
     // TODO: check policy already added
-    // let (stored_policy) = 
+    // let (stored_policy) =
     // with_attr error_message("Fee Policy Manager: Policy already added.") {
     //     assert_not_equal(policy
     // }
@@ -91,20 +92,24 @@ func add_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
 }
 
 @external
-func set_fee_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    policy_address: felt, caller_split: felt, owner_split: felt, admin_split: felt
-) {
+func set_fee_policy{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr
+}(policy_address: felt, caller_split: felt, owner_split: felt, admin_split: felt) {
     alloc_locals;
     // TODO: Check guild calling
     // Module.only_approved();
     let (guild_address) = get_caller_address();
     assert_policy(policy_address);
+    // check splits are equal or under 100%
+    with_attr error_message("Fee Policy Manager: splits cannot be over 100%") {
+        assert_le(caller_split + owner_split + admin_split, 10000);
+    }
 
     let (policy_target: PolicyTarget) = fee_policy.read(policy_address);
 
     guild_policy.write(guild_address, policy_target.to, policy_target.selector, policy_address);
 
-    let packed_splits = FeePolicies.pack_splits(caller_split, owner_split, admin_split);
+    let (packed_splits) = FeePolicies.pack_fee_splits(caller_split, owner_split, admin_split);
 
     policy_distribution.write(guild_address, policy_address, packed_splits);
     return ();
