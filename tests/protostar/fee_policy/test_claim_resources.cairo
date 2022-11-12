@@ -10,7 +10,7 @@ from lib.realms_contracts_git.contracts.settling_game.interfaces.IERC1155 import
 
 from contracts.lib.role import GuildRoles
 from contracts.settling_game.utils.game_structs import ModuleIds
-from contracts.lib.policy_calculator import PolicyCalculator
+from contracts.fee_policies.library import FeePolicies
 
 from tests.protostar.realms_setup.setup import (
     deploy_account,
@@ -65,7 +65,7 @@ func __setup__{syscall_ptr: felt*, range_check_ptr}() {
         ids.certificate_address = deploy_contract("./contracts/proxy.cairo", 
             [declared.class_hash]
         ).contract_address
-        declared = declare("./contracts/fee_policy_manager.cairo")
+        declared = declare("./contracts/fee_policies/fee_policy_manager.cairo")
         ids.policy_manager_address = deploy_contract("./contracts/proxy.cairo", 
             [declared.class_hash]
         ).contract_address
@@ -198,15 +198,15 @@ func test_calculate_splits{
     assert post_balances[20] = Uint256(2000, 0);
     assert post_balances[21] = Uint256(2000, 0);
 
-    let caller_split = 5;
-    let owner_split = 85;
-    let admin_split = 10;
+    let caller_split = 1500;
+    let owner_split = 8500;
+    let admin_split = 0;
 
     let (local caller_balances: Uint256*) = alloc();
     let (local owner_balances: Uint256*) = alloc();
     let (local admin_balances: Uint256*) = alloc();
 
-    PolicyCalculator.calculate_splits(
+    FeePolicies.calculate_splits(
         22,
         pre_balances,
         post_balances,

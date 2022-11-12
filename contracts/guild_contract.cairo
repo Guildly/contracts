@@ -765,22 +765,22 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
                 data=data,
             );
 
-            IERC1155.safeBatchTransferFrom(
-                contract_address=accrued_token,
-                from_=contract_address,
-                to=owner,
-                ids_len=pre_balances_len,
-                ids=accrued_token_ids,
-                amounts_len=pre_balances_len,
-                amounts=owner_balances,
-                data_len=1,
-                data=data,
-            );
+            // IERC1155.safeBatchTransferFrom(
+            //     contract_address=accrued_token,
+            //     from_=contract_address,
+            //     to=owner,
+            //     ids_len=pre_balances_len,
+            //     ids=accrued_token_ids,
+            //     amounts_len=pre_balances_len,
+            //     amounts=owner_balances,
+            //     data_len=1,
+            //     data=data,
+            // );
 
             // IERC1155.safeBatchTransferFrom(
             //     contract_address=accrued_token,
             //     from_=contract_address,
-            //     to=caller,
+            //     to=admin,
             //     ids_len=pre_balances_len,
             //     ids=accrued_token_ids,
             //     amounts_len=pre_balances_len,

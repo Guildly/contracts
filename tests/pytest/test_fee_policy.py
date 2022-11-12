@@ -855,6 +855,8 @@ async def test_claim_resources(contract_factory):
 
     (call_array, calldata) = from_call_to_call_array(calls)
 
+    set_block_timestamp(starknet, 1000000)
+
     await sender2.send_transaction(
         [
             (
