@@ -33,9 +33,7 @@ namespace GuildManager {
 
 @contract_interface
 namespace Guild {
-    func whitelist_member(address: felt, role: felt) {
-    }
-    func join() {
+    func add_member(address: felt, role: felt) {
     }
     func set_fee_policy(policy_id: felt, caller_split: felt, owner_split: felt) {
     }

@@ -4,6 +4,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import get_caller_address
 
+from contracts.guild_contract import Permission
 from contracts.lib.role import GuildRoles
 from contracts.lib.token_standard import TokenStandard
 
@@ -47,18 +48,8 @@ func test_add_members{
         ids.guild_address = context.guild_address
         stop_prank = start_prank(ids.account1, ids.guild_address)
     %}
-    Guild.whitelist_member(guild_address, account2, GuildRoles.ADMIN);
-    Guild.whitelist_member(guild_address, account3, GuildRoles.OWNER);
-    %{
-        stop_prank()
-        stop_prank = start_prank(ids.account2, ids.guild_address)
-    %}
-    Guild.join(guild_address);
-    %{
-        stop_prank()
-        stop_prank = start_prank(ids.account3, ids.guild_address)
-    %}
-    Guild.join(guild_address);
+    Guild.add_member(guild_address, account2, GuildRoles.ADMIN);
+    Guild.add_member(guild_address, account3, GuildRoles.OWNER);
     %{
         stop_prank()
     %}
@@ -91,6 +82,18 @@ func test_permissions{
     TestNft.mint(test_nft_address, account1, Uint256(1, 0));
     TestNft.approve(test_nft_address, guild_address, Uint256(1, 0));
     Guild.deposit(guild_address, TokenStandard.ERC721, test_nft_address, Uint256(1, 0), Uint256(1, 0));
+    local kill_goblin_selector;
+    %{
+        # from tests.pytest.utils.TransactionSender import from_call_to_call_array
+        from starkware.starknet.public.abi import get_selector_from_name
+        ids.kill_goblin_selector = get_selector_from_name('kill_goblin')
+    %}
+    let permission = Permission(game_address, kill_goblin_selector);
+    Guild.initialize_permissions(
+        guild_address, 
+        1, 
+        permission
+    );
     // local calls: Call*;
     // assert calls[0] = Call(
     //     game_address,
@@ -100,18 +103,6 @@ func test_permissions{
     // );
     // local call_array: CallArray*;
     // local calldata: felt*;
-    // %{
-    //     from tests.pytest.utils.TransactionSender import from_call_to_call_array
-    //     (ids.call_array, ids.calldata) = from_call_to_call_array(ids.calls)
-    // %}
-    // Guild.initialize_permissions(
-    //     guild_address, 
-    //     2, 
-    //     game_address, 
-    //     get_selector_from_name("kill_goblin"), 
-    //     test_nft_address, 
-    //     get_selector_from_name("symbol")
-    // );
     // let (calls: Call*) = alloc();
     // assert calls[0] = Call(
     //     game_contract.contract_address,
