@@ -1,11 +1,7 @@
 %lang starknet
 
 from starkware.cairo.common.uint256 import Uint256
-
-struct Permission {
-    to: felt,
-    selector: felt,
-}
+from contracts.guild_contract import Permission
 
 struct Call {
     to: felt,

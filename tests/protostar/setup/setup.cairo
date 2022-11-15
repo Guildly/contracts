@@ -2,6 +2,7 @@
 
 from tests.protostar.setup.interfaces import GuildManager, Certificate
 
+from contracts.guild_contract import Permission
 from contracts.utils.guild_structs import ModuleIds
 
 from contracts.token.constants import (

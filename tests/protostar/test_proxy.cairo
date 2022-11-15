@@ -84,41 +84,35 @@ func test_permissions{
     Guild.deposit(guild_address, TokenStandard.ERC721, test_nft_address, Uint256(1, 0), Uint256(1, 0));
     local kill_goblin_selector;
     %{
-        # from tests.pytest.utils.TransactionSender import from_call_to_call_array
         from starkware.starknet.public.abi import get_selector_from_name
         ids.kill_goblin_selector = get_selector_from_name('kill_goblin')
     %}
     let permission = Permission(game_address, kill_goblin_selector);
+    let permissions: Permission* = alloc();
+    assert permissions[0] = permission;
     Guild.initialize_permissions(
         guild_address, 
         1, 
-        permission
+        permissions
     );
-    // local calls: Call*;
-    // assert calls[0] = Call(
-    //     game_address,
-    //     'kill_goblin',
-    //     1,
-    //     0
-    // );
-    // local call_array: CallArray*;
-    // local calldata: felt*;
-    // let (calls: Call*) = alloc();
-    // assert calls[0] = Call(
-    //     game_contract.contract_address,
-    //     "kill_goblin",
-    //     []
-    // )
+    let call_array: CallArray* = alloc();
+    assert call_array[0] = CallArray(
+        game_address,
+        'kill_goblin',
+        0,
+        0
+    );
+    let calldata: felt* = alloc();
+    assert calldata[0] = 0;
 
-    // Guild.execute_transactions(
-    //     guild_address,
-    //     call_array_len,
-    //     call_array,
-    //     calldata_len,
-    //     calldata
-    // );
+    Guild.execute_transactions(
+        guild_address,
+        1,
+        call_array,
+        1,
+        calldata,
+        0
+    );
 
-    // let (kill_count) = Game.get_goblin_kill_count(game_address);
-    // assert kill_count = 1;
     return();
 }
