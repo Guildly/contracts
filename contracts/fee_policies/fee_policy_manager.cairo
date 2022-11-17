@@ -39,6 +39,11 @@ func guild_policy_count(guild_address: felt) -> (res: felt) {
 func guild_policy(guild_address: felt, to: felt, selector: felt) -> (fee_policy: felt) {
 }
 
+@storage_var
+func payment_type(guild_address: felt, to: felt, selector: felt) -> (payment_type: felt) {
+}
+
+
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     proxy_admin: felt
