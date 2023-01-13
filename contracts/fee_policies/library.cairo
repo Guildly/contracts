@@ -124,7 +124,7 @@ namespace FeePolicies {
         tokens_len: felt,
         pre_balances: TokenBalances*,
         post_balances: TokenBalances*,
-        difference_balances: Uint256*
+        difference_balances: TokenBalances*
     ) -> (asset_flow: felt) {
         if (tokens_len == 0) {
             return ();
@@ -132,28 +132,28 @@ namespace FeePolicies {
         loop_calculate_differences(
             0,
             [pre_balances].token_balances,
-            [post_balances].token_balances
+            [post_balances].token_balances,
+            [difference_balances].token_balances
         );
 
         calculate_differences(
-            balances_len - 1,
-            pre_balances + Uint256.SIZE,
-            post_balances + Uint256.SIZE,
-            difference_balances + Uint256.SIZE
+            tokens_len - 1,
+            pre_balances + TokenBalances.SIZE,
+            post_balances + TokenBalances.SIZE,
+            difference_balances + TokenBalances.SIZE
         );
         return (NetAssetFlow.POSITIVE);
     }
 
-    func loop_calcuate_differences{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-        index: felt,
+    func loop_calculate_differences{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        token_ids_len: felt,
         pre_balances: Uint256*,
-        post_balances: Uint256*
+        post_balances: Uint256*,
+        difference_balances: Uint256*
     ) {
-        if (index == token_ids_len) {
+        if (token_ids_len == 0) {
             return ();
         }
-
-        let token_id = token_ids[index];
 
         uint256_check([pre_balances]);
         uint256_check([post_balances]);

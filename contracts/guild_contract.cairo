@@ -784,9 +784,9 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             assert pre_balances_len = post_balances_len;
         }
 
-        let (difference_balances: Uint256*) = alloc();
+        let (difference_balances: TokenBalances*) = alloc();
 
-        let (token_differences_len, token_differences) = FeePolicies.calculate_differences(
+        let (asset_flow) = FeePolicies.calculate_differences(
             pre_balances_len,
             pre_balances,
             post_balances,
@@ -1315,6 +1315,9 @@ func loop_distribute_reward{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, rang
     let accrued_token = accrued_token_details[index];
 
     if (accrued_token.token_standard == TokenStandard.ERC1155) {
+
+        let (data) = alloc();
+        assert data[0] = 1;
         IERC1155.safeBatchTransferFrom(
             contract_address=accrued_token.token,
             from_=contract_address,
@@ -1362,11 +1365,17 @@ func loop_distribute_reward{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, rang
 
     return loop_distribute_reward(
         index + 1,
-        accrued_tokens_len,
-        accrued_tokens,
-        owner_split,
-        caller_split,
-        admin_split
+        accrued_token_details_len,
+        accrued_token_details,
+        owner,
+        owner_balances_len,
+        owner_balances,
+        caller,
+        caller_balances_len,
+        caller_balances,
+        admin,
+        admin_balances_len,
+        admin_balances
     );
 
 }
