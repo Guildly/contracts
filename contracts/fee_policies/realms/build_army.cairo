@@ -14,7 +14,11 @@ from starkware.cairo.common.uint256 import Uint256, uint256_lt
 
 from starkware.starknet.common.syscalls import get_caller_address
 
-from contracts.fee_policies.realms.library import get_resources
+from openzeppelin.security.safemath.library import SafeUint256
+from openzeppelin.token.erc20.IERC20 import IERC20
+
+from contracts.fee_policies.library import TokenArray, TokenBalances
+from contracts.fee_policies.realms.library import get_resources, get_owners
 from contracts.interfaces.IERC1155 import IERC1155
 from contracts.settling_game.utils.pow2 import pow2
 
@@ -33,6 +37,17 @@ struct Cost {
 @contract_interface
 namespace ICombat {
     func get_battalion_cost(battalion_id: felt) -> (cost: Cost) {
+    }
+}
+
+@contract_interface
+namespace IResources {
+    func balanceOfBatch(
+        owners_len: felt, 
+        owners: felt*, 
+        token_ids_len: felt, 
+        token_ids: Uint256*
+    ) -> (balances_len: felt, balances: Uint256*) {
     }
 }
 
@@ -73,10 +88,10 @@ func get_tokens{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
     used_token: felt,
     used_token_id: Uint256,
     used_token_standard: felt,
-    accrued_token: felt,
-    accrued_token_ids_len: felt,
-    accrued_token_ids: Uint256*,
-    accrued_token_standard: felt,
+    token_array_len: felt,
+    token_array: TokenArray*,
+    token_ids_len: felt,
+    token_ids: Uint256*
 ) {
     let realm_id_low = calldata[0];
     let realm_id_high = calldata[1];
@@ -88,27 +103,44 @@ func get_tokens{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
     let (resources_address) = resources_contract.read();
     let (token_ids: Uint256*) = get_resources();
 
+    let (token_array: TokenArray*) = alloc();
+    assert token_array[0] = TokenArray(
+        1,
+        resources_address,
+        0,
+        RESOURCES_LENGTH
+    );
+
     return (
         realms_address,
         realm_id,
         1,
-        resources_address,
+        token_array,
         RESOURCES_LENGTH,
         token_ids,
-        2
     );
 }
 
-// @external
-// func get_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-//     used_token: felt, used_token_ids_len: felt, used_token_ids: Uint256*
-// ) -> (balances_len: felt, balances: Uint256*) {
-
-// }
+@external
+func get_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (balances_len: felt, balances: Uint256*) {
+    alloc_locals;
+    let (caller) = get_caller_address();
+    let (resources_address) = resources_contract.read();
+    let (token_ids: Uint256*) = get_resources();
+    let (owners: felt*) = get_owners(caller);
+    let (final_balances_len, final_balances) = IResources.balanceOfBatch(resources_address, 22, owners, 22, token_ids);
+    let (token_balances_array: TokenBalancesArray*) = alloc();
+    assert token_balances_array[0] = TokenBalancesArrays(
+        resources_address,
+        22,
+        final_balances
+    );
+    return (1, token_balances_array);
+}
 
 @external
-func check_caller_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    calldata_len: felt, calldata: felt*, caller_balances_len: felt, caller_balances: Uint256*
+func check_owner_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    calldata_len: felt, calldata: felt*, owner_balances_len: felt, owner_balances: Uint256*
 ) -> (bool: felt) {
     alloc_locals;
     let (combat_address) = combat_contract.read();
@@ -124,10 +156,10 @@ func check_caller_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
     let (battalion_ids: felt*) = alloc();
     unpack_calldata_loop(4, 0, battalion_ids_len, calldata, battalion_ids);
 
-    let battalion_quantity_len = calldata[3 + battalion_ids_len];
+    let battalion_quantity_len = calldata[4 + battalion_ids_len];
     let (battalion_quantity: felt*) = alloc();
 
-    unpack_calldata_loop(4 + battalion_quantity_len, 0, battalion_quantity_len, calldata, battalion_quantity);
+    unpack_calldata_loop(5 + battalion_quantity_len, 0, battalion_quantity_len, calldata, battalion_quantity);
 
     let (battalion_costs: Cost*) = alloc();
 
@@ -143,7 +175,7 @@ func check_caller_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
         battalion_ids_len, battalion_costs, 1
     );
 
-    let bool = check_caller_amount(0, token_len, token_ids, token_values, caller_balances);
+    let (bool) = check_owner_amount(0, token_len, token_ids, token_values, owner_balances);
 
     return (bool,);
 }
@@ -151,22 +183,12 @@ func check_caller_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
 func unpack_calldata_loop{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     calldata_index: felt, new_array_index: felt, calldata_len: felt, calldata: felt*, new_array: felt*
 ) {
-    if (index == calldata_len) {
+    if (new_array_index == calldata_len) {
         return ();
     }
     assert new_array[new_array_index] = calldata[calldata_index];
     return unpack_calldata_loop(calldata_index + 1, new_array_index + 1, calldata_len, calldata, new_array);
 }
-
-
-// @external
-// func execute_payment_plan{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-//     pre_balances_len: felt, pre_balances: Uint256*, post_balances_len: felt, post_balances: Uint256*
-// ) {
-//     let (difference_balances: Uint256*) = alloc();
-//     calculate_difference(pre_balances_len, pre_balances, post_balances)
-    
-// }
 
 // @notice Load Battalion costs
 func load_battalion_costs{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -181,9 +203,8 @@ func load_battalion_costs{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
     let (cost: Cost) = ICombat.get_battalion_cost(combat_address, [battlion_ids]);
     assert [costs] = cost;
 
-    return load_battalion_costs(battlion_ids_len - 1, battlion_ids + 1, costs + Cost.SIZE);
+    return load_battalion_costs(combat_address, battlion_ids_len - 1, battlion_ids + 1, costs + Cost.SIZE);
 }
-
 
 func transform_costs_to_tokens{
     syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
@@ -301,23 +322,23 @@ func load_single_cost_ids_and_values{
     return load_single_cost_ids_and_values(cost, idx + 1, ids, values);
 }
 
-func check_caller_amount{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+func check_owner_amount{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     index: felt,
     tokens_len: felt,
     token_ids: Uint256*,
     token_values: Uint256*,
     caller_balances: Uint256*
-) {
+) -> (bool: felt) {
     if (index == tokens_len) {
-        return(FALSE,);
+        return(TRUE,);
     }
     let amount_needed = token_values[index];
     let caller_amount = caller_balances[index];
-    let check = uint256_lt(caller_amount, amount_needed);
+    let (check) = uint256_lt(caller_amount, amount_needed);
     if (check == TRUE) {
         return(FALSE,);
     }
-    return check_caller_amount(index + 1, tokens_len, token_ids, token_values, caller_balances);
+    return check_owner_amount(index + 1, tokens_len, token_ids, token_values, caller_balances);
 }
 
 // upack data

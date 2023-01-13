@@ -1,26 +1,43 @@
 %lang starknet
 
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.math import assert_le
 from starkware.cairo.common.math_cmp import is_not_zero
+from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import get_caller_address
 
+from contracts.interfaces.IGuildManager import IGuildManager
 from contracts.interfaces.IFeePolicy import IFeePolicy
 from contracts.fee_policies.library import FeePolicies
 from contracts.lib.module import Module
+from contracts.lib.token_standard import TokenStandard
 
 from openzeppelin.upgrades.library import Proxy
 
-struct PolicyDistribution {
-    caller_split: felt,
-    owner_split: felt,
-    admin_split: felt,
+//
+// Structs
+//
+
+struct PaymentDetails {
+    payment_token_standard: felt,
+    payment_token: felt,
+    payment_token_id: Uint256,
+    payment_amount: Uint256,
 }
 
 struct PolicyTarget {
     to: felt,
     selector: felt,
+}
+
+//
+// Storage variables
+//
+
+@storage_var
+func _guild_manager() -> (res: felt) {
 }
 
 @storage_var
@@ -40,9 +57,35 @@ func guild_policy(guild_address: felt, to: felt, selector: felt) -> (fee_policy:
 }
 
 @storage_var
-func payment_type(guild_address: felt, to: felt, selector: felt) -> (payment_type: felt) {
+func direct_payments(guild_address: felt, fee_policy: felt, index: felt) -> (payment_details: PaymentDetails) {
 }
 
+//
+// Guards
+//
+
+func assert_only_guild{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    let (caller) = get_caller_address();
+    let (guild_manager) = _guild_manager.read();
+    let (check_guild) = IGuildManager.get_is_guild(guild_manager, caller);
+    with_attr error_message("Guild Certificate: Contract is not valid") {
+        assert check_guild = TRUE;
+    }
+    return ();
+}
+
+func assert_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(policy: felt) {
+    let (policy_target) = fee_policy.read(policy);
+    let check_not_zero = is_not_zero(policy_target.to);
+    with_attr error_message("Fee Policy Manager: Policy does not exist") {
+        assert check_not_zero = TRUE;
+    }
+    return ();
+}
+
+//
+// Initialize & upgrade
+//
 
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -52,6 +95,19 @@ func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     Proxy.initializer(proxy_admin);
     return ();
 }
+
+@external
+func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    implementation: felt
+) {
+    Proxy.assert_only_admin();
+    Proxy._set_implementation_hash(implementation);
+    return ();
+}
+
+//
+// Getters
+//
 
 @view
 func get_fee_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -80,17 +136,58 @@ func get_policy_distribution{
     return (caller_split, owner_split, admin_split);
 }
 
+@view
+func get_direct_payments{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
+}(
+    guild_address: felt,
+    fee_policy: felt
+) -> (
+    direct_payments_len: felt,
+    direct_payments: PaymentDetails*
+) {
+    alloc_locals;
+    let (direct_payments: PaymentDetails*) = alloc();
+
+    loop_get_direct_payment(
+        0,
+        guild_address,
+        fee_policy,
+        direct_payments
+    );
+
+    return (3, direct_payments);
+}
+
+func loop_get_direct_payment{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
+} (
+    index: felt,
+    guild_address: felt,
+    fee_policy: felt,
+    direct_payments: PaymentDetails*
+) {
+    let (payment_details) = direct_payments.read(guild_address, fee_policy, index);
+
+    assert direct_payments[index] = payment_details;
+
+    return loop_get_direct_payment(
+        index + 1,
+        guild_address,
+        fee_policy,
+        direct_payments
+    );
+}
+
+//
+// Externals
+//
+
 @external
 func add_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     policy: felt, to: felt, selector: felt
 ) {
-    // TODO: check only arbiter/ module controller
-    // Module.only_approved();
-    // TODO: check policy already added
-    // let (stored_policy) =
-    // with_attr error_message("Fee Policy Manager: Policy already added.") {
-    //     assert_not_equal(policy
-    // }
+    // Module.only_arbiter();
     let policy_target = PolicyTarget(to, selector);
     fee_policy.write(policy, policy_target);
     return ();
@@ -99,10 +196,16 @@ func add_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
 @external
 func set_fee_policy{
     syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr
-}(policy_address: felt, caller_split: felt, owner_split: felt, admin_split: felt) {
+} (
+    policy_address: felt, 
+    caller_split: felt, 
+    owner_split: felt, 
+    admin_split: felt,
+    payment_details_len: felt,
+    payment_details: PaymentDetails*
+) {
     alloc_locals;
-    // TODO: Check guild calling
-    // Module.only_approved();
+    assert_only_guild();
     let (guild_address) = get_caller_address();
     assert_policy(policy_address);
     // check splits are equal or under 100%
@@ -117,7 +220,12 @@ func set_fee_policy{
     let (packed_splits) = FeePolicies.pack_fee_splits(caller_split, owner_split, admin_split);
 
     policy_distribution.write(guild_address, policy_address, packed_splits);
-    return ();
+
+    return loop_store_direct_payment(
+        0,
+        payment_details_len,
+        payment_details,
+    );
 }
 
 @external
@@ -125,8 +233,7 @@ func revoke_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_p
     policy_address: felt
 ) {
     alloc_locals;
-    // TODO: Check guild calling
-    // Module.only_approved();
+    assert_only_guild();
     let (guild_address) = get_caller_address();
     assert_policy(policy_address);
 
@@ -135,11 +242,51 @@ func revoke_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_p
     return ();
 }
 
-func assert_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(policy: felt) {
-    let (policy_target) = fee_policy.read(policy);
-    let check_not_zero = is_not_zero(policy_target.to);
-    with_attr error_message("Fee Policy Manager: Policy does not exist") {
-        assert check_not_zero = TRUE;
+// Internals
+
+func loop_store_direct_payment{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    index: felt,
+    guild_address: felt,
+    fee_policy: felt,
+    payment_details_len: felt,
+    payment_details: PaymentDetails*
+) {
+    if (payment_tokens_len == payment_tokens_len) {
+        return ();
     }
-    return ();
+
+    direct_payments.write(guild_address, fee_policy, index, payment_details[index]);
+    return loop_store_direct_payment(
+        index + 1,
+        guild_address,
+        fee_policy,
+        payment_details_len,
+        payment_details
+    );
 }
+
+// func loop_execute_payments{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+//     index: felt,
+//     guild_address: felt,
+//     fee_policy: felt,
+// ) {
+//     if (payment_tokens_len == payment_tokens_len) {
+//         return ();
+//     }
+//     let (payment_details) = direct_payments.read(guild_address, fee_policy, index);
+
+//     if (payment_details.token_standard == TokenStandard.ERC721) {
+
+//     }
+//     return loop_store_direct_payment(
+//         index + 1,
+//         guild_address,
+//         fee_policy,
+//         payment_tokens_len,
+//         payment_token_standards,
+//         payment_tokens,
+//         payment_token_ids,
+//         payment_amounts
+//     );
+// }
+

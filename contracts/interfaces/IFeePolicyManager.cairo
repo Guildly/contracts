@@ -1,6 +1,6 @@
 %lang starknet
 
-from contracts.fee_policies.fee_policy_manager import PolicyDistribution, PolicyTarget
+from contracts.fee_policies.fee_policy_manager import PolicyTarget, PaymentDetails
 
 @contract_interface
 namespace IFeePolicyManager {
@@ -16,7 +16,10 @@ namespace IFeePolicyManager {
         caller_split: felt, owner_split: felt, admin_split: felt
     ) {
     }
-
+    func get_direct_payments(guild_address: felt, fee_policy: felt) -> (
+        direct_payments_len: felt, direct_payments: PaymentDetails*
+    ) {
+    }
     func add_policy(policy: felt, to: felt, selector: felt) {
     }
 

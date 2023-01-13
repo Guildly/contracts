@@ -18,6 +18,7 @@ from starkware.starknet.common.syscalls import (
 from starkware.cairo.common.bool import TRUE, FALSE
 
 from openzeppelin.introspection.erc165.library import ERC165
+from openzeppelin.token.erc20.IERC20 import IERC20
 from openzeppelin.token.erc721.IERC721 import IERC721
 from contracts.interfaces.IERC1155 import IERC1155
 from contracts.interfaces.IGuildCertificate import IGuildCertificate
@@ -28,7 +29,9 @@ from contracts.access_control.accesscontrol_library import AccessControl
 from contracts.lib.role import GuildRoles
 from contracts.lib.token_standard import TokenStandard
 from contracts.lib.math_utils import MathUtils
-from contracts.fee_policies.library import FeePolicies
+from contracts.fee_policies.constants import NetAssetFlow
+from contracts.fee_policies.fee_policy_manager import PaymentDetails
+from contracts.fee_policies.library import FeePolicies, TokenDetails, TokenArray, TokenBalances
 from contracts.utils.helpers import find_value
 
 from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_add, uint256_eq, uint256_sub
@@ -695,20 +698,74 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
 
     if (check_not_zero == TRUE) {
         let (
-            used_token: felt,
-            used_token_id: Uint256,
-            used_token_standard: felt,
-            accrued_token: felt,
+            used_token_array_len: felt,
+            used_token_array: TokenArray*,
+            used_token_ids_len: felt,
+            used_token_ids: Uint256*,
+            accrued_token_array_len: felt,
+            accrued_token_array: TokenArray*,
             accrued_token_ids_len: felt,
-            accrued_token_ids: Uint256*,
-            accrued_token_standard: felt,
+            accrued_token_ids: Uint256*
         ) = IFeePolicy.get_tokens(
             fee_policy, this_call.to, this_call.selector, this_call.calldata_len, this_call.calldata
         );
 
-        let (pre_balances_len, pre_balances: Uint256*) = FeePolicies.get_balances(
-            accrued_token, accrued_token_ids_len, accrued_token_ids
+        let (used_token_details: TokenDetails*) = alloc();
+        let (accrued_token_details: TokenDetails*) = alloc();
+
+        FeePolicies.from_token_array_to_tokens(
+            used_token_array_len, 
+            used_token_array,
+            used_token_ids,
+            used_token_details
         );
+
+        FeePolicies.from_token_array_to_tokens(
+            accrued_token_array_len, 
+            accrued_token_array,
+            accrued_token_ids,
+            accrued_token_details
+        );
+
+        let (owner) = IGuildCertificate.get_token_owner(
+            guild_certificate, 
+            [used_token_details].token_standard, 
+            [used_token_details].token, 
+            [used_token_ids]
+        );
+
+        let (owner_balances: Uint256*) = alloc();
+
+        let accrued_token_details_len = accrued_token_array_len;
+
+        let (certificate_id: Uint256) = IGuildCertificate.get_certificate_id(
+            guild_certificate, caller, contract_address
+        );
+
+        loop_get_guild_balances(
+            0,
+            guild_certificate,
+            certificate_id,
+            accrued_token_details_len,
+            accrued_token_details,
+            owner_balances
+        );
+
+        let (bool) = IFeePolicy.check_owner_balances(
+            fee_policy,
+            this_call.calldata_len,
+            this_call.calldata,
+            accrued_token_details_len, 
+            owner_balances
+        );
+
+        with_attr error_message(
+            "Guild Contract: Owner doesn't have required token balances according to Policy"
+        ) {
+            assert bool = TRUE;
+        }
+
+        let (pre_balances_len, pre_balances: TokenBalances*) = IFeePolicy.get_balances(fee_policy);
 
         let res = call_contract(
             contract_address=this_call.to,
@@ -721,82 +778,42 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             fee_policy_manager, contract_address, fee_policy
         );
 
-        let (post_balances_len, post_balances: Uint256*) = FeePolicies.get_balances(
-            accrued_token, accrued_token_ids_len, accrued_token_ids
-        );
+        let (post_balances_len, post_balances: TokenBalances*) = IFeePolicy.get_balances(fee_policy);
 
-        with_attr error_message("Guild Contract: Policy balances do not match") {
+        with_attr error_message("Guild Contract: Policy balances length do not match") {
             assert pre_balances_len = post_balances_len;
         }
 
-        let (owner) = IGuildCertificate.get_token_owner(
-            guild_certificate, used_token_standard, used_token, used_token_id
-        );
+        let (difference_balances: Uint256*) = alloc();
 
-        let (caller_balances: Uint256*) = alloc();
-        let (owner_balances: Uint256*) = alloc();
-        let (admin_balances: Uint256*) = alloc();
-
-        FeePolicies.calculate_splits(
+        let (token_differences_len, token_differences) = FeePolicies.calculate_differences(
             pre_balances_len,
             pre_balances,
             post_balances,
-            caller_split,
-            owner_split,
-            admin_split,
-            caller_balances,
-            owner_balances,
-            admin_balances,
+            difference_balances,
         );
 
-        let (data: felt*) = alloc();
-        assert data[0] = 1;
+        loop_update_balances(
+            0,
+            guild_certificate,
+            certificate_id,
+            asset_flow,
+            accrued_token_details_len,
+            accrued_token_details,
+            difference_balances
+        );
 
-        if (accrued_token_standard == TokenStandard.ERC1155) {
-            IERC1155.safeBatchTransferFrom(
-                contract_address=accrued_token,
-                from_=contract_address,
-                to=caller,
-                ids_len=pre_balances_len,
-                ids=accrued_token_ids,
-                amounts_len=pre_balances_len,
-                amounts=caller_balances,
-                data_len=1,
-                data=data,
-            );
+        // same as guild master
+        let (admin) = AccessControl.get_admin();
 
-            // IERC1155.safeBatchTransferFrom(
-            //     contract_address=accrued_token,
-            //     from_=contract_address,
-            //     to=owner,
-            //     ids_len=pre_balances_len,
-            //     ids=accrued_token_ids,
-            //     amounts_len=pre_balances_len,
-            //     amounts=owner_balances,
-            //     data_len=1,
-            //     data=data,
-            // );
-
-            // IERC1155.safeBatchTransferFrom(
-            //     contract_address=accrued_token,
-            //     from_=contract_address,
-            //     to=admin,
-            //     ids_len=pre_balances_len,
-            //     ids=accrued_token_ids,
-            //     amounts_len=pre_balances_len,
-            //     amounts=admin_balances,
-            //     data_len=1,
-            //     data=data,
-            // );
-
-            tempvar syscall_ptr: felt* = syscall_ptr;
-            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
-            tempvar range_check_ptr = range_check_ptr;
-        } else {
-            tempvar syscall_ptr: felt* = syscall_ptr;
-            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
-            tempvar range_check_ptr = range_check_ptr;
-        }
+        execute_payments(
+            accrued_token_details_len,
+            accrued_token_details,
+            fee_policy,
+            owner,
+            caller,
+            admin
+        );
 
         tempvar syscall_ptr: felt* = syscall_ptr;
         tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
@@ -867,18 +884,32 @@ func set_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check
 
 @external
 func set_fee_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    fee_policy: felt, caller_split: felt, owner_split: felt, admin_split: felt
+    fee_policy: felt, 
+    caller_split: felt, 
+    owner_split: felt, 
+    admin_split: felt,
+    payment_type: felt,
+    payment_details_len: felt,
+    payment_details: PaymentDetails*
 ) {
     alloc_locals;
 
     let (fee_policy_manager) = _fee_policy_manager.read();
 
     IFeePolicyManager.set_fee_policy(
-        fee_policy_manager, fee_policy, caller_split, owner_split, admin_split
+        fee_policy_manager, 
+        fee_policy, 
+        caller_split,
+        owner_split, 
+        admin_split,
+        payment_details_len,
+        payment_details
     );
 
     return ();
 }
+
+// Internals
 
 func _set_permissions{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     permissions_index: felt, permissions_len: felt, permissions: Permission*
@@ -1038,20 +1069,364 @@ func _force_transfer_items{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range
     );
 }
 
-//
-// Receivers
-//
+func loop_get_guild_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr} (
+    index: felt,
+    guild_certificate: felt,
+    certificate_id: Uint256,
+    token_details_len: felt,
+    accrued_token_details: TokenDetails*,
+    owner_balances: Uint256*
+) {
+    if (index == tokens_len) {
+        return ();
+    }
+    let token_standard = accrued_token_details[index].token_standard;
+    let token = accrued_token_details[index].token;
 
-@external
-func onERC721Received{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    operator: felt, _from: felt, id: Uint256, data_len: felt, data: felt*
-) -> (value: felt) {
-    return (value=IERC1155_RECEIVER_ID);
+    loop_get_token_ids_balance(
+        0,
+        guild_certificate,
+        certificate_id,
+        token_standard,
+        token,
+        accrued_token_details[index].token_ids_len,
+        accrued_token_details[index].token_ids,
+        owner_balances
+    );
+
+    return loop_get_guild_balances(
+        index + 1,
+        guild_certificate,
+        certificate_id,
+        token_details_len,
+        accrued_token_details,
+        owner_balances
+    );
 }
 
-@external
-func onERC1155Received{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    operator: felt, _from: felt, id: Uint256, value: Uint256, data_len: felt, data: felt*
-) -> (value: felt) {
-    return (value=ON_ERC1155_RECEIVED_SELECTOR);
+func loop_get_token_ids_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr} (
+    index: felt,
+    guild_certificate: felt,
+    certificate_id: Uint256,
+    token_standard: felt,
+    token: felt,
+    token_ids_len: felt,
+    token_ids: Uint256*,
+    owner_balances: Uint256*
+) {
+    if (index == tokens_ids_len) {
+        return ();
+    }
+    
+    let (amount) = IGuildCertificate.get_token_amount(
+        guild_certificate,
+        certificate_id,
+        token_standard,
+        token,
+        token_ids[index],
+    );
+
+    assert owner_balances[index] = amount;
+
+    return loop_get_guild_balances(
+        index + 1,
+        guild_certificate,
+        certificate_id,
+        token_standard,
+        token,
+        token_ids_len,
+        token_ids,
+        owner_balances
+    );
+}
+
+func loop_update_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr} (
+    index: felt,
+    guild_certificate: felt,
+    certificate_id: Uint256,
+    asset_flow: felt,
+    token_details_len: felt,
+    token_details: TokenDetails*,
+    differences: felt*
+) {
+    if (index == token_details_len) {
+        return ();
+    }
+    
+    let token_standard = token_details[index].token_standard;
+    let token = token_details[index].token;
+
+    loop_update_token_ids_balance(
+        0,
+        guild_certificate,
+        certificate_id,
+        token_standard,
+        token,
+        token_details[index].token_ids_len,
+        token_details[index].token_ids,
+        differences
+    );
+
+    return loop_update_balances(
+        index + 1,
+        guild_certificate,
+        certificate_id,
+        asset_flow,
+        token_details_len,
+        token_details,
+        differences
+    );
+
+}
+
+func loop_update_token_ids_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr} (
+    index: felt,
+    guild_certificate: felt,
+    certificate_id: Uint256,
+    asset_flow: felt,
+    token_standard: felt,
+    token: felt,
+    token_ids_len: felt,
+    token_ids: Uint256*,
+    differences: Uint256*
+) {
+    if (index == token_details_len) {
+        return ();
+    }
+
+    let (current_balance) = IGuildCertificate.get_token_amount(
+        guild_certificate,
+        certificate_id,
+        token_standard,
+        token,
+        token_ids[index],
+    );
+
+    // if there is a change in guild balance remove or add from the owner
+    // change in balance is calculated from Fee Policy
+    if (asset_flow == NetAssetFlow.POSITIVE) {
+
+        let (new_amount) = uint256_add(current_balance, differences[index]);
+
+        IGuildCertificate.change_token_data(
+            contract_address=guild_certificate,
+            certificate_id=certificate_id,
+            token_standard=token_standard,
+            token=token,
+            token_id=token_ids[index],
+            new_amount=new_amount,
+        );
+    }
+
+    if (asset_flow == NetAssetFlow.NEGATIVE) {
+
+        // we already know the account has enough balance in guild
+        let (new_amount) = uint256_sub(current_balance, differences[index]);
+
+        IGuildCertificate.change_token_data(
+            contract_address=guild_certificate,
+            certificate_id=certificate_id,
+            token_standard=token_standard,
+            token=token,
+            token_id=token_ids[index],
+            new_amount=Uint256(0, 0),
+        );
+    }
+
+    return loop_update_token_ids_balance(
+        index + 1,
+        guild_certificate,
+        certificate_id,
+        asset_flow,
+        token_standard,
+        token,
+        token_ids_len,
+        token_ids,
+        differences + Uint256.SIZE
+    );
+}
+
+func execute_payments{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr} (
+    accrued_token_details_len: felt,
+    accrued_token_details: TokenDetails*,
+    fee_policy: felt,
+    owner: felt,
+    caller: felt,
+    admin: felt
+) {
+    alloc_locals;
+    let (data: felt*) = alloc();
+    assert data[0] = 1;
+
+    let (contract_address) = get_contract_address();
+
+    let (fee_policy_manager) = _fee_policy_manager.read();
+
+    let (caller_split, owner_split, admin_split) = IFeePolicyManager.get_policy_distribution(
+        fee_policy_manager, contract_address, fee_policy
+    );
+
+    let (direct_payments_len, direct_payments) = IFeePolicyManager.get_direct_payments(
+        fee_policy_manager, contract_address, fee_policy
+    );
+
+    let (caller_balances: Uint256*) = alloc();
+    let (owner_balances: Uint256*) = alloc();
+    let (admin_balances: Uint256*) = alloc();
+
+    loop_distribute_reward(
+        0, 
+        accrued_token_details_len, 
+        accrued_token_details,
+        owner,
+        owner_balances,
+        caller, 
+        caller_balances,
+        admin,
+        admin_balances
+    );
+
+
+    loop_direct_payment(0, direct_payments_len, direct_payments);
+
+    return ();
+}
+
+func loop_distribute_reward{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    index: felt,
+    accrued_token_details_len: felt,
+    accrued_token_details: felt*,
+    owner: felt,
+    owner_balances_len: felt,
+    owner_balances: felt,
+    caller: felt,
+    caller_balances_len: felt,
+    caller_balances: Uint256*,
+    admin: felt,
+    admin_balances_len: felt,
+    admin_balances: Uint256*
+) {
+    if (index == accrued_tokens_len) {
+        return ();
+    }
+
+    let (contract_address) = get_contract_address();
+
+    let accrued_token = accrued_token_details[index];
+
+    if (accrued_token.token_standard == TokenStandard.ERC1155) {
+        IERC1155.safeBatchTransferFrom(
+            contract_address=accrued_token.token,
+            from_=contract_address,
+            to=caller,
+            ids_len=accrued_token.token_ids_len,
+            ids=accrued_token.token_ids,
+            amounts_len=accrued_token,
+            amounts=caller_balances,
+            data_len=1,
+            data=data,
+        );
+
+        IERC1155.safeBatchTransferFrom(
+            contract_address=accrued_token.token,
+            from_=contract_address,
+            to=owner,
+            ids_len=accrued_token.token_ids_len,
+            ids=accrued_token.token_ids,
+            amounts_len=owner_balances_len,
+            amounts=owner_balances,
+            data_len=1,
+            data=data,
+        );
+
+        IERC1155.safeBatchTransferFrom(
+            contract_address=accrued_token.token,
+            from_=contract_address,
+            to=admin,
+            ids_len=accrued_token.token_ids_len,
+            ids=accrued_token.token_ids,
+            amounts_len=admin_balances_len,
+            amounts=admin_balances,
+            data_len=1,
+            data=data,
+        );
+
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
+
+    return loop_distribute_reward(
+        index + 1,
+        accrued_tokens_len,
+        accrued_tokens,
+        owner_split,
+        caller_split,
+        admin_split
+    );
+
+}
+
+func loop_direct_payment{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    index: felt,
+    direct_payments_len: felt,
+    direct_payments: PaymentDetails*,
+    owner: felt,
+    caller: felt,
+    master: felt
+) {
+    if (index == direct_payments_len) {
+        return ();
+    }
+
+    let direct_payment = direct_payments[index];
+
+    if (direct_payment.payment_token_standard == TokenStandard.ERC20 and index == 0) {
+        IERC20.transfer(
+            contract_address=direct_payment.payment_token,
+            recipient=owner,
+            amount=direct_payment.payment_amount
+        );
+
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } 
+
+    if (direct_payment.payment_token_standard == TokenStandard.ERC20 and index == 1) {
+        IERC20.transfer(
+            contract_address=direct_payment.payment_token,
+            recipient=caller,
+            amount=direct_payment.payment_amount
+        );
+
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } 
+
+    if (direct_payment.payment_token_standard == TokenStandard.ERC20 and index == 2) {
+        IERC20.transfer(
+            contract_address=direct_payment.payment_token,
+            recipient=master,
+            amount=direct_payment.payment_amount
+        );
+
+        tempvar syscall_ptr: felt* = syscall_ptr;
+        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } 
+
+    return loop_direct_payment(
+        index + 1,
+        direct_payments_len,
+        direct_payments,
+        owner,
+        caller,
+        master
+    );
 }

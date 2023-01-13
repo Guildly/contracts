@@ -1,16 +1,46 @@
 %lang starknet
 
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
-from starkware.cairo.common.uint256 import Uint256
-from openzeppelin.security.safemath.library import SafeUint256
 from starkware.cairo.common.math import unsigned_div_rem
-
-from contracts.interfaces.IERC1155 import IERC1155
 from starkware.starknet.common.syscalls import get_contract_address
+from starkware.cairo.common.uint256 import Uint256, uint256_check, uint256_lt, uint256_eq
 
+from openzeppelin.security.safemath.library import SafeUint256
+
+from contracts.fee_policies.constants import NetAssetFlow
+from contracts.interfaces.IERC1155 import IERC1155
 from contracts.utils.constants import SHIFT_SPLIT
 from contracts.utils.general import unpack_data
+
+struct TokenBalances {
+    token: felt,
+    token_balances_len: felt,
+    token_balances: Uint256*,
+}
+
+struct TokenBalancesArray {
+    token: felt,
+    token_balances_offset: felt,
+    token_balances_len: felt,
+}
+
+struct TokenDetails {
+    token_standard: felt,
+    token: felt,
+    token_ids_len: felt,
+    token_ids: Uint256*,
+}
+
+// Tmp struct introduced while we wait for Cairo
+// to support passing '[TokenDetails]' to __execute__
+struct TokenArray {
+    token_standard: felt,
+    token: felt,
+    token_ids_offset: felt,
+    token_ids_len: felt,
+}
 
 namespace FeePolicies {
     func pack_fee_splits{
@@ -90,37 +120,87 @@ namespace FeePolicies {
         );
     }
 
-    func calculate_splits{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-        balances_len: felt,
-        pre_balances: Uint256*,
-        post_balances: Uint256*,
-        caller_split: felt,
-        owner_split: felt,
-        admin_split: felt,
-        caller_balances: Uint256*,
-        owner_balances: Uint256*,
-        admin_balances: Uint256*
-    ) {
-        if (balances_len == 0) {
+    func calculate_differences{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        tokens_len: felt,
+        pre_balances: TokenBalances*,
+        post_balances: TokenBalances*,
+        difference_balances: Uint256*
+    ) -> (asset_flow: felt) {
+        if (tokens_len == 0) {
             return ();
         }
-        let (diff: Uint256) = SafeUint256.sub_le([post_balances], [pre_balances]);
-        let (caller_balance, _) = unsigned_div_rem(caller_split * diff.low, 10000);
-        let (owner_balance, _) = unsigned_div_rem(owner_split * diff.low, 10000);
-        let (admin_balance, _) = unsigned_div_rem(admin_split * diff.low, 10000);
-        assert [caller_balances] = Uint256(caller_balance, 0);
-        assert [owner_balances] = Uint256(owner_balance, 0);
-        assert [admin_balances] = Uint256(admin_balance, 0);
-        return calculate_splits(
+        loop_calculate_differences(
+            0,
+            [pre_balances].token_balances,
+            [post_balances].token_balances
+        );
+
+        calculate_differences(
             balances_len - 1,
             pre_balances + Uint256.SIZE,
             post_balances + Uint256.SIZE,
-            caller_split,
-            owner_split,
-            admin_split,
-            caller_balances + Uint256.SIZE,
-            owner_balances + Uint256.SIZE,
-            admin_balances + Uint256.SIZE
+            difference_balances + Uint256.SIZE
+        );
+        return (NetAssetFlow.POSITIVE);
+    }
+
+    func loop_calcuate_differences{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        index: felt,
+        pre_balances: Uint256*,
+        post_balances: Uint256*
+    ) {
+        if (index == token_ids_len) {
+            return ();
+        }
+
+        let token_id = token_ids[index];
+
+        uint256_check([pre_balances]);
+        uint256_check([post_balances]);
+        let (is_lt) = uint256_lt([post_balances], [pre_balances]);
+        if (is_lt == TRUE) {
+            let (diff: Uint256) = SafeUint256.sub_le([post_balances], [pre_balances]);
+            return (NetAssetFlow.NEGATIVE);
+        }
+        let (is_eq) = uint256_eq([pre_balances], [post_balances]);
+        if (is_eq == TRUE) {
+            return (NetAssetFlow.NEUTRAL);
+        }
+        let (diff: Uint256) = SafeUint256.sub_le([pre_balances], [post_balances]);
+        assert [difference_balances] = diff;
+        return loop_calculate_differences(
+            token_ids_len, - 1,
+            pre_balances + Uint256.SIZE,
+            post_balances + Uint256.SIZE,
+            difference_balances + Uint256.SIZE
+        );
+    }
+
+    func from_token_array_to_tokens{syscall_ptr: felt*} (
+        token_array_len: felt, 
+        token_array: TokenArray*, 
+        token_ids: felt*, 
+        token_details: TokenDetails*
+    ) {
+        // if no more tokens
+        if (token_array_len == 0) {
+            return ();
+        }
+
+        // parse the current call
+        assert [token_details] = TokenDetails(
+            to=[token_array].to,
+            selector=[token_array].selector,
+            token_ids_len=[token_array].token_ids_len,
+            token_ids=token_ids + [token_array].token_ids_offset
+            );
+
+        // parse the remaining calls recursively
+        return from_token_array_to_tokens(
+            token_array_len - 1, 
+            token_array + TokenArray.SIZE, 
+            token_ids, 
+            token_details + TokenDetails.SIZE
         );
     }
 }
