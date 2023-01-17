@@ -5,7 +5,7 @@ protostar_version = "0.6.0"
 libs_path = "./lib"
 
 ["protostar.shared_command_configs"]
-cairo-path = ["./lib/cairo_contracts/src"]
+cairo-path = ["./lib/cairo_contracts/src", "./lib/realms_contracts"]
 stdout-on-success = true
 
 ["protostar.build"]

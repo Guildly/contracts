@@ -33,3 +33,6 @@ venv
 # helper scripts
 /scripts
 contracts/settling_game
+
+#Protostar
+.protostar_cache/
