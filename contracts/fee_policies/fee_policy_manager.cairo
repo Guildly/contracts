@@ -165,17 +165,17 @@ func loop_get_direct_payment{
     index: felt,
     guild_address: felt,
     fee_policy: felt,
-    direct_payments: PaymentDetails*
+    payments: PaymentDetails*
 ) {
     let (payment_details) = direct_payments.read(guild_address, fee_policy, index);
 
-    assert direct_payments[index] = payment_details;
+    assert payments[index] = payment_details;
 
     return loop_get_direct_payment(
         index + 1,
         guild_address,
         fee_policy,
-        direct_payments
+        payments
     );
 }
 
@@ -223,6 +223,8 @@ func set_fee_policy{
 
     return loop_store_direct_payment(
         0,
+        guild_address,
+        policy_address,
         payment_details_len,
         payment_details,
     );
@@ -244,14 +246,14 @@ func revoke_policy{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_p
 
 // Internals
 
-func loop_store_direct_payment{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+func loop_store_direct_payment{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
     index: felt,
     guild_address: felt,
     fee_policy: felt,
     payment_details_len: felt,
     payment_details: PaymentDetails*
 ) {
-    if (payment_tokens_len == payment_tokens_len) {
+    if (index == payment_details_len) {
         return ();
     }
 

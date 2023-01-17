@@ -9,16 +9,22 @@ namespace IFeePolicy {
     func get_tokens(
         to: felt, selector: felt, calldata_len: felt, calldata: felt*
     ) -> (
-        used_token: felt,
-        used_token_id: Uint256,
-        used_token_standard: felt,
+        used_token_array_len: felt,
+        used_token_array: TokenArray*,
+        used_token_ids_len: felt,
+        used_token_ids: Uint256*,
         token_array_len: felt,
         token_array: TokenArray*,
         token_ids_len: felt,
         token_ids: Uint256*
     ) {
     }
-    func get_balances() -> (token_balances_len: felt, token_balances: TokenBalancesArray*) {
+    func get_balances() -> (
+        token_balances_len: felt, 
+        token_balances: TokenBalancesArray*,
+        balances_len: felt,
+        balances: Uint256*
+    ) {
     }
     func check_owner_balances(
         calldata_len: felt, calldata: felt*, owner_balances_len: felt, owner_balances: Uint256*

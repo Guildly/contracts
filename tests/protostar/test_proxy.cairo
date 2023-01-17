@@ -47,18 +47,8 @@ func test_add_members{
         ids.guild_address = context.guild_address
         stop_prank = start_prank(ids.account1, ids.guild_address)
     %}
-    Guild.whitelist_member(guild_address, account2, GuildRoles.ADMIN);
-    Guild.whitelist_member(guild_address, account3, GuildRoles.OWNER);
-    %{
-        stop_prank()
-        stop_prank = start_prank(ids.account2, ids.guild_address)
-    %}
-    Guild.join(guild_address);
-    %{
-        stop_prank()
-        stop_prank = start_prank(ids.account3, ids.guild_address)
-    %}
-    Guild.join(guild_address);
+    Guild.add_member(guild_address, account2, GuildRoles.ADMIN);
+    Guild.add_member(guild_address, account3, GuildRoles.OWNER);
     %{
         stop_prank()
     %}

@@ -17,7 +17,7 @@ from starkware.starknet.common.syscalls import get_caller_address
 from openzeppelin.security.safemath.library import SafeUint256
 from openzeppelin.token.erc20.IERC20 import IERC20
 
-from contracts.fee_policies.library import TokenArray, TokenBalances
+from contracts.fee_policies.library import TokenArray, TokenBalances, TokenBalancesArray
 from contracts.fee_policies.realms.library import get_resources, get_owners
 from contracts.interfaces.IERC1155 import IERC1155
 from contracts.settling_game.utils.pow2 import pow2
@@ -85,9 +85,10 @@ func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 func get_tokens{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     to: felt, selector: felt, calldata_len: felt, calldata: felt*
 ) -> (
-    used_token: felt,
-    used_token_id: Uint256,
-    used_token_standard: felt,
+    used_token_array_len: felt,
+    used_token_array: TokenArray*,
+    used_token_ids_len: felt,
+    used_token_ids: Uint256*,
     token_array_len: felt,
     token_array: TokenArray*,
     token_ids_len: felt,
@@ -101,10 +102,22 @@ func get_tokens{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
     );
     let (realms_address) = realms_contract.read();
     let (resources_address) = resources_contract.read();
-    let (token_ids: Uint256*) = get_resources();
 
-    let (token_array: TokenArray*) = alloc();
-    assert token_array[0] = TokenArray(
+    let (used_token_ids: Uint256*) = alloc();
+    assert used_token_ids[0] = realm_id;
+
+    let (accrued_token_ids: Uint256*) = get_resources();
+
+    let (used_token_array: TokenArray*) = alloc();
+    assert used_token_array[0] = TokenArray(
+        1,
+        realms_address,
+        0,
+        1
+    );
+
+    let (accrued_token_array: TokenArray*) = alloc();
+    assert accrued_token_array[0] = TokenArray(
         1,
         resources_address,
         0,
@@ -112,17 +125,25 @@ func get_tokens{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
     );
 
     return (
-        realms_address,
-        realm_id,
         1,
-        token_array,
+        used_token_array,
+        1,
+        used_token_ids,
+        1,
+        accrued_token_array,
         RESOURCES_LENGTH,
-        token_ids,
+        accrued_token_ids,
     );
 }
 
 @external
-func get_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (balances_len: felt, balances: Uint256*) {
+func get_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> 
+(
+    token_balances_len: felt, 
+    token_balances: TokenBalancesArray*,
+    balances_len: felt,
+    balances: Uint256*
+) {
     alloc_locals;
     let (caller) = get_caller_address();
     let (resources_address) = resources_contract.read();
@@ -130,12 +151,12 @@ func get_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     let (owners: felt*) = get_owners(caller);
     let (final_balances_len, final_balances) = IResources.balanceOfBatch(resources_address, 22, owners, 22, token_ids);
     let (token_balances_array: TokenBalancesArray*) = alloc();
-    assert token_balances_array[0] = TokenBalancesArrays(
+    assert token_balances_array[0] = TokenBalancesArray(
         resources_address,
-        22,
-        final_balances
+        0,
+        RESOURCES_LENGTH
     );
-    return (1, token_balances_array);
+    return (1, token_balances_array, final_balances_len, final_balances);
 }
 
 @external

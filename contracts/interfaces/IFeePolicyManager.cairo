@@ -24,7 +24,12 @@ namespace IFeePolicyManager {
     }
 
     func set_fee_policy(
-        policy_address: felt, caller_split: felt, owner_split: felt, admin_split: felt
+        policy_address: felt, 
+        caller_split: felt, 
+        owner_split: felt, 
+        admin_split: felt,
+        payment_details_len: felt,
+        payment_details: PaymentDetails*
     ) {
     }
 

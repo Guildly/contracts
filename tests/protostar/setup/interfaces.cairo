@@ -24,7 +24,7 @@ struct CallArray {
 @contract_interface
 namespace GuildManager {
     func initializer(
-        guild_proxy_class_hash_: felt, guild_class_hash_: felt, proxy_admin: felt
+        guild_proxy_class_hash_: felt, guild_class_hash_: felt, fee_policy_manager: felt, proxy_admin: felt
     ) {
     }
     func deploy_guild(name: felt, certificate_address: felt) -> (contract_address: felt) {
@@ -33,9 +33,7 @@ namespace GuildManager {
 
 @contract_interface
 namespace Guild {
-    func whitelist_member(address: felt, role: felt) {
-    }
-    func join() {
+    func add_member(address: felt, role: felt) {
     }
     func set_fee_policy(policy_id: felt, caller_split: felt, owner_split: felt) {
     }

@@ -5,7 +5,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, SignatureBuiltin
 from starkware.cairo.common.cairo_keccak.keccak import keccak_felts
 from starkware.cairo.common.math import assert_le, assert_lt
-from starkware.cairo.common.math_cmp import is_not_zero
+from starkware.cairo.common.math_cmp import is_not_zero, is_nn
 from starkware.cairo.common.memcpy import memcpy
 
 from starkware.starknet.common.syscalls import (
@@ -31,7 +31,14 @@ from contracts.lib.token_standard import TokenStandard
 from contracts.lib.math_utils import MathUtils
 from contracts.fee_policies.constants import NetAssetFlow
 from contracts.fee_policies.fee_policy_manager import PaymentDetails
-from contracts.fee_policies.library import FeePolicies, TokenDetails, TokenArray, TokenBalances
+from contracts.fee_policies.library import (
+    FeePolicies, 
+    TokenDetails, 
+    TokenArray, 
+    TokenBalances,
+    TokenDifferences
+)
+from contracts.fee_policies.recipient import Recipient
 from contracts.utils.helpers import find_value
 
 from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_add, uint256_eq, uint256_sub
@@ -742,6 +749,9 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             guild_certificate, caller, contract_address
         );
 
+        // get the guild balance in order to assess whether the call can be made
+        // (currently this is based on the owner balance of accrued tokens)
+
         loop_get_guild_balances(
             0,
             guild_certificate,
@@ -750,6 +760,8 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             accrued_token_details,
             owner_balances
         );
+
+        // calls the fee policy to perform the check, returns bool if this was passed
 
         let (bool) = IFeePolicy.check_owner_balances(
             fee_policy,
@@ -765,7 +777,21 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             assert bool = TRUE;
         }
 
-        let (pre_balances_len, pre_balances: TokenBalances*) = IFeePolicy.get_balances(fee_policy);
+        let (token_balances: TokenBalances*) = alloc();
+
+        let (
+            token_balances_array_len, 
+            token_balances_array: TokenBalancesArray*, 
+            balances_len: felt,
+            balances: Uint256*
+        ) = IFeePolicy.get_balances(fee_policy);
+
+        FeePolicies.from_token_array_to_tokens(
+            token_balances_array_len, 
+            token_balances_array,
+            balances,
+            token_balances
+        );
 
         let res = call_contract(
             contract_address=this_call.to,
@@ -774,19 +800,15 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             calldata=this_call.calldata,
         );
 
-        let (caller_split, owner_split, admin_split) = IFeePolicyManager.get_policy_distribution(
-            fee_policy_manager, contract_address, fee_policy
-        );
-
         let (post_balances_len, post_balances: TokenBalances*) = IFeePolicy.get_balances(fee_policy);
 
         with_attr error_message("Guild Contract: Policy balances length do not match") {
             assert pre_balances_len = post_balances_len;
         }
 
-        let (difference_balances: TokenBalances*) = alloc();
+        let (difference_balances: TokenDifferences*) = alloc();
 
-        let (asset_flow) = FeePolicies.calculate_differences(
+        FeePolicies.calculate_differences(
             pre_balances_len,
             pre_balances,
             post_balances,
@@ -797,18 +819,19 @@ func execute_list{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
             0,
             guild_certificate,
             certificate_id,
-            asset_flow,
             accrued_token_details_len,
             accrued_token_details,
             difference_balances
         );
 
         // same as guild master
-        let (admin) = AccessControl.get_admin();
+        let admin = AccessControl.get_admin();
 
         execute_payments(
             accrued_token_details_len,
             accrued_token_details,
+            accrued_token_details_len,
+            difference_balances,
             fee_policy,
             owner,
             caller,
@@ -1077,7 +1100,7 @@ func loop_get_guild_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, ran
     accrued_token_details: TokenDetails*,
     owner_balances: Uint256*
 ) {
-    if (index == tokens_len) {
+    if (index == token_details_len) {
         return ();
     }
     let token_standard = accrued_token_details[index].token_standard;
@@ -1114,7 +1137,7 @@ func loop_get_token_ids_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, 
     token_ids: Uint256*,
     owner_balances: Uint256*
 ) {
-    if (index == tokens_ids_len) {
+    if (index == token_ids_len) {
         return ();
     }
     
@@ -1128,7 +1151,7 @@ func loop_get_token_ids_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, 
 
     assert owner_balances[index] = amount;
 
-    return loop_get_guild_balances(
+    return loop_get_token_ids_balance(
         index + 1,
         guild_certificate,
         certificate_id,
@@ -1144,7 +1167,6 @@ func loop_update_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
     index: felt,
     guild_certificate: felt,
     certificate_id: Uint256,
-    asset_flow: felt,
     token_details_len: felt,
     token_details: TokenDetails*,
     differences: felt*
@@ -1171,7 +1193,6 @@ func loop_update_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
         index + 1,
         guild_certificate,
         certificate_id,
-        asset_flow,
         token_details_len,
         token_details,
         differences
@@ -1183,14 +1204,13 @@ func loop_update_token_ids_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin
     index: felt,
     guild_certificate: felt,
     certificate_id: Uint256,
-    asset_flow: felt,
     token_standard: felt,
     token: felt,
     token_ids_len: felt,
     token_ids: Uint256*,
-    differences: Uint256*
+    differences: felt*
 ) {
-    if (index == token_details_len) {
+    if (index == token_ids_len) {
         return ();
     }
 
@@ -1202,11 +1222,13 @@ func loop_update_token_ids_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin
         token_ids[index],
     );
 
+    let flow_positive_check = is_nn(differences[index]);
+
     // if there is a change in guild balance remove or add from the owner
     // change in balance is calculated from Fee Policy
-    if (asset_flow == NetAssetFlow.POSITIVE) {
+    if (flow_positive_check == TRUE) {
 
-        let (new_amount) = uint256_add(current_balance, differences[index]);
+        let (new_amount, _) = uint256_add(current_balance, Uint256(differences[index], 0));
 
         IGuildCertificate.change_token_data(
             contract_address=guild_certificate,
@@ -1216,12 +1238,10 @@ func loop_update_token_ids_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin
             token_id=token_ids[index],
             new_amount=new_amount,
         );
-    }
-
-    if (asset_flow == NetAssetFlow.NEGATIVE) {
+    } else {
 
         // we already know the account has enough balance in guild
-        let (new_amount) = uint256_sub(current_balance, differences[index]);
+        let (new_amount) = uint256_sub(current_balance, Uint256(differences[index], 0));
 
         IGuildCertificate.change_token_data(
             contract_address=guild_certificate,
@@ -1237,7 +1257,6 @@ func loop_update_token_ids_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin
         index + 1,
         guild_certificate,
         certificate_id,
-        asset_flow,
         token_standard,
         token,
         token_ids_len,
@@ -1249,6 +1268,8 @@ func loop_update_token_ids_balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin
 func execute_payments{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr} (
     accrued_token_details_len: felt,
     accrued_token_details: TokenDetails*,
+    difference_balances_len: felt,
+    difference_balances: TokenDifferences*,
     fee_policy: felt,
     owner: felt,
     caller: felt,
@@ -1270,24 +1291,39 @@ func execute_payments{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
         fee_policy_manager, contract_address, fee_policy
     );
 
-    let (caller_balances: Uint256*) = alloc();
-    let (owner_balances: Uint256*) = alloc();
-    let (admin_balances: Uint256*) = alloc();
+    let (caller_balances: TokenBalances*) = alloc();
+    let (owner_balances: TokenBalances*) = alloc();
+    let (admin_balances: TokenBalances*) = alloc();
+
+    FeePolicies.calculate_distribution_balances(
+        0,
+        difference_balances_len,
+        difference_balances,
+        caller_split,
+        owner_split,
+        admin_split,
+        caller_balances,
+        owner_balances,
+        admin_balances
+    );
 
     loop_distribute_reward(
         0, 
         accrued_token_details_len, 
         accrued_token_details,
         owner,
+        difference_balances_len,
         owner_balances,
-        caller, 
+        caller,
+        difference_balances_len,
         caller_balances,
         admin,
+        difference_balances_len,
         admin_balances
     );
 
 
-    loop_direct_payment(0, direct_payments_len, direct_payments);
+    loop_direct_payment(0, direct_payments_len, direct_payments, owner, caller, admin);
 
     return ();
 }
@@ -1295,22 +1331,23 @@ func execute_payments{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 func loop_distribute_reward{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     index: felt,
     accrued_token_details_len: felt,
-    accrued_token_details: felt*,
+    accrued_token_details: TokenDetails*,
     owner: felt,
     owner_balances_len: felt,
-    owner_balances: felt,
+    owner_balances: TokenBalances*,
     caller: felt,
     caller_balances_len: felt,
-    caller_balances: Uint256*,
+    caller_balances: TokenBalances*,
     admin: felt,
     admin_balances_len: felt,
-    admin_balances: Uint256*
+    admin_balances: TokenBalances*
 ) {
-    if (index == accrued_tokens_len) {
+    alloc_locals;
+    if (index == accrued_token_details_len) {
         return ();
     }
 
-    let (contract_address) = get_contract_address();
+    let (local contract_address) = get_contract_address();
 
     let accrued_token = accrued_token_details[index];
 
@@ -1324,8 +1361,8 @@ func loop_distribute_reward{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, rang
             to=caller,
             ids_len=accrued_token.token_ids_len,
             ids=accrued_token.token_ids,
-            amounts_len=accrued_token,
-            amounts=caller_balances,
+            amounts_len=accrued_token.token_ids_len,
+            amounts=caller_balances[index].token_balances,
             data_len=1,
             data=data,
         );
@@ -1336,8 +1373,8 @@ func loop_distribute_reward{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, rang
             to=owner,
             ids_len=accrued_token.token_ids_len,
             ids=accrued_token.token_ids,
-            amounts_len=owner_balances_len,
-            amounts=owner_balances,
+            amounts_len=accrued_token.token_ids_len,
+            amounts=owner_balances[index].token_balances,
             data_len=1,
             data=data,
         );
@@ -1348,16 +1385,18 @@ func loop_distribute_reward{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, rang
             to=admin,
             ids_len=accrued_token.token_ids_len,
             ids=accrued_token.token_ids,
-            amounts_len=admin_balances_len,
-            amounts=admin_balances,
+            amounts_len=accrued_token.token_ids_len,
+            amounts=admin_balances[index].token_balances,
             data_len=1,
             data=data,
         );
 
+        tempvar contract_address = contract_address;
         tempvar syscall_ptr: felt* = syscall_ptr;
         tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
         tempvar range_check_ptr = range_check_ptr;
     } else {
+        tempvar contract_address = contract_address;
         tempvar syscall_ptr: felt* = syscall_ptr;
         tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
         tempvar range_check_ptr = range_check_ptr;
@@ -1386,7 +1425,7 @@ func loop_direct_payment{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_c
     direct_payments: PaymentDetails*,
     owner: felt,
     caller: felt,
-    master: felt
+    admin: felt
 ) {
     if (index == direct_payments_len) {
         return ();
@@ -1394,41 +1433,65 @@ func loop_direct_payment{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_c
 
     let direct_payment = direct_payments[index];
 
-    if (direct_payment.payment_token_standard == TokenStandard.ERC20 and index == 0) {
-        IERC20.transfer(
-            contract_address=direct_payment.payment_token,
-            recipient=owner,
-            amount=direct_payment.payment_amount
-        );
+    if (direct_payment.payment_token_standard == TokenStandard.ERC20) {
+        if (index == Recipient.OWNER) {
+            IERC20.transfer(
+                contract_address=direct_payment.payment_token,
+                recipient=owner,
+                amount=direct_payment.payment_amount
+            );
+
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        } else {
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        }
+
+        if (index == Recipient.CALLER) {
+
+            IERC20.transfer(
+                contract_address=direct_payment.payment_token,
+                recipient=caller,
+                amount=direct_payment.payment_amount
+            );
+
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        } else {
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        }
+
+        if (index == Recipient.ADMIN) {
+
+            IERC20.transfer(
+                contract_address=direct_payment.payment_token,
+                recipient=admin,
+                amount=direct_payment.payment_amount
+            );
+
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        } else {
+            tempvar syscall_ptr: felt* = syscall_ptr;
+            tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        }
 
         tempvar syscall_ptr: felt* = syscall_ptr;
         tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
         tempvar range_check_ptr = range_check_ptr;
-    } 
-
-    if (direct_payment.payment_token_standard == TokenStandard.ERC20 and index == 1) {
-        IERC20.transfer(
-            contract_address=direct_payment.payment_token,
-            recipient=caller,
-            amount=direct_payment.payment_amount
-        );
-
+    } else {
         tempvar syscall_ptr: felt* = syscall_ptr;
         tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
         tempvar range_check_ptr = range_check_ptr;
-    } 
-
-    if (direct_payment.payment_token_standard == TokenStandard.ERC20 and index == 2) {
-        IERC20.transfer(
-            contract_address=direct_payment.payment_token,
-            recipient=master,
-            amount=direct_payment.payment_amount
-        );
-
-        tempvar syscall_ptr: felt* = syscall_ptr;
-        tempvar pedersen_ptr: HashBuiltin* = pedersen_ptr;
-        tempvar range_check_ptr = range_check_ptr;
-    } 
+    }
 
     return loop_direct_payment(
         index + 1,
@@ -1436,6 +1499,6 @@ func loop_direct_payment{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_c
         direct_payments,
         owner,
         caller,
-        master
+        admin
     );
 }

@@ -4,6 +4,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 from starkware.cairo.common.math import unsigned_div_rem
+from starkware.cairo.common.math_cmp import is_nn
 from starkware.starknet.common.syscalls import get_contract_address
 from starkware.cairo.common.uint256 import Uint256, uint256_check, uint256_lt, uint256_eq
 
@@ -24,6 +25,12 @@ struct TokenBalancesArray {
     token: felt,
     token_balances_offset: felt,
     token_balances_len: felt,
+}
+
+struct TokenDifferences {
+    token: felt,
+    token_differences_len: felt,
+    token_differences: felt*,
 }
 
 struct TokenDetails {
@@ -124,8 +131,8 @@ namespace FeePolicies {
         tokens_len: felt,
         pre_balances: TokenBalances*,
         post_balances: TokenBalances*,
-        difference_balances: TokenBalances*
-    ) -> (asset_flow: felt) {
+        difference_balances: TokenDifferences*
+    ) {
         if (tokens_len == 0) {
             return ();
         }
@@ -133,23 +140,22 @@ namespace FeePolicies {
             0,
             [pre_balances].token_balances,
             [post_balances].token_balances,
-            [difference_balances].token_balances
+            [difference_balances].token_differences
         );
 
-        calculate_differences(
+        return calculate_differences(
             tokens_len - 1,
             pre_balances + TokenBalances.SIZE,
             post_balances + TokenBalances.SIZE,
-            difference_balances + TokenBalances.SIZE
+            difference_balances + TokenDifferences.SIZE
         );
-        return (NetAssetFlow.POSITIVE);
     }
 
     func loop_calculate_differences{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         token_ids_len: felt,
         pre_balances: Uint256*,
         post_balances: Uint256*,
-        difference_balances: Uint256*
+        difference_balances: felt*
     ) {
         if (token_ids_len == 0) {
             return ();
@@ -157,29 +163,109 @@ namespace FeePolicies {
 
         uint256_check([pre_balances]);
         uint256_check([post_balances]);
-        let (is_lt) = uint256_lt([post_balances], [pre_balances]);
-        if (is_lt == TRUE) {
-            let (diff: Uint256) = SafeUint256.sub_le([post_balances], [pre_balances]);
-            return (NetAssetFlow.NEGATIVE);
-        }
-        let (is_eq) = uint256_eq([pre_balances], [post_balances]);
-        if (is_eq == TRUE) {
-            return (NetAssetFlow.NEUTRAL);
-        }
-        let (diff: Uint256) = SafeUint256.sub_le([pre_balances], [post_balances]);
+        let diff = [post_balances].low - [pre_balances].low;
         assert [difference_balances] = diff;
         return loop_calculate_differences(
-            token_ids_len, - 1,
+            token_ids_len - 1,
             pre_balances + Uint256.SIZE,
             post_balances + Uint256.SIZE,
-            difference_balances + Uint256.SIZE
+            difference_balances + 1
         );
+    }
+
+    func calculate_distribution_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        index: felt,
+        difference_balances_len: felt,
+        difference_balances: TokenDifferences*,
+        caller_split: felt,
+        owner_split: felt,
+        admin_split: felt,
+        caller_balances: TokenBalances*,
+        owner_balances: TokenBalances*,
+        admin_balances: TokenBalances*
+    ) {
+        if (index == difference_balances_len) {
+            return ();
+        }
+
+        loop_calculate_distribution_balances(
+            0,
+            difference_balances[index].token_differences_len,
+            difference_balances[index].token_differences,
+            caller_split,
+            owner_split,
+            admin_split,
+            caller_balances[index].token_balances,
+            owner_balances[index].token_balances,
+            admin_balances[index].token_balances
+        );
+
+        return calculate_distribution_balances(
+            0,
+            difference_balances_len,
+            difference_balances,
+            caller_split,
+            owner_split,
+            admin_split,
+            caller_balances,
+            owner_balances,
+            admin_balances
+        );
+    }
+
+    func loop_calculate_distribution_balances{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        index: felt,
+        differences_len: felt,
+        differences: felt*,
+        caller_split: felt,
+        owner_split: felt,
+        admin_split: felt,
+        caller_balances: Uint256*,
+        owner_balances: Uint256*,
+        admin_balances: Uint256*
+    ) {
+        if (index == differences_len) {
+            return ();
+        }
+
+        let flow_positive_check = is_nn(differences[index]);
+
+        if (flow_positive_check == TRUE) {
+
+            assert caller_balances[index] = Uint256(differences[index] * caller_split, 0);
+            assert owner_balances[index] = Uint256(differences[index] * owner_split, 0);
+            assert admin_balances[index] = Uint256(differences[index] * admin_split, 0);
+
+            return loop_calculate_distribution_balances(
+                index + 1,
+                differences_len,
+                differences,
+                caller_split,
+                owner_split,
+                admin_split,
+                caller_balances,
+                owner_balances,
+                admin_balances
+            );
+        } else {
+            return loop_calculate_distribution_balances(
+                index + 1,
+                differences_len,
+                differences,
+                caller_split,
+                owner_split,
+                admin_split,
+                caller_balances,
+                owner_balances,
+                admin_balances
+            );
+        }
     }
 
     func from_token_array_to_tokens{syscall_ptr: felt*} (
         token_array_len: felt, 
         token_array: TokenArray*, 
-        token_ids: felt*, 
+        token_ids: Uint256*, 
         token_details: TokenDetails*
     ) {
         // if no more tokens
@@ -189,10 +275,10 @@ namespace FeePolicies {
 
         // parse the current call
         assert [token_details] = TokenDetails(
-            to=[token_array].to,
-            selector=[token_array].selector,
-            token_ids_len=[token_array].token_ids_len,
-            token_ids=token_ids + [token_array].token_ids_offset
+            [token_array].token_standard,
+            [token_array].token,
+            [token_array].token_ids_len,
+            token_ids + ([token_array].token_ids_offset * Uint256.SIZE)
             );
 
         // parse the remaining calls recursively

@@ -96,12 +96,12 @@ func deploy_all{syscall_ptr: felt*, range_check_ptr}() -> Contracts {
             ids.contracts.points_contract
         ]).contract_address
 
-        declared = declare("./contracts/fee_policy_manager.cairo")
+        declared = declare("./contracts/fee_policies/fee_policy_manager.cairo")
         ids.contracts.policy_manager = deploy_contract("./contracts/proxy.cairo", 
             [declared.class_hash]
         ).contract_address
     %}
-    GuildManager.initializer(contracts.guild_manager, proxy_class_hash, guild_class_hash, contracts.account1);
+    GuildManager.initializer(contracts.guild_manager, proxy_class_hash, guild_class_hash, contracts.policy_manager, contracts.account1);
     Certificate.initializer(contracts.certificate, CERTIFICATE_NAME, CERTIFICATE_SYMBOL, contracts.guild_manager, contracts.account1);
     PolicyManager.initializer(contracts.policy_manager, contracts.account1);
     %{
