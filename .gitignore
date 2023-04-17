@@ -23,7 +23,6 @@ ape-config.yaml
 
 #Openzeppelin
 openzeppelin
-cairo_1/cairo-contracts
 
 #Pytest
 pytest.ini

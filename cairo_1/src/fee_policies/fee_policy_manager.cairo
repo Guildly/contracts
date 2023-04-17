@@ -1,47 +1,50 @@
-use starknet::ContractAddress;
-
-from contracts.interfaces.IFeePolicy import IFeePolicy
-from contracts.fee_policies.library import FeePolicies
-from contracts.lib.module import Module
-from contracts.lib.token_standard import TokenStandard
-
-from openzeppelin.upgrades.library import Proxy
-
-//
-// Structs
-//
-
-struct PaymentDetails {
-    payment_token_standard: felt252,
-    payment_token: ContractAddress,
-    payment_token_id: u256,
-    payment_amount: u256,
-}
-
-struct PolicyTarget {
-    to: ContractAddress,
-    selector: ContractAddress,
-}
-
 #[contract]
 mod FeePolicyManager {
     use starknet::ContractAddress;
+    use starknet::ContractAddressZeroable;
     use starknet::syscalls::deploy_syscall;
     use starknet::call_contract_syscall;
     use starknet::get_caller_address;
 
-    use upgrades::library::Proxy;
-    use manager::IManager;
-    use fee_policies::feelibrar
+    use openzeppelin::upgrades::library::Proxy;
+
+    use guild_contracts::guild::Token;
+    use guild_contracts::fee_policies::library_fee_policy::PolicyTarget;
+    use guild_contracts::fee_policies::library_fee_policy::FeePolicies;
+    use guild_contracts::constants::TokenStandard;
 
     struct Storage {
-        _guild_manager: ContractAddress;
-        _fee_policy: LegacyMap<ContractAddress, PolicyTarget>;
-        _policy_distribution: LegacyMap<(ContractAddress, ContractAddress), felt252>;
-        _guild_policy_count: LegacyMap<ContractAddress, felt252>;
-        _guild_policy: LegacyMap<(ContractAddress, ContractAddress, ContractAddress), ContractAddress>;
-        _direct_payments: LegacyMap<(ContractAddress, ContractAddress, felt252), PaymentDetails>;
+        _guild_manager: ContractAddress,
+        _fee_policy: LegacyMap<ContractAddress, PolicyTarget>,
+        _policy_distribution: LegacyMap<(ContractAddress, ContractAddress), felt252>,
+        _guild_policy_count: LegacyMap<ContractAddress, felt252>,
+        _guild_policy: LegacyMap<(ContractAddress, ContractAddress, ContractAddress), ContractAddress>,
+        _direct_payments: LegacyMap<(ContractAddress, ContractAddress, u32), Token>,
     }
+
+    #[abi]
+    trait IFeePolicyManager {
+        fn has_fee_policy(guild: ContractAddress, fee_policy: ContractAddress) -> bool; 
+        fn get_fee_policy(guild: ContractAddress, to: ContractAddress, selector: ContractAddress) -> ContractAddress;
+        fn get_policy_target(fee_policy: ContractAddress) -> PolicyTarget;
+        fn get_policy_distribution(guild: ContractAddress, fee_policy: ContractAddress) -> (felt252, felt252, felt252);
+        fn get_direct_payments(guild: ContractAddress, fee_policy: ContractAddress) -> Array<Token>;
+        fn add_policy(policy: ContractAddress, to: ContractAddress, selector: ContractAddress);
+        fn set_fee_policy(
+            policy_address: ContractAddress, 
+            caller_split: u256, 
+            owner_split: u256, 
+            admin_split: u256,
+            payment_details: Array<Token>
+        );
+        fn revoke_policy(policy_address: ContractAddress);
+    }
+
+    #[abi]
+    trait IManager {
+        fn get_is_guild(address: ContractAddress) -> bool;
+    }
+
 
     //
     // Guards
@@ -51,14 +54,16 @@ mod FeePolicyManager {
     fn assert_only_guild() {
         let caller = get_caller_address();
         let guild_manager = _guild_manager::read();
-        let check_guild = IGuildManager { contract_address: guild_manager }.get_is_guild(caller);
-        assert(check_guild, "Guild Certificate: Contract is not valid")
+        let manager_dispatcher = IManagerDispatcher { contract_address: guild_manager };
+        let check_guild = manager_dispatcher.get_is_guild(caller);
+        assert(check_guild, 'Guild is not valid');
     }
 
     #[internal]
-    fn assert_policy(policy: felt252) {
+    fn assert_policy(policy: ContractAddress) {
         let policy_target = _fee_policy::read(policy);
-        assert(!policy_target.to.is_zero())
+        let PolicyTarget { to, selector } = policy_target;
+        assert(!to.is_zero(), 'Policy is not valid')
     }
 
     //
@@ -81,8 +86,8 @@ mod FeePolicyManager {
     //
 
     #[view]
-    fn get_fee_policy(guild_address: felt252,, to: ContractAddress, selector: ContractAddress) -> ContractAddress {
-        _guild_policy::read(guild_address, to, selector)
+    fn get_fee_policy(guild_address: ContractAddress, to: ContractAddress, selector: ContractAddress) -> ContractAddress {
+        _guild_policy::read((guild_address, to, selector))
     }
 
     #[view]
@@ -92,24 +97,25 @@ mod FeePolicyManager {
 
     #[view]
     fn get_policy_distribution(guild_address: ContractAddress, fee_policy: ContractAddress) -> (felt252, felt252, felt252) {
-        let distribution = _policy_distribution::read(guild_address, fee_policy);
-        FeePolicies.unpack_fee_splits(distribution)
+        let distribution = _policy_distribution::read((guild_address, fee_policy));
+        FeePolicies::unpack_fee_splits(distribution)
     }
 
     #[view]
-    fn get_direct_payments(guild_address: ContractAddress, fee_policy: ContractAddress) -> Array<PaymentDetails> {
-        let payment_details = ArrayTrait::new();
+    fn get_direct_payments(guild_address: ContractAddress, fee_policy: ContractAddress) -> Array<Token> {
+        let mut payment_details = ArrayTrait::<Token>::new();
+        let mut index = 0_usize;
         loop {
             match gas::withdraw_gas_all(get_builtin_costs()) {
                 Option::Some(_) => {},
                 Option::None(_) => {
-                    let mut err_data = ArrayTrait::new();
-                    err_data.append(ref err_data, 'Out of gas');
+                    let mut err_data = array::array_new();
+                    array::array_append(ref err_data, 'Out of gas');
                     panic(err_data)
                 },
             }
-            let direct_payment - direct_payments::read(guild_address, fee_policy, index);
-            payment_details[index] = direct_payment;
+            let direct_payment = _direct_payments::read((guild_address, fee_policy, index));
+            payment_details.append(direct_payment);
             if index == 0_usize {
                 break payment_details;
             }
@@ -123,35 +129,34 @@ mod FeePolicyManager {
 
     #[external]
     fn add_policy(policy: ContractAddress, to: ContractAddress, selector: ContractAddress) {
-        let policy_target = PolicyTarget(to, selector);
-        _fee_policy::write(policy_target)
+        let policy_target = PolicyTarget { to, selector };
+        _fee_policy::write(policy, policy_target)
     }
 
     #[external]
     fn set_fee_policy(
         policy_address: ContractAddress, 
-        caller_split: felt252,
-        owner_split: felt252,
-        admin_split: felt252,
-        payment_details: Array<PaymentDetails>
+        caller_split: u256,
+        owner_split: u256,
+        admin_split: u256,
+        payment_details: Array<Token>
     ) {
         assert_only_guild();
         let guild_address = get_caller_address();
         assert_policy(policy_address);
         // check splits are equal or under 100%
-        assert(caller_split + owner_split + admin_split, 'Fee Policy Manager: splits cannot be over 100%');
+        assert(caller_split + owner_split + admin_split <= u256 { low: 10000_u128, high: 0_u128 }, 'Splits cannot be over 100%');
 
         let policy_target: PolicyTarget = _fee_policy::read(policy_address);
-        _guild_policy::write(guild_address, policy_target.to, policy_target.selector, policy_address);
+        _guild_policy::write((guild_address, policy_target.to, policy_target.selector), policy_address);
 
-        let packed_splits = FeePolicies::pack_fee_splits(caller_split, owner_split, admin_split);
-        _policy_distribution::write(guild_address, policy_address, packed_splits);
+        let packed_splits = FeePolicies::pack_fee_splits(caller_split.into(), owner_split.into(), admin_split.into());
+        _policy_distribution::write((guild_address, policy_address), packed_splits);
 
         return loop_store_direct_payment(
-            0,
+            0_usize,
             guild_address,
             policy_address,
-            payment_details_len,
             payment_details,
         );
     }
@@ -162,21 +167,22 @@ mod FeePolicyManager {
         let guild_address = get_caller_address();
         assert_policy(policy_address);
         let policy_target: PolicyTarget = _fee_policy::read(policy_address);
-        _guild_policy::write(guild_address, policy_target.to, policy_target.selector, 0)
+        let PolicyTarget { to, selector } = policy_target;
+        _guild_policy::write((guild_address, to, selector), ContractAddressZeroable::zero())
     }
 
     #[internal]
     fn loop_store_direct_payment(
-        index: felt252, 
+        index: u32, 
         guild_address: ContractAddress, 
         fee_policy: ContractAddress,
-        payment_details: Array<PaymentDetails>
+        payment_details: Array<Token>
     ) {
-        if (index == payment_details.len()) {
+        if index.into() == payment_details.len() {
             return ();
         }
-        _direct_payments::write(guild_address, fee_policy, index, payment_details[index]);
-        loop_store_direct_payment(index + 1, guild_address, fee_policy, payment_details)
+        _direct_payments::write((guild_address, fee_policy, index), payment_details.at(index));
+        loop_store_direct_payment(index + 1_u32, guild_address, fee_policy, payment_details)
     }
 
 }

@@ -2,11 +2,6 @@ use starknet::ContractAddress;
 
 const INITIALIZE_SELECTOR: felt252 = 1295919550572838631247819983596733806859788957403169325509326258146877103642;
 
-#[abi]
-trait IManager {
-    fn get_is_guild(address: ContractAddress) -> bool;
-}
-
 #[contract]
 mod Manager {
     use array::SpanTrait;
@@ -36,6 +31,11 @@ mod Manager {
         _module_controller: ContractAddress,
         _fee_policy_manager: ContractAddress,
         _is_guild: LegacyMap<ContractAddress, bool>,
+    }
+
+    #[abi]
+    trait IManager {
+        fn get_is_guild(address: ContractAddress) -> bool;
     }
 
     //

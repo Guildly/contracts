@@ -63,7 +63,6 @@ mod Certificate {
     use starknet::contract_address::ContractAddressPartialEq;
     use starknet::contract_address::ContractAddressZeroable;
 
-    use guild_contracts::manager::IManagerDispatcher;
     use guild_contracts::math_utils::MathUtils;
     use guild_contracts::helpers::Helpers;
 
@@ -91,6 +90,12 @@ mod Certificate {
         _token_owner: LegacyMap<(felt252, ContractAddress, u256), u256>,
         _certificate_token_amount: LegacyMap<(u256, felt252, ContractAddress, u256), u256>,
         _certificate_tokens_len: LegacyMap<u256, u32>,
+    }
+
+
+    #[abi]
+    trait IManager {
+        fn get_is_guild(address: ContractAddress) -> bool;
     }
 
     //
@@ -287,7 +292,7 @@ mod Certificate {
     #[external]
     fn mint(to: ContractAddress, guild: ContractAddress) {
         let certificate_count = _certificate_id_count::read();
-        let new_certificate_id = certificate_count + 1_u256;
+        let new_certificate_id = certificate_count + u256 { low: 1_u128, high: 0_u128 };
         _certificate_id_count::write(new_certificate_id);
 
         _certificate_id::write((to, guild), new_certificate_id);
@@ -327,7 +332,7 @@ mod Certificate {
     ) {
         assert_only_guild();
         _certificate_token_amount::write((certificate_id, token_standard, token, token_id), amount);
-        let tokens_len = _certificate_tokens_data_len::read(certificate_id);
+        let tokens_len = _certificate_tokens_len::read(certificate_id);
         _token_owner::write((token_standard, token, token_id), certificate_id);
         _certificate_tokens_len::write(certificate_id, tokens_len + 1)
     }
@@ -342,9 +347,9 @@ mod Certificate {
     ) {
         assert_only_guild();
         let tokens_len = _certificate_tokens_len::read(certificate_id);
-        if new_amount = 0_u256 {
-            _certificate_tokens_data_len::write(certificate_id, tokens_len - 1);
-            _token_owner::write((token_standard, token, token_id), 0_u256);
+        if (new_amount == u256 { low: 0_u128, high: 0_u128 }) {
+            _certificate_tokens_len::write(certificate_id, tokens_len - 1_u32);
+            _token_owner::write((token_standard, token, token_id), u256 { low: 0_u128, high: 0_u128 });
         }
         _certificate_token_amount::write(
             (certificate_id, token_standard, token, token_id), new_amount
@@ -354,64 +359,17 @@ mod Certificate {
     #[view]
     fn check_token_exists(
         certificate_id: u256, token_standard: felt252, token: ContractAddress, token_id: u256
-    ) -> felt252 {
+    ) -> bool {
         assert_only_guild();
         let amount = _certificate_token_amount::read(
             (certificate_id, token_standard, token, token_id)
         );
-        amount > 0_u256
+        amount > u256 { low: 0_u128, high: 0_u128 }
     }
 
     #[view]
     fn check_tokens_exist(certificate_id: u256) -> bool {
         let tokens_len = _certificate_tokens_len::read(certificate_id);
         tokens_len > 0_u32
-    }
-
-    #[internal]
-    fn get_tokens_data_index(
-        certificate_id: u256, token_standard: felt252, token: ContractAddress, token_id: u256
-    ) -> u32 {
-        let mut checks = ArrayTrait::new();
-        let tokens_data_len = _certificate_tokens_data_len::read(certificate_id);
-
-        _get_tokens_data_index(
-            0, tokens_data_len, certificate_id, token_standard, token, token_id, checks, 
-        )
-    }
-
-    #[internal]
-    fn _get_tokens_data_index(
-        tokens_data_index: u32,
-        tokens_data_len: felt252,
-        certificate_id: u256,
-        token_standard: felt252,
-        token: ContractAddress,
-        token_id: u256,
-        checks: Array<felt252>,
-    ) -> u32 {
-        if (tokens_data_index.into() == tokens_data_len) {
-            assert(1 == 0, 'Token does not exist.');
-        }
-
-        let token_data = _certificate_tokens_data::read((certificate_id, tokens_data_index));
-
-        let check_token_standard = token_data.token_standard == token_standard;
-        let check_token = token_data.token == token;
-        let check_token_id = token_data.token_id == token_id;
-
-        if (check_token_standard & check_token & check_token_id) {
-            return tokens_data_index;
-        }
-
-        return _get_tokens_data_index(
-            tokens_data_index + 1,
-            tokens_data_len,
-            certificate_id,
-            token_standard,
-            token,
-            token_id,
-            checks,
-        );
     }
 }
