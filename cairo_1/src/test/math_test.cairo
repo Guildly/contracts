@@ -1,4 +1,4 @@
-use guild_contracts::math;
+use guildly::math;
 
 #[test]
 fn test_math() {

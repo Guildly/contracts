@@ -11,7 +11,7 @@ mod ShiftSplit {
 }
 
 mod Recipient {
-    const OWNER: felt252 = 1;
-    const CALLER: felt252 = 2;
-    const ADMIN: felt252 = 3;
+    const OWNER: usize = 1;
+    const CALLER: usize = 2;
+    const ADMIN: usize = 3;
 }

@@ -18,9 +18,9 @@ mod Manager {
 
     use openzeppelin::upgrades::library::Proxy;
 
-    use guild_contracts::certificate::ICertificate;
-    use guild_contracts::math_utils::MathUtils;
-    use guild_contracts::constants::Roles;
+    use guildly::certificate::ICertificate;
+    use guildly::math_utils::MathUtils;
+    use guildly::constants::Roles;
 
     use super::INITIALIZE_SELECTOR;
 

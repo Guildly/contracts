@@ -1,15 +1,6 @@
 use array::ArrayTrait;
 use starknet::ContractAddress;
-//
-// Structs
-//
-#[derive(Serde)]
-struct Token {
-    token_standard: felt252,
-    token: ContractAddress,
-    token_id: u256,
-    amount: u256,
-}
+
 
 #[abi]
 trait ICertificate {
@@ -63,10 +54,8 @@ mod Certificate {
     use starknet::contract_address::ContractAddressPartialEq;
     use starknet::contract_address::ContractAddressZeroable;
 
-    use guild_contracts::math_utils::MathUtils;
-    use guild_contracts::helpers::Helpers;
-
-    use super::Token;
+    use guildly::math_utils::MathUtils;
+    use guildly::helpers::Helpers;
     //
     // Events
     //
