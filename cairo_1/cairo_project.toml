@@ -1,2 +1,2 @@
 [crate_roots]
-guild_contracts = "src"
+guildly = "src"

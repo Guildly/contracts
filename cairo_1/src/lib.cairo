@@ -1,15 +1,7 @@
-// All modules must be present here
-
-mod math;
-mod test;
-mod manager;
 mod certificate;
+mod fee_policy;
+mod fee_policy_manager;
 mod guild;
+mod guild_manager;
+mod utils;
 mod tests;
-mod math_utils;
-mod constants;
-mod helpers;
-mod fee_policies;
-mod upgradeable;
-mod implementations;
-// mod utils;

@@ -1,0 +1,3 @@
+[crate_roots]
+guildly = "."
+tests = "tests"

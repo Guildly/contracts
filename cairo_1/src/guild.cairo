@@ -1,152 +1,51 @@
-use serde::Serde;
-use array::ArrayTrait;
-use array::SpanTrait;
-use hash::LegacyHash;
-use starknet::ContractAddress;
-use starknet::StorageAccess;
-use starknet::StorageBaseAddress;
-use starknet::SyscallResult;
-use starknet::storage_access;
-use starknet::storage_read_syscall;
-use starknet::storage_write_syscall;
-use starknet::storage_base_address_from_felt252;
-use starknet::storage_address_from_base_and_offset;
-use traits::Into;
-use traits::TryInto;
-use option::OptionTrait;
-use openzeppelin::utils::check_gas;
-use core::integer::Felt252IntoU256;
-use guildly::implementations::token::Token;
-use guildly::implementations::permission::Permission;
+mod guild;
 
-impl LegacyHashPermission of LegacyHash::<Permission> {
-    fn hash(state: felt252, value: Permission) -> felt252 {
-        LegacyHash::<felt252>::hash(state, value.into())
-    }
-}
+const ISRC6_ID: felt252 = 0x2ceccef7f994940b3962a6c67e0ba4fcd37df7d131417c604f91e03caecc1cd;
 
-impl ArrayFeltCopy of Copy::<Array<felt252>>;
-impl ArrayU256Copy of Copy::<Array<u256>>;
-
-#[contract]
+#[starknet::contract]
 mod Guild {
+    use array::{ArrayTrait, SpanTrait};
     use box::BoxTrait;
-    use serde::Serde;
-    use array::ArrayTrait;
-    use array::SpanTrait;
-    use zeroable::Zeroable;
+    use core::clone::Clone;
+    use core::serde::Serde;
     use ecdsa::check_ecdsa_signature;
-    use starknet::get_tx_info;
-    use starknet::get_caller_address;
-    use starknet::get_contract_address;
-    use starknet::ContractAddress;
-    use starknet::ClassHash;
-    use starknet::contract_address::ContractAddressPartialEq;
-    use starknet::contract_address::ContractAddressZeroable;
-    use starknet::contract_address::Felt252TryIntoContractAddress;
-    use traits::Into;
-    use traits::TryInto;
     use option::OptionTrait;
+    use starknet::{
+        get_tx_info, get_caller_address, get_contract_address, ContractAddress, ClassHash,
+        contract_address_const, contract_address::ContractAddressZeroable
+    };
+    use traits::{Into, TryInto};
+    use guildly::certificate::interfaces::{ICertificateDispatcher, ICertificateDispatcherTrait};
+    use guildly::guild::guild::{
+        interfaces::{IGuild}, constants::{Roles, TokenStandard}, guild::{Call, Permission}
+    };
+    use guildly::fee_policy::{
+        FeePolicy,
+        fee_policy::{
+            interfaces::{IFeePolicyDispatcher, IFeePolicyDispatcherTrait}, constants::Recipient,
+            fee_policy::{TokenDetails, TokenBalances, TokenDifferences}
+        }
+    };
+    use guildly::fee_policy_manager::{
+        interfaces::{IFeePolicyManagerDispatcher, IFeePolicyManagerDispatcherTrait},
+        fee_policy_manager::Token
+    };
+    use guildly::utils::{access_control::AccessControl, math_utils::MathUtils, };
+    use openzeppelin::upgrades::upgradeable::Upgradeable;
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
+    use zeroable::Zeroable;
 
-    // use openzeppelin::token::erc721::IERC721Dispatcher;
-    // use openzeppelin::token::erc721::IERC721DispatcherTrait;
-    use openzeppelin::introspection::erc165::ERC165;
-    use openzeppelin::utils::check_gas;
-
-    use guildly::upgradeable::Upgradeable;
-
-    use guildly::fee_policies::fee_policy::IFeePolicyDispatcher;
-    use guildly::fee_policies::fee_policy::IFeePolicyDispatcherTrait;
-    use guildly::fee_policies::fee_policy_manager::IFeePolicyManagerDispatcher;
-    use guildly::fee_policies::fee_policy_manager::IFeePolicyManagerDispatcherTrait;
-    use guildly::access_control::accesscontrol_library::AccessControl;
-    use guildly::constants::Roles;
-    use guildly::constants::TokenStandard;
-    use guildly::math_utils::MathUtils;
-    use guildly::certificate::ICertificateDispatcher;
-    use guildly::certificate::ICertificateDispatcherTrait;
-    use guildly::fee_policies::library_fee_policy::FeePolicies;
-    use guildly::fee_policies::constants_fee_policy::Recipient;
-    use guildly::helpers::Helpers::find_value;
-
-    use guildly::implementations::call::Call;
-    use super::LegacyHashPermission;
-    use super::ArrayFeltCopy;
-    use super::ArrayU256Copy;
-    use guildly::implementations::permission::Permission;
-    use guildly::implementations::permission::ArrayPermissionSerde;
-    use guildly::implementations::permission::ArrayPermissionCopy;
-    use guildly::implementations::permission::ArrayPermissionDrop;
-    use guildly::implementations::token::Token;
-    use guildly::implementations::policy::TokenDetails;
-    use guildly::implementations::policy::ArrayTokenDetailsSerde;
-    use guildly::implementations::policy::TokenBalances;
-    use guildly::implementations::policy::ArrayTokenBalancesCopy;
-    use guildly::implementations::policy::TokenDifferences;
-    use guildly::implementations::general::ArraySpanSerde;
-
+    #[storage]
     struct Storage {
         _name: felt252,
         _is_permissions_initialized: bool,
         _is_blacklisted: LegacyMap<ContractAddress, bool>,
-        _is_permission: LegacyMap<Permission, bool>,
+        _is_permission: LegacyMap<(ContractAddress, felt252), bool>,
         _guild_certificate: ContractAddress,
         _fee_policy_manager: ContractAddress,
         _current_nonce: felt252,
-    }
-
-    #[abi]
-    trait IERC20 {
-        fn name() -> felt252;
-        fn symbol() -> felt252;
-        fn decimals() -> u8;
-        fn total_supply() -> u256;
-        fn balance_of(account: ContractAddress) -> u256;
-        fn allowance(owner: ContractAddress, spender: ContractAddress) -> u256;
-        fn transfer(recipient: ContractAddress, amount: u256) -> bool;
-        fn transfer_from(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool;
-        fn approve(spender: ContractAddress, amount: u256) -> bool;
-    }
-
-    #[abi]
-    trait IERC721 {
-        // IERC721Metadata
-        fn name() -> felt252;
-        fn symbol() -> felt252;
-        fn token_uri(token_id: u256) -> felt252;
-        // IERC721
-        fn balance_of(owner: ContractAddress) -> u256;
-        fn owner_of(token_id: u256) -> ContractAddress;
-        fn transfer_from(from: ContractAddress, to: ContractAddress, token_id: u256);
-        fn safe_transfer_from(
-            from: ContractAddress, to: ContractAddress, token_id: u256, data: Array<felt252>
-        );
-        fn approve(approved: ContractAddress, token_id: u256);
-        fn set_approval_for_all(operator: ContractAddress, approved: bool);
-        fn get_approved(token_id: u256) -> ContractAddress;
-        fn is_approved_for_all(owner: ContractAddress, operator: ContractAddress) -> bool;
-    }
-
-
-    #[abi]
-    trait IERC1155 {
-        // IERC1155
-        fn balance_of(account: ContractAddress, id: u256) -> u256;
-        fn balance_of_batch(accounts: Array<ContractAddress>, ids: Array<u256>) -> Array<u256>;
-        fn is_approved_for_all(account: ContractAddress, operator: ContractAddress) -> bool;
-        fn set_approval_for_all(operator: ContractAddress, approved: bool);
-        fn safe_transfer_from(
-            from: ContractAddress, to: ContractAddress, id: u256, amount: u256, data: Array<felt252>
-        );
-        fn safe_batch_transfer_from(
-            from: ContractAddress,
-            to: ContractAddress,
-            ids: Array<u256>,
-            amounts: Array<u256>,
-            data: Array<felt252>
-        );
-        // IERC1155MetadataURI
-        fn uri(id: u256) -> felt252;
+        _proxy_admin: ContractAddress
     }
 
     //
@@ -154,473 +53,449 @@ mod Guild {
     //
 
     #[event]
-    fn WhitelistMember(account: ContractAddress, role: felt252) {}
-
-    #[event]
-    fn RemoveMember(account: ContractAddress) {}
-
-    #[event]
-    fn UpdateMemberRole(account: ContractAddress, new_role: Array<felt252>) {}
-
-    #[event]
-    fn SetPermissions(account: ContractAddress, permissions: Array<Permission>) {}
-    
-    // TODO: add calldata after fixing Array<Span<felt252>>
-    #[event]
-    fn ExecuteTransaction(account: ContractAddress, hash: ContractAddress) {}
-
-    #[event]
-    fn Deposit(
-        account: ContractAddress,
-        certificate_id: u256,
-        token_standard: felt252,
-        token: ContractAddress,
-        token_id: u256,
-        amount: u256,
-    ) {}
-
-    #[event]
-    fn Withdraw(
-        account: ContractAddress,
-        certificate_id: u256,
-        token_standard: felt252,
-        token: ContractAddress,
-        token_id: u256,
-        amount: u256,
-    ) {}
-
-    //
-    // Guards
-    //
-
-    #[internal]
-    fn require_not_blacklisted(account: ContractAddress) {
-        let is_blacklisted = _is_blacklisted::read(account);
-        assert(is_blacklisted == false, 'Guild: Account is blacklisted')
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        WhitelistMember: WhitelistMember,
+        RemoveMember: RemoveMember,
+        UpdateMemberRole: UpdateMemberRole,
+        SetPermissions: SetPermissions,
+        ExecuteCall: ExecuteCall,
+        ExecuteTransaction: ExecuteTransaction,
+        Deposit: Deposit,
+        Withdraw: Withdraw,
     }
 
-    //
-    // Initialize & upgrade
-    //
+    #[external(v0)]
+    impl Guild of IGuild<ContractState> {
+        //
+        // Initialize & upgrade
+        //
+        fn initialize(
+            ref self: ContractState,
+            name: felt252,
+            master: ContractAddress,
+            guild_certificate: ContractAddress,
+            fee_policy_manager: ContractAddress,
+            proxy_admin: ContractAddress
+        ) {
+            self._name.write(name);
+            self._guild_certificate.write(guild_certificate);
+            self._fee_policy_manager.write(fee_policy_manager);
 
-    #[external]
-    fn initializer(name: felt252, master: ContractAddress, guild_certificate: ContractAddress, fee_policy_manager: ContractAddress, proxy_admin: ContractAddress) {
-        _name::write(name);
-        _guild_certificate::write(guild_certificate);
-        _fee_policy_manager::write(fee_policy_manager);
+            let contract_address = get_contract_address();
+            ICertificateDispatcher {
+                contract_address: guild_certificate
+            }.mint(master, contract_address);
 
-        let contract_address = get_contract_address();
-        ICertificateDispatcher { contract_address: guild_certificate }.mint(master, contract_address);
-
-        Upgradeable::initializer(proxy_admin);
-        AccessControl::_set_admin(master);
-
-        ERC165::register_interface(IACCOUNT_ID)
-    }
-
-    #[external]
-    fn upgrade(implementation: ClassHash) {
-        Upgradeable::assert_only_admin();
-        Upgradeable::_upgrade(implementation)
-    }
-
-    //
-    // Getters
-    //
-
-    #[view]
-    fn supportsInterface(interfaceId: felt252) -> bool {
-        ERC165::supports_interface(interfaceId)
-    }
-
-    #[view]
-    fn name() -> felt252 {
-        _name::read()
-    }
-
-    #[view]
-    fn guild_certificate() -> ContractAddress {
-        _guild_certificate::read()
-    }
-
-    #[view]
-    fn is_permissions_initialized() -> bool {
-        _is_permissions_initialized::read()
-    }
-
-    #[view]
-    fn get_nonce() -> felt252 {
-        _current_nonce::read()
-    }
-
-    #[view]
-    fn has_role(role: felt252, account: ContractAddress) -> bool {
-        AccessControl::has_role(role, account)
-    }
-
-    //
-    // Externals
-    //
-
-    #[external]
-    fn add_member(account: ContractAddress, role: felt252) {
-        let guild_certificate = _guild_certificate::read();
-        let contract_address = get_contract_address();
-        let caller_address = get_caller_address();
-
-        require_not_blacklisted(caller_address);
-        ICertificateDispatcher { contract_address: guild_certificate }.mint(account, contract_address);
-        AccessControl::grant_role(role, account);
-
-        WhitelistMember(account, role)
-    }
-
-    #[external]
-    fn leave() {
-        let guild_certificate = _guild_certificate::read();
-        let contract_address = get_contract_address();
-        let caller_address = get_caller_address();
-
-        let certificate_id = ICertificateDispatcher{ contract_address: guild_certificate }.get_certificate_id(
-            caller_address, contract_address
-        );
-
-        let check = ICertificateDispatcher{ contract_address: guild_certificate }.check_tokens_exist(
-            certificate_id
-        );
-
-        assert(check == false, 'Account has items in guild');
-
-        ICertificateDispatcher { contract_address: guild_certificate }.guild_burn(caller_address, contract_address);
-
-        let roles = AccessControl::get_roles(caller_address);
-        AccessControl::revoke_role(roles, caller_address)
-    }
-
-    #[external]
-    fn remove_member(account: ContractAddress) {
-        let caller_address = get_caller_address();
-        let contract_address = get_contract_address();
-        let guild_certificate = _guild_certificate::read();
-
-        AccessControl::has_role(GuildRoles.ADMIN, caller_address);
-        let certificate_dispatcher = ICertificateDispatcher {contract_address: guild_certificate};
-        let certificate_id = certificate_dispatcher.get_certificate_id(
-            account, contract_address
-        );
-        let check = certificate_dispatcher.check_tokens_exist(
-            certificate_id
-        );
-
-        assert(check == false, 'Member holds items in guild.');
-        certificate_dispatcher.guild_burn(account, contract_address);
-        let roles = AccessControl::get_roles(account);
-        AccessControl::revoke_role(roles, account);
-        _is_blacklisted::write(account, true);
-
-        RemoveMember(account)
-    }
-
-    #[external]
-    fn force_transfer_item(token: Token, account: ContractAddress) {
-        let contract_address = get_contract_address();
-        let guild_certificate = _guild_certificate::read();
-
-        AccessControl::has_role(GuildRoles.ADMIN, caller_address);
-
-        let certificate_dispatcher = ICertificateDispatcher {contract_address: guild_certificate};
-        let certificate_id = certificate_dispatcher.get_certificate_id(
-            account, contract_address
-        );
-
-
-        assert(token.amount > u256 { low: 0_u128, high: 0_u128 }, 'Amount must be > 0.');
-
-        if (token.token_standard == TokenStandard::ERC721) {
-            IERC721Dispatcher { contract_address: token.token }.transfer_from(
-                contract_address,
-                account,
-                token.token_id,
-            );
-            ICertificateDispatcher { contract_address: guild_certificate }.change_token_data(
-                certificate_id,
-                token.token_standard,
-                token.token,
-                token.token_id,
-                u256 { low: 0_u128, high: 0_u128 },
-            );
-        } 
-
-        if (token.token_standard == TokenStandard::ERC1155) {
-            let mut data = ArrayTrait::new();
-            let erc1155_dispatcher = IERC1155Dispatcher { contract_address: token.token };
-            erc1155_dispatcher.safe_transfer_from(
-                contract_address,
-                account,
-                token.token_id,
-                token.amount,
-                data,
-            );
-            ICertificateDispatcher { contract_address: guild_certificate }.change_token_data(
-                certificate_id,
-                token.token_standard,
-                token.token,
-                token.token_id,
-                u256 { low: 0_u128, high: 0_u128},
-            );
+            self._proxy_admin.write(proxy_admin);
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            AccessControl::_set_admin(ref access_control_state, master);
+        //SRC5::register_interface(ISRC6_ID)
         }
-    }
-
-    #[external]
-    fn update_roles(account: ContractAddress, new_roles: Array<felt252>) {
-        let caller_address = get_caller_address();
-        let contract_address = get_contract_address();
-        let guild_certificate = _guild_certificate::read();
-
-        AccessControl::has_role(GuildRoles.ADMIN, caller_address);
-
-        let certificate_id = ICertificateDispatcher{ contract_address: guild_certificate }.get_certificate_id(
-            account, contract_address
-        );
-
-        let roles = AccessControl::get_roles(account);
-        AccessControl::revoke_role(roles, account);
-        AccessControl::grant_role(new_roles, account);
-
-        UpdateMemberRole(account, new_roles)
-    }
-
-    #[external]
-    fn deposit(token_standard: felt252, token: ContractAddress, token_id: u256, amount: u256) {
-        let caller_address = get_caller_address();
-        AccessControl::has_role(Roles::OWNER, caller_address);
-
-        assert(amount > u256 { low: 0_u128, high: 0_u128}, 'Guild: Amount cannot be 0');
-
-        if token_standard == TokenStandard::ERC721 {
-            assert(amount == u256 { low: 1_u128, high: 0_u128}, 'Guild: ERC721 amount must be 1');
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            // let mut unsafe_state = src5::SRC5::unsafe_new_contract_state();
+            let mut upgradable_state = Upgradeable::unsafe_new_contract_state();
+            Upgradeable::InternalImpl::_upgrade(ref upgradable_state, new_class_hash)
         }
+        //
+        // Externals
+        //
+        fn add_member(ref self: ContractState, account: ContractAddress, role: felt252) {
+            let guild_certificate = self._guild_certificate.read();
+            let contract_address = get_contract_address();
+            let caller_address = get_caller_address();
 
-        let guild_certificate = _guild_certificate::read();
-        let contract_address = get_contract_address();
+            // require_not_blacklisted(caller_address);
+            ICertificateDispatcher {
+                contract_address: guild_certificate
+            }.mint(account, contract_address);
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            AccessControl::grant_role(ref access_control_state, role, account);
 
-        let certificate_dispatcher = ICertificateDispatcher{ contract_address: guild_certificate };
-
-        let certificate_id = certificate_dispatcher.get_certificate_id(
-            caller_address, contract_address
-        );
-
-        let check_exists = certificate_dispatcher.check_token_exists(
-            certificate_id, token_standard, token, token_id
-        );
-
-        if token_standard == TokenStandard::ERC721 {
-            assert(check_exists, 'Caller already holds ERC721');
-            let erc721_dispatcher = IERC721Dispatcher { contract_address: token};
-            erc721_dispatcher.transfer_from(
-                caller_address, contract_address, token_id
-            );
-            certificate_dispatcher.add_token_data(
-                certificate_id,
-                token_standard,
-                token,
-                token_id,
-                amount,
-            );
+            __event__WhitelistMember(ref self, account, role)
         }
+        fn leave(ref self: ContractState) {
+            let guild_certificate = self._guild_certificate.read();
+            let contract_address = get_contract_address();
+            let caller_address = get_caller_address();
 
-        let initial_amount = certificate_dispatcher.get_token_amount(
-            certificate_id,
-            token_standard,
-            token,
-            token_id,
-        );
+            let certificate_id = ICertificateDispatcher {
+                contract_address: guild_certificate
+            }.get_certificate_id(caller_address, contract_address);
 
-        let new_amount = initial_amount + amount;
+            let check = ICertificateDispatcher {
+                contract_address: guild_certificate
+            }.check_tokens_exist(certificate_id);
 
-        if token_standard == TokenStandard::ERC1155 {
-            let data = ArrayTrait::new();
-            IERC1155Dispatcher { contract_address: token }.safe_transfer_from(
-                caller_address,
-                contract_address,
-                token_id,
-                amount,
-                data
-            );
-            if check_exists {
-                certificate_dispatcher.change_token_data(
-                    certificate_id,
-                    token_standard,
-                    token,
-                    token_id,
-                    new_amount,
-                );
-            } else {
-                certificate_dispatcher.add_token_data(
-                    certificate_id,
-                    token_standard,
-                    token,
-                    token_id,
-                    amount,
+            assert(check == false, 'Account has items in guild');
+
+            ICertificateDispatcher {
+                contract_address: guild_certificate
+            }.guild_burn(caller_address, contract_address);
+
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            let roles = AccessControl::get_roles(@access_control_state, caller_address);
+            AccessControl::revoke_role(ref access_control_state, roles, caller_address)
+        }
+        fn remove_member(ref self: ContractState, account: ContractAddress) {
+            let caller_address = get_caller_address();
+            let contract_address = get_contract_address();
+            let guild_certificate = self._guild_certificate.read();
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            AccessControl::has_role(@access_control_state, Roles::ADMIN, caller_address);
+            let certificate_dispatcher = ICertificateDispatcher {
+                contract_address: guild_certificate
+            };
+            let certificate_id = certificate_dispatcher
+                .get_certificate_id(account, contract_address);
+            let check = certificate_dispatcher.check_tokens_exist(certificate_id);
+
+            assert(check == false, 'Member holds items in guild.');
+            certificate_dispatcher.guild_burn(account, contract_address);
+
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            let roles = AccessControl::get_roles(@access_control_state, account);
+            AccessControl::revoke_role(ref access_control_state, roles, account);
+            self._is_blacklisted.write(account, true);
+
+            __event__RemoveMember(ref self, account)
+        }
+        fn force_transfer_item(ref self: ContractState, token: Token, account: ContractAddress) {
+            let contract_address = get_contract_address();
+            let guild_certificate = self._guild_certificate.read();
+            let caller = get_caller_address();
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            AccessControl::has_role(@access_control_state, Roles::ADMIN, caller);
+
+            let certificate_dispatcher = ICertificateDispatcher {
+                contract_address: guild_certificate
+            };
+            let certificate_id = certificate_dispatcher
+                .get_certificate_id(account, contract_address);
+
+            assert(token.amount > u256 { low: 0_u128, high: 0_u128 }, 'Amount must be > 0.');
+
+            if (token.token_standard == TokenStandard::ERC721) {
+                let token_dispatcher = IERC721Dispatcher {
+                    contract_address: token.token
+                };
+                token_dispatcher.transfer_from(contract_address, account, token.token_id, );
+                ICertificateDispatcher {
+                    contract_address: guild_certificate
+                }
+                    .change_token_data(
+                        certificate_id,
+                        token.token_standard,
+                        token.token,
+                        token.token_id,
+                        u256 { low: 0_u128, high: 0_u128 },
+                    );
+            }
+        // if (token.token_standard == TokenStandard::ERC1155) {
+        //     let mut data = ArrayTrait::new();
+        //     let erc1155_dispatcher = IERC1155Dispatcher { contract_address: token.token };
+        //     erc1155_dispatcher.safe_transfer_from(
+        //         contract_address,
+        //         account,
+        //         token.token_id,
+        //         token.amount,
+        //         data,
+        //     );
+        //     ICertificateDispatcher { contract_address: guild_certificate }.change_token_data(
+        //         certificate_id,
+        //         token.token_standard,
+        //         token.token,
+        //         token.token_id,
+        //         u256 { low: 0_u128, high: 0_u128},
+        //     );
+        // }
+        }
+        fn update_roles(ref self: ContractState, account: ContractAddress, roles: felt252) {
+            let caller_address = get_caller_address();
+            let contract_address = get_contract_address();
+            let guild_certificate = self._guild_certificate.read();
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            AccessControl::has_role(@access_control_state, Roles::ADMIN, caller_address);
+
+            let certificate_id = ICertificateDispatcher {
+                contract_address: guild_certificate
+            }.get_certificate_id(account, contract_address);
+
+            AccessControl::revoke_role(ref access_control_state, roles, account);
+
+            AccessControl::grant_role(ref access_control_state, roles, account);
+            __event__UpdateMemberRole(ref self, account, roles)
+        }
+        fn deposit(
+            ref self: ContractState,
+            token_standard: u8,
+            token: ContractAddress,
+            token_id: u256,
+            amount: u256
+        ) {
+            let caller_address = get_caller_address();
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            AccessControl::has_role(@access_control_state, Roles::OWNER, caller_address);
+
+            assert(amount > u256 { low: 0_u128, high: 0_u128 }, 'Guild: Amount cannot be 0');
+
+            if token_standard == TokenStandard::ERC721 {
+                assert(
+                    amount == u256 { low: 1_u128, high: 0_u128 }, 'Guild: ERC721 amount must be 1'
                 );
             }
+
+            let guild_certificate = self._guild_certificate.read();
+            let contract_address = get_contract_address();
+
+            let certificate_dispatcher = ICertificateDispatcher {
+                contract_address: guild_certificate
+            };
+
+            let certificate_id = certificate_dispatcher
+                .get_certificate_id(caller_address, contract_address);
+
+            let check_exists = certificate_dispatcher
+                .check_token_exists(certificate_id, token_standard, token, token_id);
+
+            if token_standard == TokenStandard::ERC721 {
+                assert(check_exists, 'Caller already holds ERC721');
+                let erc721_dispatcher = IERC721Dispatcher { contract_address: token };
+                erc721_dispatcher.transfer_from(caller_address, contract_address, token_id);
+                certificate_dispatcher
+                    .add_token_data(certificate_id, token_standard, token, token_id, amount, );
+            }
+
+            let initial_amount = certificate_dispatcher
+                .get_token_amount(certificate_id, token_standard, token, token_id, );
+
+            let new_amount = initial_amount + amount;
+
+            // if token_standard == TokenStandard::ERC1155 {
+            //     let data = ArrayTrait::new();
+            //     IERC1155Dispatcher { contract_address: token }.safe_transfer_from(
+            //         caller_address,
+            //         contract_address,
+            //         token_id,
+            //         amount,
+            //         data
+            //     );
+            //     if check_exists {
+            //         certificate_dispatcher.change_token_data(
+            //             certificate_id,
+            //             token_standard,
+            //             token,
+            //             token_id,
+            //             new_amount,
+            //         );
+            //     } else {
+            //         certificate_dispatcher.add_token_data(
+            //             certificate_id,
+            //             token_standard,
+            //             token,
+            //             token_id,
+            //             amount,
+            //         );
+            //     }
+            // }
+
+            __event__Deposit(
+                ref self, caller_address, certificate_id, token_standard, token, token_id, amount, 
+            )
+        }
+        fn withdraw(
+            ref self: ContractState,
+            token_standard: u8,
+            token: ContractAddress,
+            token_id: u256,
+            amount: u256
+        ) {
+            let caller_address = get_caller_address();
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            AccessControl::has_role(@access_control_state, Roles::OWNER, caller_address);
+
+            if token_standard == TokenStandard::ERC721 {
+                assert(amount == u256 { low: 1_u128, high: 0_u128 }, 'ERC721 amount must be 1');
+            }
+
+            let guild_certificate = self._guild_certificate.read();
+            let contract_address = get_contract_address();
+
+            let certificate_dispatcher = ICertificateDispatcher {
+                contract_address: guild_certificate
+            };
+            let certificate_id = certificate_dispatcher
+                .get_certificate_id(caller_address, contract_address);
+
+            let check_exists = certificate_dispatcher
+                .check_token_exists(certificate_id, token_standard, token, token_id, );
+
+            assert(check_exists, 'Caller has no tokens');
+
+            if token_standard == TokenStandard::ERC721 {
+                let erc721_dispatcher = IERC721Dispatcher { contract_address: token };
+                erc721_dispatcher.transfer_from(contract_address, caller_address, token_id);
+                certificate_dispatcher
+                    .change_token_data(
+                        certificate_id,
+                        token_standard,
+                        token,
+                        token_id,
+                        u256 { low: 0_u128, high: 0_u128 },
+                    );
+            }
+
+            let initial_amount = certificate_dispatcher
+                .get_token_amount(certificate_id, token_standard, token, token_id, );
+
+            let new_amount = initial_amount - amount;
+
+            // if token_standard == TokenStandard::ERC1155 {
+            //     let data = ArrayTrait::new();
+            //     let erc1155_dispatcher = IERC1155Dispatcher { contract_address: token };
+            //     erc1155_dispatcher.safe_transfer_from(
+            //         contract_address,
+            //         caller_address,
+            //         token_id,
+            //         amount,
+            //         data,
+            //     );
+            //     certificate_dispatcher.change_token_data(
+            //         certificate_id,
+            //         token_standard,
+            //         token,
+            //         token_id,
+            //         new_amount,
+            //     );
+            // }
+
+            __event__Withdraw(
+                ref self, caller_address, certificate_id, token_standard, token, token_id, amount, 
+            )
+        }
+        fn execute(ref self: ContractState, mut calls: Array<Call>, nonce: felt252) {
+            // check_gas();
+            let caller = get_caller_address();
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            AccessControl::has_role(@access_control_state, Roles::MEMBER, caller);
+
+            let current_nonce = self._current_nonce.read();
+            assert(current_nonce == nonce, 'Guild: Invalid nonce');
+            self._current_nonce.write(current_nonce + 1);
+
+            let tx_info = get_tx_info().unbox();
+
+            let response = _execute_calls(ref self, calls, ArrayTrait::<Span<felt252>>::new());
+            // emit event
+            __event__ExecuteTransaction(
+                ref self, caller, tx_info.transaction_hash.try_into().unwrap()
+            );
+            return response;
+        }
+        fn initialize_permissions(ref self: ContractState, mut permissions: Array<Permission>) {
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            AccessControl::assert_admin(@access_control_state);
+            let permissions_initialized = self._is_permissions_initialized.read();
+            assert(!permissions_initialized, 'Permissions already initialized');
+            _set_permissions(ref self, 0, permissions);
+            self._is_permissions_initialized.write(true)
+        }
+        fn set_permissions(ref self: ContractState, mut permissions: Array<Permission>) {
+            _set_permissions(ref self, 0, permissions.clone());
+            let caller = get_caller_address();
+            __event__SetPermissions(ref self, caller, permissions.clone())
+        }
+        fn set_fee_policy(
+            ref self: ContractState,
+            fee_policy: ContractAddress,
+            caller_split: usize,
+            owner_split: usize,
+            admin_split: usize,
+            payment_type: felt252,
+            payment_details: Array<Token>
+        ) {
+            let fee_policy_manager = self._fee_policy_manager.read();
+            let fee_policy_manager_dispatcher = IFeePolicyManagerDispatcher {
+                contract_address: fee_policy_manager
+            };
+
+            fee_policy_manager_dispatcher
+                .set_fee_policy(fee_policy, caller_split, owner_split, admin_split, payment_details)
+        }
+        fn supports_interface(self: @ContractState, interfaceId: usize) -> bool {
+            // ERC165::supports_interface(interfaceId)
+            true
+        }
+        fn name(self: @ContractState) -> felt252 {
+            self._name.read()
         }
 
-        Deposit(
-            caller_address,
-            certificate_id,
-            token_standard,
-            token,
-            token_id,
-            amount,
-        )
+        fn guild_certificate(self: @ContractState) -> ContractAddress {
+            self._guild_certificate.read()
+        }
+
+        fn is_permissions_initialized(self: @ContractState) -> bool {
+            self._is_permissions_initialized.read()
+        }
+
+        fn get_nonce(self: @ContractState) -> felt252 {
+            self._current_nonce.read()
+        }
+
+        fn has_role(self: @ContractState, role: felt252, account: ContractAddress) -> bool {
+            let mut access_control_state = AccessControl::unsafe_new_contract_state();
+            AccessControl::has_role(@access_control_state, role, account)
+        }
     }
 
-    #[external]
-    fn withdraw(token_standard: felt252, token: ContractAddress, token_id: u256, amount: u256) {
-        let caller_address = get_caller_address();
-        AccessControl::has_role(GuildRoles.OWNER, caller_address);
+    // Internals
 
-        if token_standard == TokenStandard::ERC721 {
-            assert(amount == u256 { low: 1_u128, high: 0_u128 }, 'ERC721 amount must be 1');
-        }
-
-        let guild_certificate = _guild_certificate::read();
-        let contract_address = get_contract_address();
-
-        let certificate_dispatcher = ICertificateDispatcher { contract_address: guild_certificate };
-        let certificate_id = certificate_dispatcher.get_certificate_id(
-            caller_address, contract_address
-        );
-
-        let check_exists = certificate_dispatcher.check_token_exists(
-            certificate_id,
-            token_standard,
-            token,
-            token_id,
-        );
-
-        assert(check_exists, 'Caller has no tokens');
-
-        if token_standard == TokenStandard::ERC721 {
-            let erc721_dispatcher = IERC721Dispatcher { contract_address: token };
-            erc721_dispatcher.transfer_from(
-                contract_address, caller_address, token_id
-            );
-            certificate_dispatcher.change_token_data(
-                certificate_id,
-                token_standard,
-                token,
-                token_id,
-                u256 { low: 0_u128, high: 0_u128},
-            );
-        }
-
-        let initial_amount = certificate_dispatcher.get_token_amount(
-            certificate_id,
-            token_standard,
-            token,
-            token_id,
-        );
-
-        let new_amount = initial_amount - amount;
-
-        if token_standard == TokenStandard::ERC1155 {
-            let data = ArrayTrait::new();
-            let erc1155_dispatcher = IERC1155Dispatcher { contract_address: token };
-            erc1155_dispatcher.safe_transfer_from(
-                contract_address,
-                caller_address,
-                token_id,
-                amount,
-                data,
-            );
-            certificate_dispatcher.change_token_data(
-                certificate_id,
-                token_standard,
-                token,
-                token_id,
-                new_amount,
-            );
-        }
-
-        Withdraw(
-            caller_address,
-            certificate_id,
-            token_standard,
-            token,
-            token_id,
-            amount,
-        )
-    }
-
-    #[internal]
-    fn _execute_calls(mut calls: Array<Call>, nonce: felt252) -> Array<Span<felt252>> {
-        check_gas();
-        let caller = get_caller_address();
-
-        AccessControl::has_role(Roles::MEMBER, caller);
-
-        let current_nonce = _current_nonce::read();
-        assert(current_nonce == nonce, 'Guild: Invalid nonce');
-        _current_nonce::write(current_nonce + 1);
-
-        let tx_info = get_tx_info().unbox();
-
-        let response = execute_list(calls, ArrayTrait::new());
-        // emit event
-        ExecuteTransaction(
-            caller, tx_info.transaction_hash.try_into().unwrap()
-        );
-        return response;
-    }
-
-    #[external]
-    fn execute_list(mut calls: Array<Call>, mut res: Array<Span<felt252>>) -> Array<Span<felt252>> {
-        check_gas();
+    fn _execute_calls(
+        ref self: ContractState, mut calls: Array<Call>, mut res: Array<Span<felt252>>
+    ) {
+        // check_gas();
         match calls.pop_front() {
             Option::Some(call) => {
-                let _res = _execute_single_call(call);
+                let _res = _execute_single_call(ref self, call);
                 res.append(_res);
-                return execute_list(calls, res);
+                return _execute_calls(ref self, calls, res);
             },
-            Option::None(_) => {
-                return res;
+            Option::None(_) => { // return res;
             },
         }
     }
 
-    #[internal]
-    fn _execute_single_call(mut call: Call) -> Span<felt252> {
+    fn _execute_single_call(ref self: ContractState, mut call: Call) -> Span<felt252> {
         let contract_address = get_contract_address();
         let caller = get_caller_address();
-        let guild_certificate = _guild_certificate::read();
-        let fee_policy_manager = _fee_policy_manager::read();
+        let guild_certificate = self._guild_certificate.read();
+        let fee_policy_manager = self._fee_policy_manager.read();
 
-        let Call {to, selector, calldata } = call;
+        let Call{to, selector, calldata } = call;
 
         // Check the tranasction is permitted
-        check_permitted_call(to, selector);
+        _check_permitted_call(@self, to, selector);
 
-        let fee_policy_manager_dispatcher = IFeePolicyManagerDispatcher { contract_address: fee_policy_manager };
+        let fee_policy_manager_dispatcher = IFeePolicyManagerDispatcher {
+            contract_address: fee_policy_manager
+        };
 
-        let fee_policy = fee_policy_manager_dispatcher.get_fee_policy(
-            contract_address, to, selector
-        );
+        let fee_policy = fee_policy_manager_dispatcher
+            .get_fee_policy(contract_address, to, selector);
 
-        assert(fee_policy.is_non_zero(), 'No fee policy set');
+        assert(!fee_policy.is_zero(), 'No fee policy set');
 
         let fee_policy_dispatcher = IFeePolicyDispatcher { contract_address: fee_policy };
-        let (used_token_details, acquired_token_details) = fee_policy_dispatcher.get_tokens(
-            call
-        );
+        let (used_token_details, acquired_token_details) = fee_policy_dispatcher
+            .get_tokens(to, selector, calldata.clone());
 
         let certificate_dispatcher = ICertificateDispatcher { contract_address: guild_certificate };
-        let owner = certificate_dispatcher.get_token_owner(
-            *used_token_details.at(0_usize).token_standard, 
-            *used_token_details.at(0_usize).token, 
-            *used_token_details.at(0_usize).ids.at(0_usize)
-        );
+        let owner = certificate_dispatcher
+            .get_token_owner(
+                *used_token_details.at(0_usize).token_standard,
+                *used_token_details.at(0_usize).token,
+                *used_token_details.at(0_usize).ids.at(0_usize)
+            );
 
         let owner_balances = ArrayTrait::new();
 
@@ -629,47 +504,62 @@ mod Guild {
         // get the guild balance in order to assess whether the call can be made
         // (currently this is based on the owner balance of accrued tokens)
 
-        loop_get_guild_balances(
+        _loop_get_guild_balances(
+            ref self,
             0,
             guild_certificate,
             certificate_id,
-            acquired_token_details,
-            owner_balances
+            acquired_token_details.clone(),
+            owner_balances.clone()
         );
 
         // calls the fee policy to perform the check, returns bool if this was passed
 
-        let has_balance = fee_policy_dispatcher.check_owner_balances(calldata, owner_balances);
+        let has_balance = fee_policy_dispatcher
+            .check_owner_balances(calldata.span(), owner_balances.clone());
 
         assert(has_balance, 'Owner under required balances');
 
         let pre_balances = fee_policy_dispatcher.get_balances();
 
         // Actually execute it
-        let res = starknet::call_contract_syscall(to, selector, calldata.span()).unwrap_syscall();
+        let res = starknet::call_contract_syscall(to, selector, calldata.span()).unwrap();
+
+        __event__ExecuteCall(ref self, caller, to, selector);
 
         let post_balances = fee_policy_dispatcher.get_balances();
 
         assert(pre_balances.len() == post_balances.len(), 'Balance lengths don\'t match');
 
-        let difference_balances = ArrayTrait::<TokenDifferences>::new();
+        let difference_balances = ArrayTrait::new();
 
-        FeePolicies::calculate_differences(0_usize, pre_balances.len(), pre_balances, post_balances, difference_balances);
+        let mut fee_policy_state = FeePolicy::unsafe_new_contract_state();
+        FeePolicy::calculate_differences(
+            ref fee_policy_state,
+            0_usize,
+            pre_balances.len(),
+            pre_balances,
+            post_balances,
+            difference_balances.clone()
+        );
 
-        loop_update_balances(
+        _loop_update_balances(
+            ref self,
             0_usize,
             guild_certificate,
             certificate_id,
-            acquired_token_details,
-            difference_balances
+            acquired_token_details.clone(),
+            difference_balances.clone()
         );
 
         // currently same as guild master
-        let admin = AccessControl::get_admin();
+        let mut access_control_state = AccessControl::unsafe_new_contract_state();
+        let admin = AccessControl::get_admin(@access_control_state);
 
-        execute_payments(
-            acquired_token_details,
-            difference_balances,
+        _execute_payments(
+            ref self,
+            acquired_token_details.clone(),
+            difference_balances.clone(),
             fee_policy,
             owner,
             caller,
@@ -679,91 +569,58 @@ mod Guild {
         return res;
     }
 
-    #[external]
-    fn initialize_permissions(permissions: Array<Permission>) {
-        AccessControl::assert_admin();
-        let permissions_initialized = _is_permissions_initialized::read();
-        assert(!permissions_initialized, 'Permissions already initialized');
-        set_permissions(permissions);
-        _is_permissions_initialized::write(true)
-    }
-
-    #[external]
-    fn set_permissions(permissions: Array<Permission>) {
-        _set_permissions(0, permissions);
-        let caller = get_caller_address();
-        SetPermissions(caller, permissions)
-    }
-
-    #[external]
-    fn set_fee_policy(
-        fee_policy: ContractAddress, 
-        caller_split: usize, 
-        owner_split: usize, 
-        admin_split: usize,
-        payment_type: felt252,
-        payment_details: Array<Token>
+    fn _set_permissions(
+        ref self: ContractState, permissions_index: usize, mut permissions: Array<Permission>
     ) {
-        let fee_policy_manager = _fee_policy_manager::read();
-        let fee_policy_manager_dispatcher = IFeePolicyManagerDispatcher {contract_address: fee_policy_manager};
-
-        fee_policy_manager_dispatcher.set_fee_policy(
-            fee_policy, 
-            caller_split,
-            owner_split, 
-            admin_split,
-            payment_details
-        )
-    }
-
-    // Internals
-
-    #[internal]
-    fn _set_permissions(permissions_index: usize, permissions: Array<Permission>) {
         if permissions_index == permissions.len() {
             return ();
         }
 
-        _is_permission::write(*permissions.at(permissions_index), true);
+        self
+            ._is_permission
+            .write(
+                (
+                    *permissions.at(permissions_index).to,
+                    *permissions.at(permissions_index).selector
+                ),
+                true
+            );
 
-        return _set_permissions(
-            permissions_index + 1_u32,
-            permissions,
-        );
+        return _set_permissions(ref self, permissions_index + 1_u32, permissions, );
     }
 
-    #[internal]
-    fn check_permitted_call(to: ContractAddress, selector: felt252) {
-        let execute_call = Permission { to, selector };
-        let is_permitted = _is_permission::read(execute_call);
+    fn _check_permitted_call(self: @ContractState, to: ContractAddress, selector: felt252) {
+        let is_permitted = self._is_permission.read((to, selector));
         assert(is_permitted, 'Call is not permitted');
     }
 
-    #[internal]
-    fn loop_get_guild_balances(
+    fn _loop_get_guild_balances(
+        ref self: ContractState,
         index: usize,
         guild_certificate: ContractAddress,
         certificate_id: u256,
         accrued_token_details: Array<TokenDetails>,
         owner_balances: Array<u256>
     ) {
-        check_gas();
+        // check_gas();
         if index == accrued_token_details.len() {
             return ();
         }
-        let TokenDetails { token_standard, token, ids } = accrued_token_details.at(index);
+        let TokenDetails{token_standard, token, ids } = accrued_token_details.at(index);
 
-        loop_get_token_ids_balance(
+        _loop_get_token_ids_balance(
+            ref self,
             0,
             guild_certificate,
             certificate_id,
             *token_standard,
             *token,
-            *ids,
-            owner_balances
+            ids.clone(),
+            owner_balances.clone()
         );
 
-        return loop_get_guild_balances(
+        return _loop_get_guild_balances(
+            ref self,
             index + 1_usize,
             guild_certificate,
             certificate_id,
@@ -772,12 +629,12 @@ mod Guild {
         );
     }
 
-    #[internal]
-    fn loop_get_token_ids_balance(
+    fn _loop_get_token_ids_balance(
+        ref self: ContractState,
         index: usize,
         guild_certificate: ContractAddress,
         certificate_id: u256,
-        token_standard: felt252,
+        token_standard: u8,
         token: ContractAddress,
         ids: Array<u256>,
         mut owner_balances: Array<u256>
@@ -786,16 +643,13 @@ mod Guild {
             return ();
         }
         let certificate_dispatcher = ICertificateDispatcher { contract_address: guild_certificate };
-        let amount = certificate_dispatcher.get_token_amount(
-            certificate_id,
-            token_standard,
-            token,
-            *ids.at(index),
-        );
+        let amount = certificate_dispatcher
+            .get_token_amount(certificate_id, token_standard, token, *ids.at(index), );
 
         owner_balances.append(amount);
 
-        return loop_get_token_ids_balance(
+        return _loop_get_token_ids_balance(
+            ref self,
             index + 1_u32,
             guild_certificate,
             certificate_id,
@@ -806,8 +660,8 @@ mod Guild {
         );
     }
 
-    #[internal]
-    fn loop_update_balances(
+    fn _loop_update_balances(
+        ref self: ContractState,
         index: usize,
         guild_certificate: ContractAddress,
         certificate_id: u256,
@@ -817,38 +671,34 @@ mod Guild {
         if index == token_details.len() {
             return ();
         }
-        
+
         let token_standard = *token_details.at(index).token_standard;
         let token = *token_details.at(index).token;
-        let difference = *differences.at(index);
-        let token_detail = *token_details.at(index);
+        let difference = differences.at(index);
+        let token_detail = token_details.at(index);
 
-        loop_update_token_ids_balance(
+        _loop_update_token_ids_balance(
+            ref self,
             0,
             guild_certificate,
             certificate_id,
             token_standard,
             token,
-            token_detail.ids,
-            difference.differences
+            token_detail.ids.clone(),
+            difference.differences.clone()
         );
 
-        return loop_update_balances(
-            index + 1_usize,
-            guild_certificate,
-            certificate_id,
-            token_details,
-            differences
+        return _loop_update_balances(
+            ref self, index + 1_usize, guild_certificate, certificate_id, token_details, differences
         );
-
     }
 
-    #[internal]
-    fn loop_update_token_ids_balance(
+    fn _loop_update_token_ids_balance(
+        ref self: ContractState,
         index: u32,
         guild_certificate: ContractAddress,
         certificate_id: u256,
-        token_standard: felt252,
+        token_standard: u8,
         token: ContractAddress,
         ids: Array<u256>,
         differences: Array<felt252>
@@ -858,43 +708,36 @@ mod Guild {
         }
         let certificate_dispatcher = ICertificateDispatcher { contract_address: guild_certificate };
 
-        let current_balance = certificate_dispatcher.get_token_amount(
-            certificate_id,
-            token_standard,
-            token,
-            *ids.at(index),
-        );
+        let current_balance = certificate_dispatcher
+            .get_token_amount(certificate_id, token_standard, token, *ids.at(index), );
 
         // if there is a change in guild balance remove or add from the owner
         // change in balance is calculated from Fee Policy
         let difference = *differences.at(index);
-        if difference.is_non_zero() {
-
+        if !difference.is_zero() {
             let new_amount = current_balance + difference.into();
 
-            certificate_dispatcher.change_token_data(
-                certificate_id,
-                token_standard,
-                token,
-                *ids.at(index),
-                new_amount,
-            );
+            certificate_dispatcher
+                .change_token_data(
+                    certificate_id, token_standard, token, *ids.at(index), new_amount, 
+                );
         } else {
-
             // we already know the account has enough balance in guild
             let new_amount = current_balance + difference.into();
 
-            certificate_dispatcher.change_token_data(
-                certificate_id,
-                token_standard,
-                token,
-                *ids.at(index),
-                u256 { low: 0_u128, high: 0_u128},
-            );
+            certificate_dispatcher
+                .change_token_data(
+                    certificate_id,
+                    token_standard,
+                    token,
+                    *ids.at(index),
+                    u256 { low: 0_u128, high: 0_u128 },
+                );
         }
 
-        return loop_update_token_ids_balance(
-            index + 1,
+        return _loop_update_token_ids_balance(
+            ref self,
+            index + 1_u32,
             guild_certificate,
             certificate_id,
             token_standard,
@@ -904,8 +747,8 @@ mod Guild {
         );
     }
 
-    #[internal]
-    fn execute_payments(
+    fn _execute_payments(
+        ref self: ContractState,
         accrued_token_details: Array<TokenDetails>,
         difference_balances: Array<TokenDifferences>,
         fee_policy: ContractAddress,
@@ -913,53 +756,55 @@ mod Guild {
         caller: ContractAddress,
         admin: ContractAddress
     ) {
-        let data = ArrayTrait::<felt252>::new();
+        // let data = ArrayTrait::new();
 
         let contract_address = get_contract_address();
 
-        let fee_policy_manager = _fee_policy_manager::read();
-        let fee_policy_manager_dispatcher = IFeePolicyManagerDispatcher { contract_address: fee_policy_manager };
+        let fee_policy_manager = self._fee_policy_manager.read();
+        let fee_policy_manager_dispatcher = IFeePolicyManagerDispatcher {
+            contract_address: fee_policy_manager
+        };
 
-        let (caller_split, owner_split, admin_split) = fee_policy_manager_dispatcher.get_policy_distribution(
-            contract_address, fee_policy
-        );
+        let (caller_split, owner_split, admin_split) = fee_policy_manager_dispatcher
+            .get_policy_distribution(contract_address, fee_policy);
 
-        let direct_payments = fee_policy_manager_dispatcher.get_direct_payments(
-            contract_address, fee_policy
-        );
+        let direct_payments = fee_policy_manager_dispatcher
+            .get_direct_payments(contract_address, fee_policy);
 
-        let mut caller_balances = ArrayTrait::<TokenBalances>::new();
-        let mut owner_balances = ArrayTrait::<TokenBalances>::new();
-        let mut admin_balances = ArrayTrait::<TokenBalances>::new();
+        let mut caller_balances = ArrayTrait::new();
+        let mut owner_balances = ArrayTrait::new();
+        let mut admin_balances = ArrayTrait::new();
 
-        FeePolicies::calculate_distribution_balances(
+        let mut fee_policy_state = FeePolicy::unsafe_new_contract_state();
+        FeePolicy::calculate_distribution_balances(
+            ref fee_policy_state,
             0_usize,
-            difference_balances,
+            difference_balances.clone(),
             caller_split,
             owner_split,
             admin_split,
-            caller_balances,
-            owner_balances,
-            admin_balances
+            caller_balances.clone(),
+            owner_balances.clone(),
+            admin_balances.clone()
         );
 
-        loop_distribute_reward(
-            0, 
+        _loop_distribute_reward(
+            ref self,
+            0,
             accrued_token_details,
             owner,
-            owner_balances,
+            owner_balances.clone(),
             caller,
-            caller_balances,
+            caller_balances.clone(),
             admin,
-            admin_balances
+            admin_balances.clone()
         );
 
-
-        loop_direct_payment(0, direct_payments, owner, caller, admin)
+        loop_direct_payment(ref self, 0, direct_payments, owner, caller, admin)
     }
 
-    #[internal]
-    fn loop_distribute_reward(
+    fn _loop_distribute_reward(
+        ref self: ContractState,
         index: u32,
         accrued_token_details: Array<TokenDetails>,
         owner: ContractAddress,
@@ -975,42 +820,43 @@ mod Guild {
 
         let contract_address = get_contract_address();
 
-        let TokenDetails {token_standard, token, ids} = *accrued_token_details.at(index);
+        let TokenDetails{token_standard, token, ids } = accrued_token_details.at(index);
 
-        if token_standard == TokenStandard::ERC1155 {
-            let erc1155_dispatcher = IERC1155Dispatcher { contract_address: token };
+        // if token_standard == TokenStandard::ERC1155 {
+        //     let erc1155_dispatcher = IERC1155Dispatcher { contract_address: token };
 
-            let data = ArrayTrait::new();
-            let caller_balance = *caller_balances.at(index);
-            erc1155_dispatcher.safe_batch_transfer_from(
-                contract_address,
-                caller,
-                ids,
-                caller_balance.balances,
-                data,
-            );
+        //     let data = ArrayTrait::new();
+        //     let caller_balance = *caller_balances.at(index);
+        //     erc1155_dispatcher.safe_batch_transfer_from(
+        //         contract_address,
+        //         caller,
+        //         ids,
+        //         caller_balance.balances,
+        //         data,
+        //     );
 
-            let owner_balance = *owner_balances.at(index);
-            erc1155_dispatcher.safe_batch_transfer_from(
-                contract_address,
-                owner,
-                ids,
-                owner_balance.balances,
-                data,
-            );
+        //     let owner_balance = *owner_balances.at(index);
+        //     erc1155_dispatcher.safe_batch_transfer_from(
+        //         contract_address,
+        //         owner,
+        //         ids,
+        //         owner_balance.balances,
+        //         data,
+        //     );
 
-            let admin_balance = *admin_balances.at(index);
-            erc1155_dispatcher.safe_batch_transfer_from(
-                contract_address,
-                admin,
-                ids,
-                admin_balance.balances,
-                data,
-            );
+        //     let admin_balance = *admin_balances.at(index);
+        //     erc1155_dispatcher.safe_batch_transfer_from(
+        //         contract_address,
+        //         admin,
+        //         ids,
+        //         admin_balance.balances,
+        //         data,
+        //     );
 
-        }
+        // }
 
-        return loop_distribute_reward(
+        return _loop_distribute_reward(
+            ref self,
             index + 1_u32,
             accrued_token_details,
             owner,
@@ -1020,11 +866,10 @@ mod Guild {
             admin,
             admin_balances
         );
-
     }
 
-    #[internal]
     fn loop_direct_payment(
+        ref self: ContractState,
         index: u32,
         direct_payments: Array<Token>,
         owner: ContractAddress,
@@ -1035,38 +880,152 @@ mod Guild {
             return ();
         }
 
-        let Token { token_standard, token, token_id, amount} = *direct_payments.at(index);
+        let Token{token_standard, token, token_id, amount } = *direct_payments.at(index);
 
         if token_standard == TokenStandard::ERC20 {
             let erc20_dispatcher = IERC20Dispatcher { contract_address: token };
-            if index == Recipient::OWNER {
-                erc20_dispatcher.transfer(
-                    owner,
-                    amount
-                );
+            if index == Recipient::OWNER.into() {
+                erc20_dispatcher.transfer(owner, amount);
             }
 
-            if index == Recipient::CALLER {
-                erc20_dispatcher.transfer(
-                    caller,
-                    amount
-                );
+            if index == Recipient::CALLER.into() {
+                erc20_dispatcher.transfer(caller, amount);
             }
 
-            if index == Recipient::ADMIN {
-                erc20_dispatcher.transfer(
-                    admin,
-                    amount
-                );
+            if index == Recipient::ADMIN.into() {
+                erc20_dispatcher.transfer(admin, amount);
             }
         }
 
-        return loop_direct_payment(
-            index + 1_u32,
-            direct_payments,
-            owner,
-            caller,
-            admin
-        );
+        return loop_direct_payment(ref self, index + 1_u32, direct_payments, owner, caller, admin);
+    }
+
+    // EVENTS ------------------------------------ //
+
+    #[derive(Drop, starknet::Event)]
+    struct WhitelistMember {
+        account: ContractAddress,
+        role: felt252
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct RemoveMember {
+        account: ContractAddress, 
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct UpdateMemberRole {
+        account: ContractAddress,
+        new_role: felt252
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct SetPermissions {
+        account: ContractAddress,
+        permissions: Array<Permission>
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct ExecuteCall {
+        account: ContractAddress,
+        contract: ContractAddress,
+        selector: felt252
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct ExecuteTransaction {
+        account: ContractAddress,
+        hash: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct Deposit {
+        account: ContractAddress,
+        certificate_id: u256,
+        token_standard: u8,
+        token: ContractAddress,
+        token_id: u256,
+        amount: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct Withdraw {
+        account: ContractAddress,
+        certificate_id: u256,
+        token_standard: u8,
+        token: ContractAddress,
+        token_id: u256,
+        amount: u256,
+    }
+
+    fn __event__WhitelistMember(
+        ref self: ContractState, account: ContractAddress, role: felt252, 
+    ) {
+        self.emit(Event::WhitelistMember(WhitelistMember { account, role }));
+    }
+
+    fn __event__RemoveMember(ref self: ContractState, account: ContractAddress, ) {
+        self.emit(Event::RemoveMember(RemoveMember { account }));
+    }
+
+    fn __event__UpdateMemberRole(
+        ref self: ContractState, account: ContractAddress, new_role: felt252
+    ) {
+        self.emit(Event::UpdateMemberRole(UpdateMemberRole { account, new_role }));
+    }
+
+    fn __event__SetPermissions(
+        ref self: ContractState, account: ContractAddress, permissions: Array<Permission>
+    ) {
+        self.emit(Event::SetPermissions(SetPermissions { account, permissions }));
+    }
+
+    fn __event__ExecuteCall(
+        ref self: ContractState,
+        account: ContractAddress,
+        contract: ContractAddress,
+        selector: felt252
+    ) {
+        self.emit(Event::ExecuteCall(ExecuteCall { account, contract, selector }));
+    }
+
+    fn __event__ExecuteTransaction(
+        ref self: ContractState, account: ContractAddress, hash: ContractAddress, 
+    ) {
+        self.emit(Event::ExecuteTransaction(ExecuteTransaction { account, hash }));
+    }
+
+    fn __event__Deposit(
+        ref self: ContractState,
+        account: ContractAddress,
+        certificate_id: u256,
+        token_standard: u8,
+        token: ContractAddress,
+        token_id: u256,
+        amount: u256,
+    ) {
+        self
+            .emit(
+                Event::Deposit(
+                    Deposit { account, certificate_id, token_standard, token, token_id, amount }
+                )
+            );
+    }
+
+    fn __event__Withdraw(
+        ref self: ContractState,
+        account: ContractAddress,
+        certificate_id: u256,
+        token_standard: u8,
+        token: ContractAddress,
+        token_id: u256,
+        amount: u256,
+    ) {
+        self
+            .emit(
+                Event::Withdraw(
+                    Withdraw { account, certificate_id, token_standard, token, token_id, amount }
+                )
+            );
     }
 }

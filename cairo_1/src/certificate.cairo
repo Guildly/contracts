@@ -1,75 +1,23 @@
-use array::ArrayTrait;
-use starknet::ContractAddress;
+mod interfaces;
 
-
-#[abi]
-trait ICertificate {
-    fn balance_of(owner: ContractAddress) -> u256;
-    fn owner_of(certificate_id: u256) -> ContractAddress;
-
-    fn get_certificate_id(owner: ContractAddress, guild: ContractAddress) -> u256;
-    fn get_token_amount(
-        certificate_id: u256, token_standard: felt252, token: ContractAddress, token_id: u256
-    ) -> u256;
-    fn get_certificate_owner(certificate_id: u256) -> ContractAddress;
-    fn get_token_owner(
-        token_standard: felt252, token: ContractAddress, token_id: u256
-    ) -> ContractAddress;
-    fn check_token_exists(
-        certificate_id: u256, token_standard: felt252, token: ContractAddress, token_id: u256
-    ) -> bool;
-    fn check_tokens_exist(certificate_id: u256) -> bool;
-    fn mint(to: ContractAddress, guild: ContractAddress);
-    fn burn(account: ContractAddress, guild: ContractAddress);
-    fn guild_burn(account: ContractAddress, guild: ContractAddress);
-    fn add_token_data(
-        certificate_id: u256,
-        token_standard: felt252,
-        token: ContractAddress,
-        token_id: u256,
-        amount: u256
-    );
-    fn change_token_data(
-        certificate_id: u256,
-        token_standard: felt252,
-        token: ContractAddress,
-        token_id: u256,
-        new_amount: u256
-    );
-}
-
-#[contract]
+#[starknet::contract]
 mod Certificate {
     use zeroable::Zeroable;
-    use starknet::ContractAddress;
+    use starknet::{
+        ContractAddress, contract_address::ContractAddressZeroable, get_caller_address,
+        get_contract_address, class_hash::ClassHash
+    };
     use array::SpanTrait;
     use array::ArrayTrait;
-    use openzeppelin::token::erc721::ERC721;
-    use openzeppelin::upgrades::Proxy;
-    use openzeppelin::Ownable;
-    use openzeppelin::introspection::erc165::ERC165;
+    use openzeppelin::token::erc721::erc721::ERC721;
+    use openzeppelin::upgrades::upgradeable::Upgradeable;
+    // use introspection::erc165::ERC165;
 
-    use starknet::get_caller_address;
-    use starknet::get_contract_address;
-    use starknet::contract_address::ContractAddressPartialEq;
-    use starknet::contract_address::ContractAddressZeroable;
+    use guildly::guild_manager::guild_manager::{
+        interfaces::{IGuildManagerDispatcher, IGuildManagerDispatcherTrait}
+    };
 
-    use guildly::math_utils::MathUtils;
-    use guildly::helpers::Helpers;
-    //
-    // Events
-    //
-
-    #[event]
-    fn MintCertificate(account: ContractAddress, guild: ContractAddress, id: u256) {}
-
-    #[event]
-    fn BurnCertificate(account: ContractAddress, guild: ContractAddress, id: u256) {}
-
-    //
-    // Storage variables
-    //
-
+    #[storage]
     struct Storage {
         _guild_manager: ContractAddress,
         _certificate_id_count: u256,
@@ -79,57 +27,48 @@ mod Certificate {
         _token_owner: LegacyMap<(felt252, ContractAddress, u256), u256>,
         _certificate_token_amount: LegacyMap<(u256, felt252, ContractAddress, u256), u256>,
         _certificate_tokens_len: LegacyMap<u256, u32>,
+        _proxy_admin: ContractAddress
     }
 
-
-    #[abi]
-    trait IManager {
-        fn get_is_guild(address: ContractAddress) -> bool;
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        MintCertificate: MintCertificate,
+        BurnCertificate: BurnCertificate,
     }
 
-    //
-    // Guards
-    //
-
-    #[internal]
-    fn assert_only_guild() {
-        let caller = get_caller_address();
-        let guild_manager = _guild_manager::read();
-        let check_guild = IManagerDispatcher { contract_address: guild_manager }.get_is_guild(caller);
-        assert(check_guild, 'Guild is not valid')
+    #[external(v0)]
+    fn supportsInterface(self: @ContractState, interfaceId: felt252) -> felt252 {
+        // ERC165::supports_interface(interfaceId)
+        1
     }
 
-    //
-    // Getters
-    //
-
-    #[view]
-    fn supportsInterface(interfaceId: felt252) -> felt252 {
-        ERC165::supports_interface(interfaceId)
+    #[external(v0)]
+    fn name(self: @ContractState) -> felt252 {
+        let mut erc721_state = ERC721::unsafe_new_contract_state();
+        ERC721::ERC721MetadataImpl::name(@erc721_state)
     }
 
-    #[view]
-    fn name() -> felt252 {
-        ERC721::name()
+    #[external(v0)]
+    fn symbol(self: @ContractState) -> felt252 {
+        let mut erc721_state = ERC721::unsafe_new_contract_state();
+        ERC721::ERC721MetadataImpl::symbol(@erc721_state)
     }
 
-    #[view]
-    fn symbol() -> felt252 {
-        ERC721::symbol()
+    #[external(v0)]
+    fn balance_of(self: @ContractState, owner: ContractAddress) -> u256 {
+        let mut erc721_state = ERC721::unsafe_new_contract_state();
+        ERC721::ERC721Impl::balance_of(@erc721_state, owner)
     }
 
-    #[view]
-    fn balance_of(owner: felt252) -> u256 {
-        ERC721::balance_of(owner)
+    #[external(v0)]
+    fn owner_of(self: @ContractState, tokenId: u256) -> ContractAddress {
+        let mut erc721_state = ERC721::unsafe_new_contract_state();
+        ERC721::ERC721Impl::owner_of(@erc721_state, tokenId)
     }
 
-    #[view]
-    fn owner_of(tokenId: u256) -> ContractAddress {
-        ERC721::owner_of(tokenId)
-    }
-
-    #[view]
-    fn getUrl() -> Array<felt252> {
+    #[external(v0)]
+    fn getUrl(self: @ContractState) -> Array<felt252> {
         let mut url = ArrayTrait::new();
         url.append(104);
         url.append(116);
@@ -214,151 +153,198 @@ mod Certificate {
         return url;
     }
 
-    #[view]
-    fn tokenURI(tokenId: u256) -> Array<felt252> {
-        getUrl()
+    #[external(v0)]
+    fn tokenURI(self: @ContractState, tokenId: u256) -> Array<felt252> {
+        getUrl(self)
     }
 
-    #[view]
-    fn get_certificate_id(owner: ContractAddress, guild: ContractAddress) -> u256 {
-        _certificate_id::read((owner, guild))
-    }
-
-    #[view]
-    fn get_certificate_owner(certificate_id: u256) -> ContractAddress {
-        _certificate_owner::read(certificate_id)
-    }
-
-    #[view]
-    fn get_token_amount(
-        certificate_id: u256, token_standard: felt252, token: ContractAddress, token_id: u256
+    #[external(v0)]
+    fn get_certificate_id(
+        self: @ContractState, owner: ContractAddress, guild: ContractAddress
     ) -> u256 {
-        _certificate_token_amount::read((certificate_id, token_standard, token, token_id))
+        self._certificate_id.read((owner, guild))
     }
 
-    #[view]
+    #[external(v0)]
+    fn get_certificate_owner(self: @ContractState, certificate_id: u256) -> ContractAddress {
+        self._certificate_owner.read(certificate_id)
+    }
+
+    #[external(v0)]
+    fn get_token_amount(
+        self: @ContractState,
+        certificate_id: u256,
+        token_standard: felt252,
+        token: ContractAddress,
+        token_id: u256
+    ) -> u256 {
+        self._certificate_token_amount.read((certificate_id, token_standard, token, token_id))
+    }
+
+    #[external(v0)]
     fn get_token_owner(
-        token_standard: felt252, token: ContractAddress, token_id: u256
+        self: @ContractState, token_standard: felt252, token: ContractAddress, token_id: u256
     ) -> ContractAddress {
-        let owner_certificate = _token_owner::read((token_standard, token, token_id));
-        _certificate_owner::read(owner_certificate)
+        let owner_certificate = self._token_owner.read((token_standard, token, token_id));
+        self._certificate_owner.read(owner_certificate)
     }
 
-    //
-    // Initialize & upgrade
-    //
-
-    #[external]
-    fn initializer(
-        name: felt252, symbol: felt252, guild_manager: ContractAddress, proxy_admin: ContractAddress
+    #[external(v0)]
+    fn initialize(
+        ref self: ContractState,
+        name: felt252,
+        symbol: felt252,
+        guild_manager: ContractAddress,
+        proxy_admin: ContractAddress
     ) {
-        ERC721::initializer(name, symbol);
-        _guild_manager::write(guild_manager);
-        Proxy::initializer(proxy_admin)
+        let mut erc721_state = ERC721::unsafe_new_contract_state();
+        ERC721::InternalImpl::initializer(ref erc721_state, name, symbol);
+        self._guild_manager.write(guild_manager);
+        self._proxy_admin.write(proxy_admin);
     }
 
-    #[external]
-    fn upgrade(implementation: ContractAddress) {
-        Proxy::assert_only_admin();
-        Proxy::_set_implementation_hash(implementation)
+    #[external(v0)]
+    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+        let mut upgradable_state = Upgradeable::unsafe_new_contract_state();
+        Upgradeable::InternalImpl::_upgrade(ref upgradable_state, new_class_hash)
     }
 
-    //
-    // External
-    //
-
-    #[external]
-    fn setTokenURI(tokenId: u256, tokenURI: felt252) {
-        assert_only_guild();
-        ERC721::_set_token_uri(tokenId, tokenURI)
+    #[external(v0)]
+    fn setTokenURI(ref self: ContractState, tokenId: u256, tokenURI: felt252) {
+        _assert_only_guild(@self);
+        let mut erc721_state = ERC721::unsafe_new_contract_state();
+        ERC721::InternalImpl::_set_token_uri(ref erc721_state, tokenId, tokenURI)
     }
 
-    #[external]
-    fn transfer_ownership(new_owner: ContractAddress) {
-        Ownable::transfer_ownership(new_owner)
-    }
-
-    #[external]
-    fn mint(to: ContractAddress, guild: ContractAddress) {
-        let certificate_count = _certificate_id_count::read();
+    #[external(v0)]
+    fn mint(ref self: ContractState, to: ContractAddress, guild: ContractAddress) {
+        let certificate_count = self._certificate_id_count.read();
         let new_certificate_id = certificate_count + u256 { low: 1_u128, high: 0_u128 };
-        _certificate_id_count::write(new_certificate_id);
+        self._certificate_id_count.write(new_certificate_id);
 
-        _certificate_id::write((to, guild), new_certificate_id);
-        _certificate_owner::write(new_certificate_id, to);
-        _guild::write(new_certificate_id, guild);
+        self._certificate_id.write((to, guild), new_certificate_id);
+        self._certificate_owner.write(new_certificate_id, to);
+        self._guild.write(new_certificate_id, guild);
+        let mut erc721_state = ERC721::unsafe_new_contract_state();
+        ERC721::InternalImpl::_mint(ref erc721_state, to, new_certificate_id);
 
-        ERC721::_mint(to, new_certificate_id);
-
-        MintCertificate(to, guild, new_certificate_id)
+        __event__MintCertificate(ref self, to, guild, new_certificate_id)
     }
 
-    #[external]
-    fn burn(account: ContractAddress, guild: ContractAddress) {
-        let certificate_id = _certificate_id::read((account, guild));
-        ERC721::assert_only_token_owner(certificate_id);
-        _guild::write(certificate_id, ContractAddressZeroable::zero());
-        ERC721::_burn(certificate_id);
-        BurnCertificate(account, guild, certificate_id)
+    #[external(v0)]
+    fn burn(ref self: ContractState, account: ContractAddress, guild: ContractAddress) {
+        let certificate_id = self._certificate_id.read((account, guild));
+        let mut erc721_state = ERC721::unsafe_new_contract_state();
+        ERC721::InternalImpl::_owner_of(@erc721_state, certificate_id);
+        self._guild.write(certificate_id, ContractAddressZeroable::zero());
+        let mut erc721_state = ERC721::unsafe_new_contract_state();
+        ERC721::InternalImpl::_burn(ref erc721_state, certificate_id);
+        __event__BurnCertificate(ref self, account, guild, certificate_id)
     }
 
-    #[external]
-    fn guild_burn(account: ContractAddress, guild: ContractAddress) {
-        assert_only_guild();
-        let certificate_id = _certificate_id::read((account, guild));
-        _guild::write(certificate_id, ContractAddressZeroable::zero());
-        ERC721::_burn(certificate_id);
-        BurnCertificate(account, guild, certificate_id)
+    #[external(v0)]
+    fn guild_burn(ref self: ContractState, account: ContractAddress, guild: ContractAddress) {
+        _assert_only_guild(@self);
+        let certificate_id = self._certificate_id.read((account, guild));
+        self._guild.write(certificate_id, ContractAddressZeroable::zero());
+        let mut erc721_state = ERC721::unsafe_new_contract_state();
+        ERC721::InternalImpl::_burn(ref erc721_state, certificate_id);
+        __event__BurnCertificate(ref self, account, guild, certificate_id)
     }
 
-    #[external]
+    #[external(v0)]
     fn add_token_data(
+        ref self: ContractState,
         certificate_id: u256,
         token_standard: felt252,
         token: ContractAddress,
         token_id: u256,
         amount: u256
     ) {
-        assert_only_guild();
-        _certificate_token_amount::write((certificate_id, token_standard, token, token_id), amount);
-        let tokens_len = _certificate_tokens_len::read(certificate_id);
-        _token_owner::write((token_standard, token, token_id), certificate_id);
-        _certificate_tokens_len::write(certificate_id, tokens_len + 1)
+        _assert_only_guild(@self);
+        self
+            ._certificate_token_amount
+            .write((certificate_id, token_standard, token, token_id), amount);
+        let tokens_len = self._certificate_tokens_len.read(certificate_id);
+        self._token_owner.write((token_standard, token, token_id), certificate_id);
+        self._certificate_tokens_len.write(certificate_id, tokens_len + 1)
     }
 
-    #[external]
+    #[external(v0)]
     fn change_token_data(
+        ref self: ContractState,
         certificate_id: u256,
         token_standard: felt252,
         token: ContractAddress,
         token_id: u256,
         new_amount: u256
     ) {
-        assert_only_guild();
-        let tokens_len = _certificate_tokens_len::read(certificate_id);
+        _assert_only_guild(@self);
+        let tokens_len = self._certificate_tokens_len.read(certificate_id);
         if (new_amount == u256 { low: 0_u128, high: 0_u128 }) {
-            _certificate_tokens_len::write(certificate_id, tokens_len - 1_u32);
-            _token_owner::write((token_standard, token, token_id), u256 { low: 0_u128, high: 0_u128 });
+            self._certificate_tokens_len.write(certificate_id, tokens_len - 1_u32);
+            self
+                ._token_owner
+                .write((token_standard, token, token_id), u256 { low: 0_u128, high: 0_u128 });
         }
-        _certificate_token_amount::write(
-            (certificate_id, token_standard, token, token_id), new_amount
-        )
+        self
+            ._certificate_token_amount
+            .write((certificate_id, token_standard, token, token_id), new_amount)
     }
 
-    #[view]
+    #[external(v0)]
     fn check_token_exists(
-        certificate_id: u256, token_standard: felt252, token: ContractAddress, token_id: u256
+        self: @ContractState,
+        certificate_id: u256,
+        token_standard: felt252,
+        token: ContractAddress,
+        token_id: u256
     ) -> bool {
-        assert_only_guild();
-        let amount = _certificate_token_amount::read(
-            (certificate_id, token_standard, token, token_id)
-        );
+        _assert_only_guild(self);
+        let amount = self
+            ._certificate_token_amount
+            .read((certificate_id, token_standard, token, token_id));
         amount > u256 { low: 0_u128, high: 0_u128 }
     }
 
-    #[view]
-    fn check_tokens_exist(certificate_id: u256) -> bool {
-        let tokens_len = _certificate_tokens_len::read(certificate_id);
+    #[external(v0)]
+    fn check_tokens_exist(ref self: ContractState, certificate_id: u256) -> bool {
+        let tokens_len = self._certificate_tokens_len.read(certificate_id);
         tokens_len > 0_u32
+    }
+
+    fn _assert_only_guild(self: @ContractState) {
+        let caller = get_caller_address();
+        let guild_manager = self._guild_manager.read();
+        let check_guild = IGuildManagerDispatcher {
+            contract_address: guild_manager
+        }.get_is_guild(caller);
+        assert(check_guild, 'Guild is not valid')
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct MintCertificate {
+        account: ContractAddress,
+        guild: ContractAddress,
+        id: u256
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct BurnCertificate {
+        account: ContractAddress,
+        guild: ContractAddress,
+        id: u256
+    }
+
+    fn __event__MintCertificate(
+        ref self: ContractState, account: ContractAddress, guild: ContractAddress, id: u256
+    ) {
+        self.emit(Event::MintCertificate(MintCertificate { account, guild, id }));
+    }
+
+    fn __event__BurnCertificate(
+        ref self: ContractState, account: ContractAddress, guild: ContractAddress, id: u256
+    ) {
+        self.emit(Event::BurnCertificate(BurnCertificate { account, guild, id }));
     }
 }
