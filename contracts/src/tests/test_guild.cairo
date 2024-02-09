@@ -106,41 +106,38 @@ use array::ArrayTrait;
         assert(result == 4, 'result is not 4');
     }
 
-    // #[test]
-    // #[should_panic(expected: ('Call is not permitted', ))]
-    // fn set_permissions() {
-    //     let contracts = setup();
-    //     let guild_dispatcher = IGuildDispatcher { contract_address: contracts.guild_address };
+    #[test]
+    #[should_panic(expected: ('Call is not permitted', ))]
+    fn set_permissions() {
+        let contracts = setup();
+        let guild_dispatcher = IGuildDispatcher { contract_address: contracts.guild_address };
 
-    //     let mut permissions = ArrayTrait::<Permission>::new();
-    //     permissions.append(Permission { to: contracts.certificate_address, selector: 1528802474226268325865027367859591458315299653151958663884057507666229546336 });
+        let mut permissions = ArrayTrait::<Permission>::new();
+        permissions.append(Permission { to: contracts.certificate_address, selector: 1528802474226268325865027367859591458315299653151958663884057507666229546336 });
 
-    //     guild_dispatcher.initialize_permissions(permissions);
-    //     let calldata = ArrayTrait::<felt252>::new();
-    //     let mut allowed_calls = ArrayTrait::<Call>::new();
-    //     allowed_calls.append(Call { to: contracts.certificate_address, selector: 1528802474226268325865027367859591458315299653151958663884057507666229546336, calldata });
-    //     guild_dispatcher.execute(allowed_calls, 0);
+        guild_dispatcher.initialize_permissions(permissions);
+        let calldata = ArrayTrait::<felt252>::new();
+        let mut allowed_calls = ArrayTrait::<Call>::new();
+        allowed_calls.append(Call { to: contracts.certificate_address, selector: 1528802474226268325865027367859591458315299653151958663884057507666229546336, calldata });
+        guild_dispatcher.execute(allowed_calls, 0);
 
-    //     let new_calldata = ArrayTrait::<felt252>::new();
-    //     let mut banned_calls = ArrayTrait::<Call>::new();
-    //     banned_calls.append(Call { to: contracts.certificate_address, selector: 944713526212149105522785400348068751682982210605126537021911324578866405028, calldata: new_calldata });
-    //     guild_dispatcher.execute(banned_calls, 0);
-    // }
+        let new_calldata = ArrayTrait::<felt252>::new();
+        let mut banned_calls = ArrayTrait::<Call>::new();
+        banned_calls.append(Call { to: contracts.certificate_address, selector: 944713526212149105522785400348068751682982210605126537021911324578866405028, calldata: new_calldata });
+        guild_dispatcher.execute(banned_calls, 1);
+    }
 
     #[test]
     fn add_members() {
         let contracts = setup();
-        // let guild_dispatcher = IGuildDispatcher { contract_address: contracts.guild_address };
-
-        // guild_dispatcher.add_member(ACCOUNT_2(), Roles::ADMIN);
+        let guild_dispatcher = IGuildDispatcher { contract_address: contracts.guild_address };
+        guild_dispatcher.add_member(ACCOUNT_2(), Roles::ADMIN);
     }
 
     // #[test]
     // fn deposit() {
     //     let contracts = setup();
     //     let guild_dispatcher = IGuildDispatcher { contract_address: contracts.guild_address };
-    //     // let eth_dispatcher = IERC20Dispatcher { contract_address: contracts.eth_address };
-
-    //     // guild_dispatcher.deposit(1, contracts.eth_address, )
+    //     guild_dispatcher.deposit(TokenStandard::ERC20, contracts.eth_address, u256 { low: 0_u128, high: 0_u128 }, u256 { low: 1_u128, high: 0_u128 })
     // }
 }

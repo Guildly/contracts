@@ -3,4 +3,4 @@ Scarb
 #######
 
 target
-cairo_1/cairo-contracts
+.snfoundry_cache
