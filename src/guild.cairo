@@ -4,8 +4,10 @@ const ISRC6_ID: felt252 = 0x2ceccef7f994940b3962a6c67e0ba4fcd37df7d131417c604f91
 
 #[starknet::contract]
 mod Guild {
-    use openzeppelin::upgrades::upgradeable::UpgradeableComponent::InternalTrait;
-use array::{ArrayTrait, SpanTrait};
+    use openzeppelin::access::accesscontrol::interface::IAccessControlCamel;
+use openzeppelin::access::accesscontrol::interface::IAccessControl;
+use openzeppelin::access::accesscontrol::accesscontrol::AccessControlComponent::InternalTrait;
+    use array::{ArrayTrait, SpanTrait};
     use box::BoxTrait;
     use core::clone::Clone;
     use core::serde::Serde;
@@ -20,16 +22,30 @@ use array::{ArrayTrait, SpanTrait};
     use guildly::guild::guild::{
         interfaces::{IGuild}, constants::{Roles, TokenStandard}, guild::{Call, Permission, Token}
     };
-    use guildly::utils::{access_control::AccessControl, math_utils::MathUtils,};
+    use guildly::utils::{math_utils::MathUtils,};
+    use openzeppelin::access::accesscontrol::AccessControlComponent;
+    use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
     use zeroable::Zeroable;
 
+    component!(path: AccessControlComponent, storage: access, event: AccessControlEvent);
+    component!(path: SRC5Component, storage: src5, event: SRC5Event);
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
+
+    // Access
+    impl AccessControlInternalImpl = AccessControlComponent::AccessControl<ContractState>;
+
+    // Upgradeable
+    impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
     #[storage]
     struct Storage {
+        #[substorage(v0)]
+        access: AccessControlComponent::Storage,
+        #[substorage(v0)]
+        src5: SRC5Component::Storage,
         #[substorage(v0)]
         upgradeable: UpgradeableComponent::Storage,
         _name: felt252,
@@ -48,6 +64,10 @@ use array::{ArrayTrait, SpanTrait};
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
+        #[flat]
+        AccessControlEvent: AccessControlComponent::Event,
+        #[flat]
+        SRC5Event: SRC5Component::Event,
         #[flat]
         UpgradeableEvent: UpgradeableComponent::Event,
         WhitelistMember: WhitelistMember,
@@ -80,8 +100,9 @@ use array::{ArrayTrait, SpanTrait};
                 .mint(master, contract_address);
 
             self._proxy_admin.write(proxy_admin);
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            AccessControl::_set_admin(ref access_control_state, master);
+            self.access._set_role_admin(Roles::MEMBER, Roles::ADMIN);
+            self.access._set_role_admin(Roles::OWNER, Roles::ADMIN);
+            self.access.grant_role(Roles::ADMIN, proxy_admin)
         }
         fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
             self.upgradeable._upgrade(new_class_hash)
@@ -97,8 +118,7 @@ use array::{ArrayTrait, SpanTrait};
             // require_not_blacklisted(caller_address);
             ICertificateDispatcher { contract_address: guild_certificate }
                 .mint(account, contract_address);
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            AccessControl::grant_role(ref access_control_state, role, account);
+            self.access.grant_role(role, account);
 
             __event__WhitelistMember(ref self, account, role)
         }
@@ -117,17 +137,15 @@ use array::{ArrayTrait, SpanTrait};
 
             ICertificateDispatcher { contract_address: guild_certificate }
                 .guild_burn(caller_address, contract_address);
-
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            let roles = AccessControl::get_roles(@access_control_state, caller_address);
-            AccessControl::revoke_role(ref access_control_state, roles, caller_address)
+            self.access.renounce_role(Roles::MEMBER, caller_address);
+            self.access.renounce_role(Roles::OWNER, caller_address);
+            self.access.renounce_role(Roles::ADMIN, caller_address);
         }
         fn remove_member(ref self: ContractState, account: ContractAddress) {
             let caller_address = get_caller_address();
             let contract_address = get_contract_address();
             let guild_certificate = self._guild_certificate.read();
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            AccessControl::has_role(@access_control_state, Roles::ADMIN, caller_address);
+            self.access.assert_only_role(Roles::ADMIN);
             let certificate_dispatcher = ICertificateDispatcher {
                 contract_address: guild_certificate
             };
@@ -138,9 +156,9 @@ use array::{ArrayTrait, SpanTrait};
             assert(check == false, 'Member holds items in guild.');
             certificate_dispatcher.guild_burn(account, contract_address);
 
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            let roles = AccessControl::get_roles(@access_control_state, account);
-            AccessControl::revoke_role(ref access_control_state, roles, account);
+            self.access.revoke_role(Roles::MEMBER, account);
+            self.access.revoke_role(Roles::OWNER, account);
+            self.access.revoke_role(Roles::ADMIN, account);
             self._is_blacklisted.write(account, true);
 
             __event__RemoveMember(ref self, account)
@@ -149,8 +167,7 @@ use array::{ArrayTrait, SpanTrait};
             let contract_address = get_contract_address();
             let guild_certificate = self._guild_certificate.read();
             let caller = get_caller_address();
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            AccessControl::has_role(@access_control_state, Roles::ADMIN, caller);
+            self.access.assert_only_role(Roles::ADMIN);
 
             let certificate_dispatcher = ICertificateDispatcher {
                 contract_address: guild_certificate
@@ -187,19 +204,7 @@ use array::{ArrayTrait, SpanTrait};
         // TODO: Add ERC1155 transfer method
         }
         fn update_roles(ref self: ContractState, account: ContractAddress, roles: felt252) {
-            let caller_address = get_caller_address();
-            let contract_address = get_contract_address();
-            let guild_certificate = self._guild_certificate.read();
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            AccessControl::has_role(@access_control_state, Roles::ADMIN, caller_address);
-
-            let certificate_id = ICertificateDispatcher { contract_address: guild_certificate }
-                .get_certificate_id(account, contract_address);
-
-            AccessControl::revoke_role(ref access_control_state, roles, account);
-
-            AccessControl::grant_role(ref access_control_state, roles, account);
-            __event__UpdateMemberRole(ref self, account, roles)
+            self.access.grant_role(roles, account)
         }
         fn deposit(
             ref self: ContractState,
@@ -209,8 +214,7 @@ use array::{ArrayTrait, SpanTrait};
             amount: u256
         ) {
             let caller_address = get_caller_address();
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            AccessControl::has_role(@access_control_state, Roles::OWNER, caller_address);
+            self.access.assert_only_role(Roles::ADMIN);
 
             assert(amount > u256 { low: 0_u128, high: 0_u128 }, 'Guild: Amount cannot be 0');
 
@@ -266,8 +270,7 @@ use array::{ArrayTrait, SpanTrait};
             amount: u256
         ) {
             let caller_address = get_caller_address();
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            AccessControl::has_role(@access_control_state, Roles::OWNER, caller_address);
+            self.access.assert_only_role(Roles::ADMIN);
 
             if token_standard == TokenStandard::ERC721 {
                 assert(amount == u256 { low: 1_u128, high: 0_u128 }, 'ERC721 amount must be 1');
@@ -318,8 +321,7 @@ use array::{ArrayTrait, SpanTrait};
         fn execute(ref self: ContractState, mut calls: Array<Call>, nonce: felt252) {
             // check_gas();
             let caller = get_caller_address();
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            AccessControl::has_role(@access_control_state, Roles::MEMBER, caller);
+            self.access.assert_only_role(Roles::MEMBER);
 
             let current_nonce = self._current_nonce.read();
             assert(current_nonce == nonce, 'Guild: Invalid nonce');
@@ -335,8 +337,7 @@ use array::{ArrayTrait, SpanTrait};
             return response;
         }
         fn initialize_permissions(ref self: ContractState, mut permissions: Array<Permission>) {
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            AccessControl::assert_admin(@access_control_state);
+            self.access.assert_only_role(Roles::ADMIN);
             let permissions_initialized = self._is_permissions_initialized.read();
             assert(!permissions_initialized, 'Permissions already initialized');
             _set_permissions(ref self, 0, permissions);
@@ -368,8 +369,7 @@ use array::{ArrayTrait, SpanTrait};
         }
 
         fn has_role(self: @ContractState, role: felt252, account: ContractAddress) -> bool {
-            let mut access_control_state = AccessControl::unsafe_new_contract_state();
-            AccessControl::has_role(@access_control_state, role, account)
+            self.access.has_role(Roles::ADMIN, account)
         }
     }
 

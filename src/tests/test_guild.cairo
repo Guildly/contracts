@@ -9,7 +9,7 @@ use array::ArrayTrait;
         ContractAddress, Felt252TryIntoContractAddress, contract_address_const
     };
 
-    use snforge_std::{declare};
+    use snforge_std::{declare, start_prank, CheatTarget};
 
     use guildly::certificate::interfaces::{ICertificateDispatcher, ICertificateDispatcherTrait};
     use guildly::guild::guild::{
@@ -28,15 +28,15 @@ use array::ArrayTrait;
     };
 
     fn PROXY_ADMIN() -> ContractAddress {
-        contract_address_const::<1>()
-    }
-
-    fn CALLER() -> ContractAddress {
         contract_address_const::<0x1>()
     }
 
-    fn ACCOUNT_2() -> ContractAddress {
+    fn CALLER() -> ContractAddress {
         contract_address_const::<0x2>()
+    }
+
+    fn ACCOUNT_2() -> ContractAddress {
+        contract_address_const::<0x3>()
     }
 
     #[derive(Drop)]
@@ -89,6 +89,11 @@ use array::ArrayTrait;
         let guild_address = guild_manager_dispatcher.deploy_guild('Guild', certificate_address);
         let guild_dispatcher = IGuildDispatcher { contract_address: guild_address };
 
+        // start_prank(CheatTarget::One(guild_address), PROXY_ADMIN());
+
+        // guild_dispatcher.add_member(CALLER(), Roles::MEMBER);
+        // guild_dispatcher.add_member(ACCOUNT_2(), Roles::MEMBER);
+
         // Deploy & init Certificate
         let certificate_dispatcher = ICertificateDispatcher { contract_address: certificate_address };
         certificate_dispatcher.initialize(
@@ -115,11 +120,17 @@ use array::ArrayTrait;
         let mut permissions = ArrayTrait::<Permission>::new();
         permissions.append(Permission { to: contracts.certificate_address, selector: 1528802474226268325865027367859591458315299653151958663884057507666229546336 });
 
+        println!("hello");
+
+        start_prank(CheatTarget::One(contracts.guild_address), PROXY_ADMIN());
         guild_dispatcher.initialize_permissions(permissions);
+        println!("hey");
         let calldata = ArrayTrait::<felt252>::new();
         let mut allowed_calls = ArrayTrait::<Call>::new();
         allowed_calls.append(Call { to: contracts.certificate_address, selector: 1528802474226268325865027367859591458315299653151958663884057507666229546336, calldata });
         guild_dispatcher.execute(allowed_calls, 0);
+
+        println!("hi");
 
         let new_calldata = ArrayTrait::<felt252>::new();
         let mut banned_calls = ArrayTrait::<Call>::new();
@@ -131,7 +142,8 @@ use array::ArrayTrait;
     fn add_members() {
         let contracts = setup();
         let guild_dispatcher = IGuildDispatcher { contract_address: contracts.guild_address };
-        guild_dispatcher.add_member(ACCOUNT_2(), Roles::ADMIN);
+        start_prank(CheatTarget::One(contracts.guild_address), PROXY_ADMIN());
+        guild_dispatcher.add_member(ACCOUNT_2(), Roles::MEMBER);
     }
 
     // #[test]
