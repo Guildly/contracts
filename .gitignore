@@ -1,38 +1,6 @@
-.DS_Store
-node_modules
-.env
-.env.nile
-.vscode
+#######
+Scarb
+#######
 
-#Nile files
-accounts.json
-node.json
-artifacts/
-artifacts
-./artifacts
-
-#Python artifacts
-__pycache__
-.pytest_cache
-.venv
-.python-version
-
-#Ape
-ape-config.yaml
-.build
-
-#Openzeppelin
-openzeppelin
-
-#Pytest
-pytest.ini
-
-# virtualenv
-venv
-
-# helper scripts
-/scripts
-contracts/settling_game
-
-#Protostar
-.protostar_cache/
+target
+.snfoundry_cache

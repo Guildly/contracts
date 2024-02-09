@@ -1,0 +1,23 @@
+[package]
+name = "guildly"
+version = "0.1.0"
+cairo-version = "2.4.1"
+
+[dependencies]
+starknet = ">=2.4.1"
+openzeppelin = { git = "https://github.com/OpenZeppelin/cairo-contracts.git", tag = "v0.8.1" }
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry.git", tag = "v0.14.0" }
+
+[[target.starknet-contract]]
+build-external-contracts = [
+    "openzeppelin::presets::erc20::ERC20", 
+    "openzeppelin::presets::erc721::ERC721"
+]
+sierra = true
+casm = false
+
+[scripts]
+test = "snforge test"
+
+[tool.snforge]
+#exit_first = true

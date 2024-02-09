@@ -1,6 +1,0 @@
-[submodule "cairo_contracts"]
-	path = lib/cairo_contracts
-	url = https://github.com/OpenZeppelin/cairo-contracts
-[submodule "realms_contracts"]
-	path = lib/realms_contracts
-	url = https://github.com/BibliothecaDAO/realms-contracts

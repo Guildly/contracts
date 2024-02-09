@@ -30,7 +30,7 @@ There is a browser extension in development to allow easy use and access to guil
 ## TODO
 
 - [x] Add proxy testing
-- [ ] Dynamic roles
+- [x] Dynamic roles
 - [ ] Reward distribution
 
 ## Setup
