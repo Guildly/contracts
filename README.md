@@ -14,21 +14,16 @@ In order to create a guild follow these steps:
 
 - Deploy a guild contract from the Guild Manager (Factory contract).
 - Initialize permissions of the guild, this is setting some contracts addresses and selectors which the guild can interact with.
-- Whitelist members to your guild, choosing their acess roles (after which they can then opt to join).
+- Add members to your guild, choosing their access roles.
 - Deposit some tokens into the guild.
 - Members of the guild can interact with functions permitted, while also using tokens withiin it.
 
-## Browser Extension
-
-There is a browser extension in development to allow easy use and access to guild contracts. The browser extension code and instructions are in this [Repo](https://github.com/Guildly/guildly-extension).
-
 ## Testing
 
-- Starknet client in pytest used for unit tests (tests)
-- Nile scripts used for testnet deployment (under guildly_cli)
+Some tests have been created in snforge. You can run `scarb test` to run them in the main directory.
 
 ## TODO
 
 - [x] Add proxy testing
-- [x] Dynamic roles
+- [ ] Bit mapped roles
 - [ ] Reward distribution
